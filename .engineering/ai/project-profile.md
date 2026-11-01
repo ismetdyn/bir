@@ -19,7 +19,7 @@ project_profile:
       framework: spring-boot 4.x, spring-ai 2.0.x, mcp-java-sdk (sürüm unknown)
       modules: [kb-api, kb-core, kb-server, kb-client]
   frontend:
-    planned: thymeleaf + htmx + cytoscape.js (F5); picocli + TamboUI 0.x + GraalVM native-image (F3)
+    planned: dear imgui, imgui-java 1.92.7.1, kb-gui modülü (F5, ADR-0021); picocli + TamboUI 0.x + GraalVM native-image (F3)
   data:
     engines: [neo4j-community-embedded]   # planlı; sürüm unknown
     migrations: yok; şema seed/schema/*.yaml
@@ -31,7 +31,7 @@ project_profile:
   evidence:
     files: [CLAUDE.md:20-40, docs/ARCHITECTURE.md:42-53, docs/ROADMAP.md]
   unknowns:
-    - Neo4j, MCP Java SDK, Jackson, picocli, TamboUI, Maven, Thymeleaf, htmx, Cytoscape sürümleri
+    - Neo4j, MCP Java SDK, Jackson, picocli, TamboUI sürümleri
     - Spring Boot 4 + Spring AI 2.0 + gömülü Neo4j birlikte çalışıyor mu (F1 spike'ın sorusu)
     - Paket kökü io.github.<kullanıcı> boş (CLAUDE.md:27)
     - Codex hook alanları ve headless bayraklar (CLAUDE.md "dene ve yaz")

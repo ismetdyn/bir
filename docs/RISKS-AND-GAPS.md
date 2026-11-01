@@ -11,7 +11,7 @@ Her madde bir karar veya görev doğurur. "Faz" sütunu önlemin hangi fazda uyg
 | A3 | Gömülü Neo4j tek süreç kilidi | Sunucu açıkken CLI veritabanını açamaz | CLI her zaman REST API'yi kullanır | F2 |
 | A4 | Bağımlılık çakışması | Boot 4 + Spring AI 2 + Neo4j test edilmemiş kombinasyon | F1 spike; `GraphStore` arayüzü; B planı ayrı Neo4j süreci | F1 |
 | A5 | İki MCP uç noktası | Spring AI auto-config tek sunucu kurar | `/mcp/curator` MCP Java SDK ile elle; spike'ta doğrula | F1 |
-| A6 | Yerel HTTP ≠ güvenli | DNS rebinding ile `127.0.0.1`'e istek; MCP SDK'larında CVE'ler çıktı | `OriginGuard` (Host + Origin) + loopback zorunlu + UI için CSRF (ADR-0020) | F2 |
+| A6 | Yerel HTTP ≠ güvenli | DNS rebinding ile `127.0.0.1`'e istek; MCP SDK'larında CVE'ler çıktı | `OriginGuard` (Host + Origin) + loopback zorunlu (ADR-0020) | F2 |
 | A7 | `kb_cypher` ile sızıntı | `LOAD CSV` dosya okur; `secret_value` sorgulanabilir | `LOAD CSV` yasak; `secret_value` geçen sorgu reddedilir ve sonuçtan çıkarılır | F2 |
 | A8 | Prompt injection | Kayıt veya sinyal "şunu çalıştır" diyebilir | İçerik veridir uyarısı; normatif değişiklikler onaylı; küratörde shell/ağ yok | F2–F4 |
 | A9 | Türkçe arama | Varsayılan analizör `İ/ı`'yı yanlış işler | Analizör seçimi spike + eval | F1 |

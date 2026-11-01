@@ -1,6 +1,6 @@
-# İstemciler: REST API, CLI, TUI, Web GUI (v0.3)
+# İstemciler: REST API, CLI, TUI, masaüstü GUI (v0.3)
 
-Tek API, çok istemci. Ajanlar MCP kullanır; sen CLI/TUI ve web GUI kullanırsın. Hepsi aynı yazma politikasından geçer;
+Tek API, çok istemci. Ajanlar MCP kullanır; sen CLI/TUI ve masaüstü GUI kullanırsın. Hepsi aynı yazma politikasından geçer;
 senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 
 ## 1. REST API v1 (`/api/v1`)
@@ -48,7 +48,7 @@ senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 | `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme |
 | `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir |
 | `kb curator run [--if-needed]` · `kb import-memories` | Küratör |
-| `kb tui` · `kb ui` | Arayüzler |
+| `kb tui` · `kb gui` | Arayüzler |
 
 Çıkış kodları: 0 başarı, 1 hata/bulgu, 3 sunucuya ulaşılamıyor.
 
@@ -82,12 +82,10 @@ Risk: henüz 0.x sürümü. TUI ince bir istemci olduğu için gerekirse Go/Bubb
 | Bayat | `s` | Doğrulanacaklar; "doğruladım" ile `observed_at` tazelenir |
 | Sinyaller | `g` | Açık sinyaller ve "Atılanlar" (hiçbir şey üretmeden kapananlar, nedeniyle); yeniden açınca küratör tekrar bakar |
 
-## 4. Web GUI (`/ui`)
+## 4. Masaüstü GUI (`kb-gui`)
 
-Thymeleaf + htmx + Cytoscape.js (jar içinde, CDN yok). Sayfalar: TUI'nin bütün ekranları, graf gezgini (komşuluk
-genişletme, ilişki türü filtresi), salt okunur Cypher konsolu, secret listesi (sadece adlar), küratör çalışmaları ve eval
-geçmişi.
+Dear ImGui (`imgui-java`), ayrı `kb-gui` modülü; `kb gui` başlatır, `/api/v1` kullanır (ADR-0021). Ekranlar: TUI'nin
+bütün ekranları, graf gezgini (ImNodes; komşuluk genişletme, ilişki türü filtresi), salt okunur Cypher konsolu, secret
+listesi (sadece adlar), küratör çalışmaları ve eval geçmişi.
 
-Güvenlik: `kb ui` 60 sn geçerli tek kullanımlık giriş linki üretir ve tarayıcıyı açar; çerez `HttpOnly`,
-`SameSite=Strict`; CSRF token; CSP `default-src 'self'`; `Origin` aynı origin olmalı. GUI secret değerini hiçbir zaman
-göstermez.
+GUI secret değerini hiçbir zaman göstermez.

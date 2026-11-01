@@ -8,7 +8,7 @@ F0 ve F6 emekliye ayrıldı (ADR-0019).
 
 ```
 F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
-                                └─► F4 küratör ──► F5 web GUI
+                                └─► F4 küratör ──► F5 masaüstü GUI
 ```
 
 ---
@@ -93,10 +93,11 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 
 ---
 
-## F5 — Web GUI
+## F5 — Masaüstü GUI (Dear ImGui)
 
-- [ ] `kb ui` (tek kullanımlık giriş linki) + oturum + CSRF + CSP
-- [ ] Sayfalar: arama, kayıt detayı/düzenleme, graf gezgini (Cytoscape.js), salt okunur Cypher konsolu, çelişkiler,
+- [ ] `kb-gui` modülü + `imgui-java` (sürüm eklenirken yeniden doğrulanır) + `kb gui`
+- [ ] Türkçe font (`ı`, `ğ`, `ş`, `İ`) ve KDE Wayland (pencere, HiDPI, pano) doğrulaması (ADR-0021)
+- [ ] Ekranlar: arama, kayıt detayı/düzenleme, graf gezgini (ImNodes), salt okunur Cypher konsolu, çelişkiler,
       öneriler, aktivite + geri alma, secret listesi (değer yok), küratör çalışmaları ve eval geçmişi
 
 **Bitti tanımı:** Graf üzerinde gezinerek etki analizi yapabiliyorsun; çelişkileri ve önerileri GUI'den çözebiliyorsun.

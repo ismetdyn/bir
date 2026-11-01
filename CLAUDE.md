@@ -2,7 +2,7 @@
 
 agentkb: Claude Code ve Codex için yerel, graf tabanlı bir bilgi bankası. Bilgi gömülü Neo4j'de durur, sunucu onu tek
 başına yazar ve ajanlara MCP üzerinden Markdown olarak sunar; git sadece anlık görüntü ve senkron içindir. Yanında bir
-küratör ajan ve CLI/TUI/web istemcileri var.
+küratör ajan ve CLI/TUI/GUI istemcileri var.
 
 ## Önce oku
 1. `docs/SPEC.md` — ne yapıyoruz, ne yapmıyoruz, veri modeli, kabul ölçütleri
@@ -17,11 +17,11 @@ yazıp sor. Var olan aracı yeniden yazma (sürümleme ve senkron için git, sor
 Grafa damıtılmış bilgi girer; ham dosyalar doküman deposunda, uzun metin grafta değil (ADR-0017).
 
 ## Teknoloji
-- Java 21, Maven çoklu modül (`kb-api`, `kb-core`, `kb-server`, `kb-client`), wrapper `./mvnw`
+- Java 21, Maven çoklu modül (`kb-api`, `kb-core`, `kb-server`, `kb-client`, `kb-gui`), wrapper `./mvnw`
 - Spring Boot 4.x, Spring AI 2.0.x (`spring-ai-starter-mcp-server-webmvc`, `@McpTool`), MCP Java SDK (`/mcp/curator`)
 - Neo4j Community embedded (`GraphStore` arkasında), Jackson (JSON/YAML), sistem `git` (+ `git-lfs`)
 - `kb-client`: picocli + TamboUI, GraalVM native-image
-- Web: Thymeleaf + htmx + Cytoscape.js (jar içinde, CDN yok)
+- GUI: Dear ImGui (`imgui-java`), ayrı `kb-gui` modülü (ADR-0021)
 - Paket kökü: `io.github.ismetdyn.agentkb`
 
 Yeni bağımlılık eklemeden önce sor. Sürümleri tahmin etme; Maven Central veya Context7'den doğrula.
@@ -45,7 +45,7 @@ npx @modelcontextprotocol/inspector http://127.0.0.1:7411/mcp
    (ADR-0020). `kb_remember` secret görünümlü değeri reddeder, hook yakalaması
    onu sinyale yazmadan maskeler. Testler sahte secret dizelerini bütün çıktılarda ve git geçmişinde arar.
 3. **Sunucu LLM çağırmaz** ve dışarıya HTTP isteği yapmaz; sadece `127.0.0.1`'e bağlanır (`kb sync`'in git'i hariç).
-4. **Yerel erişim.** `OriginGuard` atlanamaz ve loopback dışı bağlanma reddedilir (ADR-0020). Token yok. UI'da CSRF.
+4. **Yerel erişim.** `OriginGuard` atlanamaz ve loopback dışı bağlanma reddedilir (ADR-0020). Token yok.
    Küratör sınırları (parti, yazma sayısı, yasak işlemler) prompt'a değil koda dayanır.
 5. **Silme yok.** Fact ve ilişki değişince eskisi kapanır (`valid_to`), yenisi `SUPERSEDES` ile bağlanır; `valid_from`
    (ilk görülme) hiç değişmez. Sinyaller de silinmez; kapanınca sonucu yazılır, ürettiğine `PRODUCED` ile bağlanır.

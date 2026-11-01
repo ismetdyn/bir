@@ -1,6 +1,6 @@
-# ADR-0012: İstemciler — REST API, native CLI/TUI (TamboUI), sunucu içi web GUI (htmx)
+# ADR-0012: İstemciler — REST API, native CLI/TUI (TamboUI), sunucu içi web GUI (htmx) (web GUI yerine ADR-0021)
 
-- Durum: Kabul edildi
+- Durum: Kabul edildi (web GUI maddesi ADR-0021 ile değişti: web GUI yerine Dear ImGui masaüstü istemcisi)
 - Tarih: 2026-10-29
 
 ## Bağlam
@@ -10,6 +10,7 @@ Kullanıcı bilginin var olup olmadığına hızlıca bakmak, bilgi ekleyip sili
 - Tüm insan istemcileri `/api/v1` REST API'sini kullanır; yazma politikası ortak, kaynak `user`.
 - CLI + TUI: tek `kb` binary'si; picocli + TamboUI; GraalVM native-image (gömülü Neo4j taşımadığı için uygun).
 - Web GUI: sunucunun içinde, Thymeleaf + htmx + Cytoscape.js; CDN yok; tek kullanımlık giriş linki, CSRF, CSP.
+  **Değişti (ADR-0021):** web GUI yerine ayrı `kb-gui` modülü, Dear ImGui.
 - Obsidian (Bases dahil) ara çözüm ve tamamlayıcı olarak kalır. **v0.3 (ADR-0014):** vault olmadığı için Obsidian
   çıkarıldı; insan arayüzü TUI ve web GUI.
 

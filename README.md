@@ -4,7 +4,7 @@
 > in an embedded Neo4j graph and is served to agents over MCP as Markdown; git is used only for snapshots and sync;
 > secret values stay in the local graph and never leave the machine; agents use them through placeholders
 > (`kb:secret/<id>`) that `kb run` resolves into environment variables. The kit also contains a curator agent and
-> CLI/TUI/web clients. Documentation is in Turkish.
+> CLI/TUI/GUI clients. Documentation is in Turkish.
 
 Claude Code ve Codex'e ortak, yerel, ilişkisel bir "beyin" veren, kendini düzenleyen bir bilgi deposu.
 
@@ -33,11 +33,11 @@ Bilgi doğrudan grafta duruyor (ADR-0014); secret değerleri sadece bu bilgisaya
 | `docs/MCP-TOOLS.md` | Çalışan ajan ve küratör araçları, açıklama taslakları, örnek Cypher |
 | `docs/SECRETS.md` | Secret'lar: placeholder'lar, `kb run`, akışlar, sınırlar |
 | `docs/CURATOR.md` | Küratör ajan: sinyaller, yetkiler, parti + eval kapısı |
-| `docs/CLIENTS.md` | REST API, CLI komutları, TUI ekranları, web GUI |
+| `docs/CLIENTS.md` | REST API, CLI komutları, TUI ekranları, masaüstü GUI |
 | `docs/RESEARCH.md` | Benzer projeler ve üç tur araştırma bulguları |
 | `docs/RISKS-AND-GAPS.md` | Riskler, bilerek ertelenenler, test stratejisi |
 | `docs/PUBLISHING.md` | GitHub'a koymadan önce kontrol listesi |
-| `docs/adr/` | 20 mimari karar kaydı (0001, 0004, 0005 ve 0007'nin yerini başkaları aldı; 0010 emekli) |
+| `docs/adr/` | 21 mimari karar kaydı (0001, 0004, 0005 ve 0007'nin yerini başkaları aldı; 0010 emekli) |
 | `curator/` | Küratör prompt'u, MCP ayarı, çalıştırma script'i |
 | `seed/` | Örnek repo: varsayılan şema (`seed/schema/`, `kb init` bunu `~/kb/schema/`'ya kopyalar) + örnek graf (`seed/snapshot/*.jsonl`) + örnek doküman (`seed/blobs/`) + `make_seed.py`; test durumları `seed/README.md`'de |
 | `fixtures/scanner/` | Tarayıcı golden testi: örnek Spring projesi + `expected.yaml` |
@@ -69,7 +69,7 @@ Sonraki fazlar için kalıp: "ROADMAP'teki F<n>'i yap; önce testleri yaz; bitti
 | Büyüme | Grafa damıtılmış bilgi; ham dosyalar `~/kb/blobs`; hiçbir şey silinmez ya da gizlenmez, güncel bilgi önce gelir; `kb check` büyümeyi raporlar | ADR-0017 |
 | Yazma | Kaynak sırası (user › user_stated › scan › agent) + çelişki + parti geri alma | ADR-0006 |
 | Config bilgisi | Deterministik tarayıcı | ADR-0008 |
-| TUI / GUI | TamboUI (native) / Thymeleaf + htmx | ADR-0012 |
+| TUI / GUI | TamboUI (native) / Dear ImGui (`kb-gui`) | ADR-0012, ADR-0021 |
 | Küratör | Headless Claude Code, sadece `/mcp/curator` | ADR-0011, CURATOR.md |
 | Yerleşik hafızalar | Kapalı (önce içe aktarılır) | ADR-0013 |
 | Sadelik | Kanıtlanmış ihtiyaç olmadan mekanizma yok | ADR-0016 |

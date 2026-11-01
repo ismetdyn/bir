@@ -24,7 +24,7 @@ insan düzenlemesi (Obsidian) içindi; ana kullanıcı ajan olunca gerekçesi za
 - (+) Tek temsil: satır grameri, ayrıştırıcı, dosya yazıcısı, izleyici ve indeks tutarlılığı sorunu yok.
 - (+) Okuma ve yazma milisaniyeler içinde; sık güncelleme commit gürültüsü üretmez.
 - (+) Geçmiş grafın içinde sorgulanır ("eskiden IP neydi?").
-- (−) Obsidian ile doğrudan düzenleme yok; insan arayüzü TUI ve web GUI.
+- (−) Obsidian ile doğrudan düzenleme yok; insan arayüzü TUI ve masaüstü GUI.
 - (−) Veritabanı artık atılabilir bir indeks değil. Veri dizini `~/.local/share/agentkb/graph`; çökmeye karşı Neo4j'nin
   işlem günlüğü, disk kaybına karşı git anlık görüntüleri (en fazla 10 dakikalık kayıp).
 

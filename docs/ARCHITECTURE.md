@@ -5,7 +5,7 @@
 ```
  Çalışan ajanlar (Claude Code, Codex)                  Sen
    │ MCP /mcp                                           │ kb CLI/TUI ──► REST /api/v1
-   │ hook'lar ─► /hooks/*                               │ Web GUI    ──► /ui (oturum + CSRF)
+   │ hook'lar ─► /hooks/*                               │ kb-gui     ──► REST /api/v1
    │ kb run ─► /api/v1/secrets/{id} → alt süreç ortamı  │
    ▼                                                    ▼
 ┌──────────────── agentkb sunucusu (Spring Boot, 127.0.0.1:7411) ────────────────┐
@@ -30,8 +30,9 @@ agentkb/
 ├── kb-api/            JSON sözleşmeleri (record DTO'lar)
 ├── kb-core/           Saf Java: alan modeli, WritePolicy, Markdown görünümü, secret desenleri, şema doğrulama.
 │                      Spring/Neo4j bağımlılığı YOK → hızlı birim testleri
-├── kb-server/         Spring Boot: graf deposu, yazma servisi, tarayıcı, anlık görüntü/senkron, MCP, REST, hook, UI
+├── kb-server/         Spring Boot: graf deposu, yazma servisi, tarayıcı, anlık görüntü/senkron, MCP, REST, hook
 ├── kb-client/         picocli CLI + TamboUI TUI + `kb run` + `kb secret`; REST istemcisi; GraalVM native-image
+├── kb-gui/            Dear ImGui (`imgui-java`) masaüstü GUI; `/api/v1` istemcisi; JVM ile çalışır, `kb gui` başlatır (ADR-0021)
 ├── curator/           PROMPT.md, mcp.json, run-curator.sh
 └── seed/ fixtures/ eval/ integrations/ docs/
 ```
@@ -45,7 +46,7 @@ agentkb/
 | Depo | Neo4j Community embedded | `GraphStore` arayüzü arkasında; LadybugDB F1'de ölçülen alternatif (ADR-0002) |
 | Git | Sistem `git` (+ büyük dokümanlar için `git-lfs`) | Anlık görüntü ve doküman commit'i, senkron |
 | TUI | TamboUI + GraalVM native | B planı: Go/Bubble Tea |
-| Web GUI | Thymeleaf + htmx + Cytoscape.js (jar içinde, CDN yok) | Node araç zinciri yok |
+| GUI | Dear ImGui (`imgui-java`) + ImNodes (graf) | Ayrı `kb-gui` modülü, JVM; Node araç zinciri yok (ADR-0021) |
 | CLI | picocli | Native-image uyumlu |
 | Test | JUnit 5, AssertJ, ArchUnit, Neo4j test harness, MCP Java SDK client | |
 
@@ -64,13 +65,12 @@ agentkb/
 ├── mcp/        worker/ (KbTools), curator/ (CuratorTools), SchemaResource
 ├── api/        REST kontrolcüleri (/api/v1)
 ├── hooks/      HookController (/hooks/*), BriefService, RecallService, CaptureService
-├── ui/         UiController, şablonlar, statik dosyalar
 ├── eval/       EvalRunner (eval/questions.yaml)
-├── security/   OriginGuard, OneTimeLoginService
+├── security/   OriginGuard
 └── audit/      AuditLog
 ```
 
-ArchUnit kuralları: `mcp|api|hooks|ui` → `write|graph|scan|snapshot|signals|docs` → `kb-core`. Grafa yazan tek sınıf
+ArchUnit kuralları: `mcp|api|hooks` → `write|graph|scan|snapshot|signals|docs` → `kb-core`. Grafa yazan tek sınıf
 `WriteService`'tir (anlık görüntüden içeri alma ve restore dahil, onun üzerinden). Secret değerini döndüren tek yer
 `api` içindeki secret ucudur; `mcp` paketi `SecretService`'e erişemez.
 
@@ -180,9 +180,8 @@ Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s n
 | `/mcp` | yok | Claude Code, Codex | Okuma araçları, `kb_remember`, `kb_scan`, `kb_propose` |
 | `/mcp/curator` | yok | Küratör | Okuma, sinyal okuma, hijyen yazma, öneri, parti kontrolü |
 | `/hooks/*` | yok | `kb-hook.sh` | brief, recall, capture |
-| `/api/v1/**` | yok | `kb` CLI/TUI | CRUD, çelişki çözme, öneri onayı, sinyal yeniden açma, revert, restore, senkron, tarama, secret yazma |
+| `/api/v1/**` | yok | `kb` CLI/TUI, `kb-gui` | CRUD, çelişki çözme, öneri onayı, sinyal yeniden açma, revert, restore, senkron, tarama, secret yazma |
 | `/api/v1/secrets/{id}` (GET) | yok | `kb run`, `kb secret show` | Secret değerini döner; başka hiçbir uç döndürmez |
-| `/ui/**` | oturum (tek kullanımlık link) + CSRF | Tarayıcı | `/api/v1` ile aynı, secret ucu hariç |
 | `/actuator/health` | yok | systemd, `kb doctor` | Detaysız sağlık |
 
 Token yok (ADR-0020); tüm uçlar `OriginGuard` arkasındadır (§10).
@@ -191,8 +190,6 @@ Token yok (ADR-0020); tüm uçlar `OriginGuard` arkasındadır (§10).
 
 - `OriginGuard` (servlet `Filter`, `/*`): `Origin` başlığı varsa 403; `Host` ∈ {`127.0.0.1:7411`, `localhost:7411`}.
 - Loopback zorunlu: `server.address` loopback değilse sunucu açılmayı reddeder (ADR-0020).
-- `/ui`: `Origin` = `http://127.0.0.1:7411`; `SameSite=Strict`, `HttpOnly` çerez; Spring Security CSRF; CSP
-  `default-src 'self'`; giriş linki 60 sn geçerli, tek kullanımlık.
 - Sunucu dışarıya HTTP çağrısı yapmaz; tek çıkış `kb sync`'in git'idir.
 
 ## 11. Hook entegrasyonu
