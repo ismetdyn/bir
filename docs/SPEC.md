@@ -252,10 +252,10 @@ bilgisayarlar arasında senkronlanmaz. Ayrıntılar: SECRETS.md.
 ## 11. Fonksiyonel gereksinimler
 
 ### 11.1 Arayüzler
-- **MCP — çalışan ajanlar** (`/mcp`, `agent` token): `kb_brief`, `kb_search`, `kb_read`, `kb_related`, `kb_cypher`,
+- **MCP — çalışan ajanlar** (`/mcp`): `kb_brief`, `kb_search`, `kb_read`, `kb_related`, `kb_cypher`,
   `kb_schema`, `kb_stale`, `kb_remember`, `kb_scan`, `kb_propose`. Bkz. MCP-TOOLS.md.
-- **MCP — küratör** (`/mcp/curator`, `curator` token): okuma araçları + `cur_*` araçları. Bkz. CURATOR.md.
-- **REST** (`/api/v1`, `user` token): CLI ve TUI. **Hook uçları** (`/hooks/*`, `hook` token). **Web GUI** (`/ui`).
+- **MCP — küratör** (`/mcp/curator`): okuma araçları + `cur_*` araçları. Bkz. CURATOR.md.
+- **REST** (`/api/v1`): CLI ve TUI. **Hook uçları** (`/hooks/*`). **Web GUI** (`/ui`).
 - Okuma araçları Markdown döner, en fazla 8.000 karakter. Hiçbir kaydı gizlemez: güncel bilgi önce, geçmiş ve ham
   sinyaller işaretli olarak sonra gelir (§6.3). Secret değeri hiçbir okuma aracından dönmez; secret'lar
   placeholder'larıyla görünür.
@@ -290,12 +290,12 @@ parti geri alınır. Bkz. CURATOR.md.
 ## 13. Güvenlik gereksinimleri
 
 1. **Bağlanma:** sadece `127.0.0.1`.
-2. **Token kapsamları:** `agent`, `curator`, `hook`, `user` (`~/.config/agentkb/tokens/`, 0600). Her uç sadece kendi
-   kapsamını kabul eder; sınırlar sunucuda zorlanır.
-3. **DNS rebinding / CSRF:** `/mcp*`, `/api/*`, `/hooks/*` için `Origin` başlığı varsa ret; `Host` izin listesi. `/ui`
+2. **Token ve kapsamlar:** v2'ye kaldı (ADR-0020). Uçlar ayrı durur; küratör sınırları ve Cypher kısıtları kodda kalır.
+3. **DNS rebinding / CSRF:** `OriginGuard` (servlet `Filter`, `/*`): `Origin` başlığı varsa ret; `Host` izin listesi.
+   `server.address` loopback değilse sunucu açılmayı reddeder (ADR-0020). `/ui`
    için aynı origin, `SameSite=Strict` çerez, CSRF token, sıkı CSP, tek kullanımlık giriş linki (`kb ui`).
 4. **Secret:** değer anlık görüntü, git, log, audit, MCP/REST okuma çıktısı ve hata mesajlarına girmez; sadece bu
-   bilgisayardaki grafta durur. Değeri sadece `user` token'lı tek uç döndürür. `kb_remember` secret görünümlü değeri
+   bilgisayardaki grafta durur. Değeri sadece tek uç döndürür. `kb_remember` secret görünümlü değeri
    reddeder; hook yakalaması onu sinyale yazmadan maskeler. Veri dizini 0700.
 5. **`kb_cypher`:** EXPLAIN ile READ_ONLY kontrolü; `LOAD CSV` ve yönetim prosedürleri yasak; `secret_value` geçen
    sorgu reddedilir ve sonuçlardan bu alan çıkarılır; 5 sn, 200 satır.
@@ -329,7 +329,7 @@ görüntü reposu asla public olmaz. Kontrol listesi: PUBLISHING.md.
       ve `kb_related`'da `arşiv` işaretli; güncel sonuçlar her zaman önce; sınırı aşan metin reddediliyor; `kb check`
       büyüme raporu veriyor (test, eval q16–q18).
 - [ ] `kb doc add`: secret içeren dosya reddediliyor; aynı dosya ikinci kez eklenmiyor (test).
-- [ ] Token'sız, yanlış kapsamlı ve yanlış `Origin`'li istekler reddediliyor (test).
+- [ ] Yanlış `Host` veya `Origin` ile gelen istekler ve loopback dışı açılış reddediliyor (test).
 - [ ] TUI: arama, görüntüleme, ekleme/düzenleme, arşivleme, çelişki çözme, öneri onayı.
 - [ ] Küratör: eval'i düşüren parti otomatik geri alındı (test).
 - [ ] Sunucu kapalıyken iki ajanda da oturum açılıyor.

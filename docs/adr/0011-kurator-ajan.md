@@ -10,7 +10,7 @@ kurmamalı; çalışan ajanlar sadece bu yapıyı kullanmalı.
 ## Karar
 - Küratör zamanlanmış headless bir Claude Code oturumudur; sadece `/mcp/curator` araçlarına sahiptir (shell, dosya, ağ yok).
 - Çalışan ajanlarla iletişim yoktur; sinyaller ve bilgi bankası üzerinden dolaylı çalışır (karatahta).
-- Yetkiler `curator` token kapsamıyla sunucuda zorlanır: hijyen otomatik, normatif değişiklikler öneri, değişmezler yasak.
+- Yetkiler `/mcp/curator` ucunun kod sınırlarıyla sunucuda zorlanır (ADR-0020): hijyen otomatik, normatif değişiklikler öneri, değişmezler yasak.
 - Değişiklikler partiler halinde yapılır; parti sonunda sunucu eval ve `kb check` çalıştırır; gerileme varsa parti geri alınır.
 
 ## Gerekçe

@@ -23,9 +23,9 @@ project_profile:
   data:
     engines: [neo4j-community-embedded]   # planlı; sürüm unknown
     migrations: yok; şema seed/schema/*.yaml
-    seed: seed/snapshot (45 düğüm, 59 kenar)
+    seed: seed/snapshot (44 düğüm, 57 kenar)
   identity:
-    provider: yok                 # token kapsamları: agent, curator, hook, user (SPEC §13)
+    provider: yok                 # token yok, OriginGuard + loopback (ADR-0020)
   delivery:
     ci: yok                       # planlı GitHub Actions; .gitlab-ci.yml yalnız fixture içinde
   evidence:

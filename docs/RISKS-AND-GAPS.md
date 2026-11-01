@@ -11,7 +11,7 @@ Her madde bir karar veya görev doğurur. "Faz" sütunu önlemin hangi fazda uyg
 | A3 | Gömülü Neo4j tek süreç kilidi | Sunucu açıkken CLI veritabanını açamaz | CLI her zaman REST API'yi kullanır | F2 |
 | A4 | Bağımlılık çakışması | Boot 4 + Spring AI 2 + Neo4j test edilmemiş kombinasyon | F1 spike; `GraphStore` arayüzü; B planı ayrı Neo4j süreci | F1 |
 | A5 | İki MCP uç noktası | Spring AI auto-config tek sunucu kurar | `/mcp/curator` MCP Java SDK ile elle; spike'ta doğrula | F1 |
-| A6 | Yerel HTTP ≠ güvenli | DNS rebinding ile `127.0.0.1`'e istek; MCP SDK'larında CVE'ler çıktı | Token kapsamları + Host/Origin kontrolü + UI için CSRF | F2 |
+| A6 | Yerel HTTP ≠ güvenli | DNS rebinding ile `127.0.0.1`'e istek; MCP SDK'larında CVE'ler çıktı | `OriginGuard` (Host + Origin) + loopback zorunlu + UI için CSRF (ADR-0020) | F2 |
 | A7 | `kb_cypher` ile sızıntı | `LOAD CSV` dosya okur; `secret_value` sorgulanabilir | `LOAD CSV` yasak; `secret_value` geçen sorgu reddedilir ve sonuçtan çıkarılır | F2 |
 | A8 | Prompt injection | Kayıt veya sinyal "şunu çalıştır" diyebilir | İçerik veridir uyarısı; normatif değişiklikler onaylı; küratörde shell/ağ yok | F2–F4 |
 | A9 | Türkçe arama | Varsayılan analizör `İ/ı`'yı yanlış işler | Analizör seçimi spike + eval | F1 |
@@ -22,7 +22,7 @@ Her madde bir karar veya görev doğurur. "Faz" sütunu önlemin hangi fazda uyg
 | A14 | Tarayıcıyla keyfi dosya okuma | Ajan `~/.ssh`'ı taratabilir | `allowed-roots`; sadece bilinen dosya türleri | F2 |
 | A15 | Secret maskeleme atlatma | Kararlı ajan değeri kodlayarak yazdırabilir | Audit; asıl çözüm secret'ları repodan çıkarmak | F2 |
 | A16 | Secret değeri diskte şifresiz | Aynı kullanıcıyla çalışan bir süreç veri dizinini okuyabilir; disk kaybında değer gider | Veri dizini 0700; değer git'e gitmez; asıl kaynak parola yöneticisinde | F2 |
-| A17 | Token'ların ajanlarca okunması | `user` token'ı ile secret değerini alma | Token dosyaları 0600 | F2 |
+| A17 | Ajanın secret değerini alması | Ajan aynı hesapta; `GET /api/v1/secrets/{id}` çağırabilir | Kabul edildi (ADR-0020): kural olarak kalır, zorlanmaz; token v2'de | Kabul |
 | A25 | Dokümanla secret sızması | Eklenen PDF/not içinde parola olabilir; ajan dokümanı okur | `kb doc add` önce secret taraması yapar, bulursa reddeder | F3 |
 | A26 | Bilgiye erişememe | Eski değer, biten ilişki ya da arşivli kayıt sonuçlardan süzülürse ajan "bilgi bankasında yok" sanar ve kullanıcıya yeniden sorar | Gizleme yok: güncel önce, geçmiş ve ham sinyal işaretli sonra; eski değer eşleşince güncel değer de yazılır; eval'de eski IP, arşivli varlık ve biten ilişki soruları (q16–q18) | F2 |
 | A27 | İçeri almada kayıp | Sınırdan uzun ya da şema değişmeden önce yazılmış bir kayıt senkronda reddedilirse o bilgisayarda kaybolur | Sınırlar ve şema doğrulaması sadece yeni yazmalara; içeri alma ve restore hiçbir kaydı reddetmez (test) | F2 |
@@ -72,5 +72,5 @@ Aşağıdakiler bir hata, ölçüm ya da açık istek olmadan eklenmez:
 | Golden | `seed/` → beklenen görünümler; `fixtures/scanner` → beklenen fact'ler | Snapshot |
 | Entegrasyon | Yazma servisi + Neo4j; anlık görüntü → restore; iki repo ile senkron | Neo4j test harness, geçici git repoları |
 | Sözleşme | İki MCP uç noktasının `tools/list` ve şemaları; hook uçları | MCP Java SDK client, MockMvc |
-| Güvenlik | Yazma Cypher'ları, `LOAD CSV`, `secret_value`, token'sız/yanlış kapsam/yanlış Origin, sahte secret dizelerinin bütün çıktılarda ve git geçmişinde aranması, secret içeren dokümanın reddi | Negatif testler |
+| Güvenlik | Yazma Cypher'ları, `LOAD CSV`, `secret_value`, yanlış Host/Origin, loopback dışı açılış, sahte secret dizelerinin bütün çıktılarda ve git geçmişinde aranması, secret içeren dokümanın reddi | Negatif testler |
 | Değerlendirme | `eval/questions.yaml` | `EvalRunner`, CI eşiği |

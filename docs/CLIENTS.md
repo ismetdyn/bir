@@ -3,7 +3,7 @@
 Tek API, çok istemci. Ajanlar MCP kullanır; sen CLI/TUI ve web GUI kullanırsın. Hepsi aynı yazma politikasından geçer;
 senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 
-## 1. REST API v1 (`/api/v1`, `user` token)
+## 1. REST API v1 (`/api/v1`)
 
 | Metot | Yol | Ne |
 |---|---|---|
@@ -32,7 +32,7 @@ senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 
 | Komut | Ne |
 |---|---|
-| `kb init` | Token'lar, dizinler (veri dizini 0700), `~/kb` reposu (oluştur ya da klonla), şema |
+| `kb init` | Dizinler (veri dizini 0700), `~/kb` reposu (oluştur ya da klonla), şema |
 | `kb ? <sorgu>` | Hızlı kontrol: var mı, tek satırda ana bilgiler |
 | `kb find <sorgu>` · `kb show <id>` | Arama, kayıt detayı (Markdown) |
 | `kb add <tür> <id>` · `kb edit <id>` · `kb archive <id>` | Varlık |

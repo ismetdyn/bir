@@ -47,7 +47,7 @@ kb run --env AD=kb:secret/<id> [--env AD2=...] [--file AD3=kb:secret/<id>] -- <k
 | Anahtar dosyası gerekiyor | `kb run --file KEY=kb:secret/ornek-app-01/prod/deploy-ssh-key -- sh -c 'ssh -i "$KEY" deploy@ornek-app-01'` |
 | Config dosyası | Dosyaya değer değil `${DB_PASSWORD}` yazılır; uygulama `kb run --env DB_PASSWORD=…` ile başlatılır |
 
-- `kb run` değeri `GET /api/v1/secrets/{id}`'den alır (`user` token) ve sadece alt sürecin ortamına koyar. `--file`
+- `kb run` değeri `GET /api/v1/secrets/{id}`'den alır ve sadece alt sürecin ortamına koyar. `--file`
   için 0600 izinli geçici bir dosya oluşturur, yolunu değişkene koyar ve çıkışta siler.
 - Değer komut satırına yazılmaz; komut satırı süreç listesinde (`ps`) görünür. Bu yüzden `sh -c '…'` içinde tek tırnak
   kullanılır: değişkeni ajanın kabuğu değil, alt süreç açar.
@@ -78,7 +78,7 @@ yolunu kapatan bir savunma olduğunu belirtir.
 
 | Katman | Ne yapar |
 |---|---|
-| Sunucu | Değeri MCP, Cypher, UI ve anlık görüntüye vermez; tek çıkışı `GET /api/v1/secrets/{id}` (`user` token). `kb_remember` secret görünümlü değeri reddeder; hook yakalaması sinyale yazmadan maskeler |
+| Sunucu | Değeri MCP, Cypher, UI ve anlık görüntüye vermez; tek çıkışı `GET /api/v1/secrets/{id}`. Ajanın değeri görmemesi kuraldır, zorlanan bir sınır değil (ADR-0020). `kb_remember` secret görünümlü değeri reddeder; hook yakalaması sinyale yazmadan maskeler |
 | `kb_cypher` | `secret_value` geçen sorguyu reddeder, sonuçlardaki Secret düğümlerinden bu alanı çıkarır |
 | Anlık görüntü | `secret_value` yazılmaz (test: sahte değer `~/kb` altında ve git geçmişinde aranır) |
 | Veri dizini | `~/.local/share/agentkb` 0700 |

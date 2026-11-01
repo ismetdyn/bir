@@ -40,12 +40,13 @@ npx @modelcontextprotocol/inspector http://127.0.0.1:7411/mcp
 1. **Tek yazıcı.** Grafa sadece `WriteService` yazar (anlık görüntüden içeri alma ve restore dahil). MCP katmanı
    grafa doğrudan yazmaz.
 2. **Secret değeri** sadece bu bilgisayardaki grafta (`secret_value`) durur; anlık görüntü, git, log, audit, MCP/REST
-   okuma çıktısı ve hata mesajlarına girmez. Değeri sadece `GET /api/v1/secrets/{id}` (user token) döndürür. Ajanlar
-   placeholder (`kb:secret/<id>`) ve `kb run` kullanır. `kb_remember` secret görünümlü değeri reddeder, hook yakalaması
+   okuma çıktısı ve hata mesajlarına girmez. Değeri sadece `GET /api/v1/secrets/{id}` döndürür. Ajanlar
+   placeholder (`kb:secret/<id>`) ve `kb run` kullanır; ajanın değeri görmemesi zorlanan bir sınır değil kuraldır
+   (ADR-0020). `kb_remember` secret görünümlü değeri reddeder, hook yakalaması
    onu sinyale yazmadan maskeler. Testler sahte secret dizelerini bütün çıktılarda ve git geçmişinde arar.
 3. **Sunucu LLM çağırmaz** ve dışarıya HTTP isteği yapmaz; sadece `127.0.0.1`'e bağlanır (`kb sync`'in git'i hariç).
-4. **Kapsamlar sunucuda.** Her uç kendi token kapsamını doğrular (`agent`, `curator`, `hook`, `user`); `OriginGuard`
-   atlanamaz; UI'da CSRF. Küratör sınırları (parti, yazma sayısı, yasak işlemler) prompt'a değil koda dayanır.
+4. **Yerel erişim.** `OriginGuard` atlanamaz ve loopback dışı bağlanma reddedilir (ADR-0020). Token yok. UI'da CSRF.
+   Küratör sınırları (parti, yazma sayısı, yasak işlemler) prompt'a değil koda dayanır.
 5. **Silme yok.** Fact ve ilişki değişince eskisi kapanır (`valid_to`), yenisi `SUPERSEDES` ile bağlanır; `valid_from`
    (ilk görülme) hiç değişmez. Sinyaller de silinmez; kapanınca sonucu yazılır, ürettiğine `PRODUCED` ile bağlanır.
    Normatif değişiklikler (karar, kural, şema, arşiv) sadece `Proposal` + kullanıcı onayı ile.

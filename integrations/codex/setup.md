@@ -7,7 +7,6 @@
 ```toml
 [mcp_servers.kb]
 url = "http://127.0.0.1:7411/mcp"
-bearer_token_env_var = "KB_AGENT_TOKEN"
 
 [features]
 # Normal modda yapılandırılmış soru aracı (soru-cevap yakalama için; AGENT-RULES ile birlikte)
@@ -15,11 +14,7 @@ default_mode_request_user_input = true
 # Codex Memories açılmaz (varsayılan kapalı) — tek beyin agentkb
 ```
 
-Codex streamable HTTP için düz `bearer_token` kabul etmiyor; token ortam değişkeninden okunur. Kabuk profiline:
-
-```bash
-export KB_AGENT_TOKEN="$(cat ~/.config/agentkb/tokens/agent 2>/dev/null)"
-```
+Token ve ortam değişkeni gerekmez (ADR-0020). `OriginGuard` eklenince bağlantının geçtiği F2'de doğrulanır.
 
 Kontrol: `codex mcp list`, Codex içinde `/mcp`.
 

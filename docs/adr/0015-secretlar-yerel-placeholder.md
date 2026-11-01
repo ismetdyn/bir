@@ -18,7 +18,7 @@ kopyalanır.
    ortamına koyar ve çıktıda maskeler. Değer komut satırına yazılmaz, çünkü süreç listesinde görünür.
 3. Değer bu bilgisayardan çıkmaz: anlık görüntüye, git'e, loglara, audit'e, MCP/REST okuma çıktılarına ve hata
    mesajlarına girmez. Anlık görüntüde Secret düğümü (ad, ortam, kime ait) vardır, değeri yoktur.
-4. Değeri döndüren tek uç `GET /api/v1/secrets/{id}`'dir (`user` token). Onu sadece `kb run` ve insan için
+4. Değeri döndüren tek uç `GET /api/v1/secrets/{id}`'dir. Ajanın değeri görmemesi kuraldır, zorlanan bir sınır değil (ADR-0020). Onu sadece `kb run` ve insan için
    `kb secret show` kullanır.
 5. Değer `kb secret set <id>` ile terminalde maskeli girilir ya da tarayıcı config dosyasından okur. Değişince eskisi
    tutulmaz; geçmişi saklanmayan tek alan budur.

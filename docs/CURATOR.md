@@ -51,10 +51,10 @@ raporuna bakar.
 | Tekrar varlıkları birleştirme, alias ekleme | Yeni/değişen karar ve kural | Karar/kural/şema yazmak |
 | Yanlış ilişkiyi düzeltme, ilişki türünü normalleştirme | Kural güncelleme/emekliye ayırma | `user` kaynaklı fact kapatmak |
 | Ham soru-cevabı yapılandırma (`cur_structure_signal`) | | Secret okumak/yazmak |
-| Bayatlık işaretleme | Kayıt silme/arşivleme (kullanılmayan varlıklar için arşiv önerisi) | hook, token, kendi ayarlarına dokunmak |
+| Bayatlık işaretleme | Kayıt silme/arşivleme (kullanılmayan varlıklar için arşiv önerisi) | hook, kendi ayarlarına dokunmak |
 | Sinyalleri kapatma | Şema sözlüğüne yeni anahtar/ilişki türü | Parti dışında yazmak; çalışan ajanlarla iletişim; shell/ağ |
 
-Prompt ikna edilebilir, yetki kapsamı edilemez: bu sınırlar `curator` token'ının kapsamıdır.
+Prompt ikna edilebilir, kod edilemez: bu sınırlar `curator` ucunun kod sınırlarıdır (ADR-0020).
 
 ## 4. Çalışma döngüsü
 

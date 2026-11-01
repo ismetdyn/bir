@@ -27,6 +27,9 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
 ## F2 — Bilgi çekirdeği
 
 - [ ] Maven çoklu modül iskeleti: `kb-api`, `kb-core`, `kb-server`, `kb-client`
+- [ ] `OriginGuard` (servlet Filter, `/*`: Host + Origin) + loopback dışı açılış reddi + negatif testler; Claude Code ve
+      Codex'in geçtiğini doğrula (ADR-0020). Veri aracından önce.
+- [ ] `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale gelir
 - [ ] Graf modeli (SPEC §6), şema yükleyici (`schema/*.yaml`), kısıtlar ve tam metin indeksi
 - [ ] `WritePolicy` (kb-core, saf, tablo güdümlü testler): kaynak sırası, tazeleme (`valid_from` değişmez), kapat +
       ekle, çelişki
@@ -48,7 +51,7 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
       kayıt içeri alınırken reddedilmiyor; eski IP ve arşivli varlık aramada işaretli olarak çıkıyor (eval q16–q18)
 - [ ] Hook uçları (`/hooks/session-start`, `/user-prompt-submit`, `/post-tool-use`) + `integrations/kb-hook.sh`;
       yakalamada secret maskeleme (test)
-- [ ] Token kapsamları + `OriginGuard`; `kb init` (geçici olarak sunucu jar'ında); systemd servisi
+- [ ] `kb init` (geçici olarak sunucu jar'ında); systemd servisi
 - [ ] `EvalRunner` + `eval/questions.yaml`; `seed/` ile yüklenen örnek veride CI eşiği
 - [ ] AGENT-RULES devreye (sunucu kapalıyken anlık görüntüden salt okunur okuma dahil); yerleşik hafızaları kapatma
       (önce `kb import-memories`)
@@ -114,5 +117,6 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 | Secret değerlerinin bilgisayarlar arası senkronu (yerleşik anahtarla şifreleme) | Aynı secret'lar ikinci bir bilgisayarda gerçekten gerekince |
 | Kullanıma göre önem puanı | Eval'de arama sıralaması sorun olunca |
 | Takım kullanımı | Ekip arkadaşı kullanmak isteyince |
+| Token ve kapsamlar | Başka kullanıcı/makine erişecekse ya da ajanın secret değerine erişimi gerçekten engellenecekse (ADR-0020) |
 | Salt okunur Markdown dışa aktarımı (Obsidian'da göz atmak için) | İstenirse |
 | agentguard (ajan işinin kalitesi) ayrı proje | F2–F5 bitince kullanıcıya hatırlat |

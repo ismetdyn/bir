@@ -4,8 +4,8 @@
 
 ```
  Çalışan ajanlar (Claude Code, Codex)                  Sen
-   │ MCP /mcp (agent token)                             │ kb CLI/TUI ──► REST /api/v1 (user token)
-   │ hook'lar ─► /hooks/* (hook token)                  │ Web GUI    ──► /ui (oturum + CSRF)
+   │ MCP /mcp                                           │ kb CLI/TUI ──► REST /api/v1
+   │ hook'lar ─► /hooks/*                               │ Web GUI    ──► /ui (oturum + CSRF)
    │ kb run ─► /api/v1/secrets/{id} → alt süreç ortamı  │
    ▼                                                    ▼
 ┌──────────────── agentkb sunucusu (Spring Boot, 127.0.0.1:7411) ────────────────┐
@@ -16,7 +16,7 @@
 │  Anlık görüntü: 10 dk'da bir ~/kb/snapshot/*.jsonl → git → GitHub (private)    │
 │  Doküman deposu: ~/kb/blobs/<sha256> (aynı git reposu)                         │
 └──────────────────────────────────▲─────────────────────────────────────────────┘
-                                   │ MCP /mcp/curator (curator token)
+                                   │ MCP /mcp/curator
                        Küratör (systemd timer → headless Claude Code)
 ```
 
@@ -66,7 +66,7 @@ agentkb/
 ├── hooks/      HookController (/hooks/*), BriefService, RecallService, CaptureService
 ├── ui/         UiController, şablonlar, statik dosyalar
 ├── eval/       EvalRunner (eval/questions.yaml)
-├── security/   TokenScopeFilter, OriginGuard, OneTimeLoginService
+├── security/   OriginGuard, OneTimeLoginService
 └── audit/      AuditLog
 ```
 
@@ -139,7 +139,7 @@ Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s n
   şifreleme yok (ADR-0015).
 - **Yazma:** `kb secret set <id>` değeri terminalde maskeli alır, `PUT /api/v1/secrets/{id}` ile gönderir; tarayıcı
   config dosyasından okur. Değişince eskisi tutulmaz.
-- **Okuma:** sadece `GET /api/v1/secrets/{id}` (`user` token); onu `kb run` ve `kb secret show` kullanır. MCP, Cypher,
+- **Okuma:** sadece `GET /api/v1/secrets/{id}`; onu `kb run` ve `kb secret show` kullanır. MCP, Cypher,
   UI, anlık görüntü, log ve hata mesajları değeri hiç görmez.
 - **Placeholder:** `kb run --env AD=kb:secret/<id> -- <komut>` değeri alt sürecin ortamına koyar; stdout/stderr'i akış
   halinde süzer: değerin kendisi, base64 ve URL-encoded biçimleri `****` ile maskelenir; çıkış kodunu aynen döner.
@@ -175,21 +175,22 @@ Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s n
 
 ## 9. API yüzeyleri ve kapsamlar
 
-| Uç | Token/oturum | Kim | İzinli işlemler |
+| Uç | Oturum | Kim | İzinli işlemler |
 |---|---|---|---|
-| `/mcp` | `agent` | Claude Code, Codex | Okuma araçları, `kb_remember`, `kb_scan`, `kb_propose` |
-| `/mcp/curator` | `curator` | Küratör | Okuma, sinyal okuma, hijyen yazma, öneri, parti kontrolü |
-| `/hooks/*` | `hook` | `kb-hook.sh` | brief, recall, capture |
-| `/api/v1/**` | `user` | `kb` CLI/TUI | CRUD, çelişki çözme, öneri onayı, sinyal yeniden açma, revert, restore, senkron, tarama, secret yazma |
-| `/api/v1/secrets/{id}` (GET) | `user` | `kb run`, `kb secret show` | Secret değerini döner; başka hiçbir uç döndürmez |
-| `/ui/**` | oturum (tek kullanımlık link) | Tarayıcı | `/api/v1` ile aynı, secret ucu hariç |
+| `/mcp` | yok | Claude Code, Codex | Okuma araçları, `kb_remember`, `kb_scan`, `kb_propose` |
+| `/mcp/curator` | yok | Küratör | Okuma, sinyal okuma, hijyen yazma, öneri, parti kontrolü |
+| `/hooks/*` | yok | `kb-hook.sh` | brief, recall, capture |
+| `/api/v1/**` | yok | `kb` CLI/TUI | CRUD, çelişki çözme, öneri onayı, sinyal yeniden açma, revert, restore, senkron, tarama, secret yazma |
+| `/api/v1/secrets/{id}` (GET) | yok | `kb run`, `kb secret show` | Secret değerini döner; başka hiçbir uç döndürmez |
+| `/ui/**` | oturum (tek kullanımlık link) + CSRF | Tarayıcı | `/api/v1` ile aynı, secret ucu hariç |
 | `/actuator/health` | yok | systemd, `kb doctor` | Detaysız sağlık |
 
-Token'lar `kb init` ile üretilir: `~/.config/agentkb/tokens/{agent,curator,hook,user}` (0600).
+Token yok (ADR-0020); tüm uçlar `OriginGuard` arkasındadır (§10).
 
 ## 10. Ağ güvenliği
 
-- `OriginGuard`: `/mcp*`, `/hooks/*`, `/api/*` için `Origin` başlığı varsa 403; `Host` ∈ {`127.0.0.1:7411`, `localhost:7411`}.
+- `OriginGuard` (servlet `Filter`, `/*`): `Origin` başlığı varsa 403; `Host` ∈ {`127.0.0.1:7411`, `localhost:7411`}.
+- Loopback zorunlu: `server.address` loopback değilse sunucu açılmayı reddeder (ADR-0020).
 - `/ui`: `Origin` = `http://127.0.0.1:7411`; `SameSite=Strict`, `HttpOnly` çerez; Spring Security CSRF; CSP
   `default-src 'self'`; giriş linki 60 sn geçerli, tek kullanımlık.
 - Sunucu dışarıya HTTP çağrısı yapmaz; tek çıkış `kb sync`'in git'idir.
@@ -215,7 +216,7 @@ Code'u sadece `/mcp/curator` araçlarıyla başlatır. Ayrıntılar: CURATOR.md.
 - **Aktivite:** graftaki `source`, `batch` ve `updated_at` alanlarından; TUI ve GUI'de "Aktivite" ekranı.
 - **`audit.jsonl`:** `{ts, scope, client, tool, durationMs, resultCount, rejected?, reason?}`; içerik, sorgu metni,
   secret yok.
-- **`kb doctor`:** sunucu, graf, son anlık görüntü ve senkron zamanı, token ve veri dizini izinleri, bu bilgisayarda
+- **`kb doctor`:** sunucu, graf, son anlık görüntü ve senkron zamanı, veri dizini izinleri, bu bilgisayarda
   değeri olmayan secret'lar, büyük doküman varsa git-lfs kurulumu, iki ajanın MCP ve hook yapılandırması, son küratör çalışması ve eval skoru. LFS gönderimi başarısız olursa `kb sync` hata verir.
 - **`kb check`:** tutarlılık sorunları (sahipsiz kenar, sözlük dışı ilişki, açık çelişki) ve büyüme raporu: varlıklar
   (duruma göre), güncel ve kapalı fact'ler, kararlar, dersler, dokümanlar (toplam boyut), açık, işlenmiş ve atılan
@@ -229,7 +230,6 @@ agentkb:
   repo: ${HOME}/kb                          # anlık görüntü + şema (git)
   data-dir: ${HOME}/.local/share/agentkb    # graph/ burada (0700); asla senkronlanmaz; secret değerleri burada
   state-dir: ${HOME}/.local/state/agentkb   # audit, küratör özetleri
-  tokens-dir: ${HOME}/.config/agentkb/tokens
   scan:
     allowed-roots: [${HOME}/projects, ${HOME}/git]
     internal-domains: [ornek.example]       # bu alanlardaki host'lar için varlık id'si = ilk DNS etiketi

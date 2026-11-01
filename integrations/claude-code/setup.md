@@ -1,16 +1,15 @@
 # Claude Code entegrasyonu
 
-Ön koşul: `~/kb-tools/` altında `kb-hook.sh`, `AGENT-RULES.md`; `kb init` çalıştırılmış
-(`~/.config/agentkb/tokens/` dolu). Hook'lar F2'de kurulur.
+Ön koşul: `~/kb-tools/` altında `kb-hook.sh`, `AGENT-RULES.md`; `kb init` çalıştırılmış.
+Hook'lar F2'de kurulur. Token yok (ADR-0020).
 
 ## 1. MCP sunucusu (F1+)
 
 ```bash
-claude mcp add --scope user --transport http kb http://127.0.0.1:7411/mcp \
-  --header "Authorization: Bearer $(cat ~/.config/agentkb/tokens/agent)"
+claude mcp add --scope user --transport http kb http://127.0.0.1:7411/mcp
 ```
 
-Token `~/.claude.json`'a yazılır; dosya 0600 olmalı. Kontrol: Claude Code içinde `/mcp`.
+Kontrol: Claude Code içinde `/mcp`. `OriginGuard` eklenince bağlantının geçtiği F2'de doğrulanır (ADR-0020).
 
 ## 2. Hook'lar — `~/.claude/settings.json`
 

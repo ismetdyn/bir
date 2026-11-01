@@ -37,7 +37,7 @@ Bilgi doğrudan grafta duruyor (ADR-0014); secret değerleri sadece bu bilgisaya
 | `docs/RESEARCH.md` | Benzer projeler ve üç tur araştırma bulguları |
 | `docs/RISKS-AND-GAPS.md` | Riskler, bilerek ertelenenler, test stratejisi |
 | `docs/PUBLISHING.md` | GitHub'a koymadan önce kontrol listesi |
-| `docs/adr/` | 19 mimari karar kaydı (0001, 0004, 0005 ve 0007'nin yerini başkaları aldı; 0010 emekli) |
+| `docs/adr/` | 20 mimari karar kaydı (0001, 0004, 0005 ve 0007'nin yerini başkaları aldı; 0010 emekli) |
 | `curator/` | Küratör prompt'u, MCP ayarı, çalıştırma script'i |
 | `seed/` | Örnek repo: varsayılan şema (`seed/schema/`, `kb init` bunu `~/kb/schema/`'ya kopyalar) + örnek graf (`seed/snapshot/*.jsonl`) + örnek doküman (`seed/blobs/`) + `make_seed.py`; test durumları `seed/README.md`'de |
 | `fixtures/scanner/` | Tarayıcı golden testi: örnek Spring projesi + `expected.yaml` |

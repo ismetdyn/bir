@@ -18,7 +18,7 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 
 ---
 
-## Çalışan ajan araçları — `/mcp` (agent token)
+## Çalışan ajan araçları — `/mcp`
 
 ### kb_brief
 > Short briefing for the current working context: the project matching the repository (via its repo remote), its
@@ -95,7 +95,7 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 
 ---
 
-## Küratör araçları — `/mcp/curator` (curator token)
+## Küratör araçları — `/mcp/curator`
 
 Okuma araçlarının hepsi (`kb_search`, `kb_read`, `kb_related`, `kb_cypher`, `kb_schema`, `kb_stale`) artı:
 
