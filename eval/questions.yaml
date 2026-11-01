@@ -1,0 +1,125 @@
+# Değerlendirme seti ("yeterlilik soruları"). EvalRunner her soruda belirtilen aracı çalıştırır ve beklenen
+# kayıtlardan en az birinin ilk 3 sonuçta olup olmadığını ölçer (kb_read için: doğru kayıt dönüyor mu). expect_text
+# varsa Markdown çıktısında bu metinler de geçmelidir (ör. eski değer ve arşiv işaretleri). Veri: seed/.
+# Hedef: >= %85. Küratör partileri bu skoru düşüremez (tolerans 0,02).
+# Gerçek veriye geçince gerçek sorularla 30+ maddeye çıkar; ornek-* soruları seed için kalır.
+version: 4
+questions:
+  - id: q01
+    question: "Uygulama sunucusu hangi load balancer arkasında?"
+    tool: kb_search
+    query: "uygulama sunucusu load balancer"
+    expect: [ornek-app-01, ornek-lb]
+
+  - id: q02
+    question: "ornek-f5 nedir?"
+    tool: kb_read
+    query: "ornek-f5"
+    expect: [ornek-lb]
+
+  - id: q03
+    question: "curl -k ile test başarılı ama uygulama TLS hatası veriyor"
+    tool: kb_search
+    query: "TLS hatası curl -k"
+    expect: [ders-ornek-tls-yaniltici-test]
+
+  - id: q04
+    question: "Neden her uygulama ayrı systemd servisi?"
+    tool: kb_search
+    query: "ayrı systemd servisi"
+    type: decision
+    expect: [karar-ornek-ayri-systemd-servisleri]
+
+  - id: q05
+    question: "ornek-lb'de bakım olursa neler etkilenir?"
+    tool: kb_related
+    query: "ornek-lb"
+    direction: in
+    depth: 3
+    expect: [ornek-app-01, ornek-proje]
+
+  - id: q06
+    question: "Doğrulaması eski veya çelişkili bilgiler hangileri?"
+    tool: kb_stale
+    days: 90
+    expect: [ornek-app-01]
+
+  - id: q07
+    question: "ornek-app-01'in prod IP adresi nedir?"
+    tool: kb_search
+    query: "ornek-app-01 ip prod"
+    expect: [ornek-app-01]
+
+  - id: q08
+    question: "ornek-proje hangi veritabanına bağlanıyor?"
+    tool: kb_related
+    query: "ornek-proje"
+    rel: depends_on
+    direction: out
+    expect: [ornek-db]
+
+  - id: q09
+    question: "192.0.2.21 hangi sunucu?"
+    tool: kb_search
+    query: "192.0.2.21"
+    expect: [ornek-app-01]
+
+  - id: q10
+    question: "Java/Spring projelerinde dependency injection kuralı ne?"
+    tool: kb_search
+    query: "constructor injection spring"
+    type: decision
+    expect: [karar-global-constructor-injection]
+
+  - id: q11
+    question: "Oracle veritabanı ORNEKPDB nerede?"
+    tool: kb_search
+    query: "ORNEKPDB"
+    expect: [ornek-db]
+
+  - id: q12
+    question: "İzmir sunucusu"   # Türkçe büyük İ testi — seed'e İzmir içeren bir kayıt eklenince aç
+    tool: kb_search
+    query: "izmir"
+    expect: []
+    skip: true
+
+  - id: q13
+    question: "ornek-app-01'in eski IP'si neydi?"
+    tool: kb_read
+    query: "ornek-app-01"
+    expect: [ornek-app-01]
+    expect_text: ["192.0.2.20"]
+
+  - id: q14
+    question: "application-prod.yml değişirse hangi kayıtlar etkilenir?"
+    tool: kb_cypher
+    query: "MATCH (sf:SourceFile {path:'src/main/resources/application-prod.yml'})<-[:FROM]-(f:Fact)<-[:HAS_FACT]-(e:Entity) WHERE f.valid_to IS NULL RETURN DISTINCT e.id"
+    expect: [ornek-db, ornek-app-01, ornek-proje]
+
+  - id: q15
+    question: "ornek-proje nasıl yeniden başlatılır?"
+    tool: kb_search
+    query: "ornek-proje yeniden başlatma"
+    expect: [ornek-proje]
+
+  - id: q16
+    question: "Firewall logunda 192.0.2.20 geçiyor; bu hangi sunucu?"   # eski değer aramada bulunur (ADR-0017)
+    tool: kb_search
+    query: "192.0.2.20"
+    expect: [ornek-app-01]
+    expect_text: ["eski", "2026-01-15", "192.0.2.21"]
+
+  - id: q17
+    question: "app00 hâlâ kullanılıyor mu?"   # arşivli varlık aramada bulunur ve işaretli gelir
+    tool: kb_search
+    query: "app00"
+    expect: [ornek-app-00]
+    expect_text: ["arşiv"]
+
+  - id: q18
+    question: "ornek-proje daha önce hangi sunucudaydı?"   # biten ilişki kb_read'in Geçmiş bölümünde
+    tool: kb_read
+    query: "ornek-proje"
+    expect: [ornek-proje]
+    expect_text: ["ornek-app-00"]

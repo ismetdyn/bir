@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: ornek-proje
+server:
+  port: 8080

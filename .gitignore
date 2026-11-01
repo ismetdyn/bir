@@ -1,0 +1,17 @@
+# Build
+target/
+*.class
+
+# Python (seed/)
+__pycache__/
+*.pyc
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Local runtime state must never be committed (index, tokens, logs live under ~/.cache, ~/.config, ~/.local/state)
+*.log
+.env.local

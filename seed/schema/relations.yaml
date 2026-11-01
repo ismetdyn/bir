@@ -1,0 +1,36 @@
+# Varlıklar arası izin verilen ilişki türleri. Yazarken küçük harf kabul edilir, grafta BÜYÜK HARF olur.
+# synonyms: bu kelimeler yazma anında asıl türe çevrilir.
+# from/to: hangi varlık türleri arasında anlamlı olduğu (boşsa her tür). Uymazsa uyarı, hata değil.
+# Sabit kenarlar bu listede değildir: HAS_FACT, HAS_SECRET, SUPERSEDES, FROM, IN, HAS_REPO, TARGET, APPLIES_TO, ABOUT.
+version: 3
+relations:
+  runs:
+    description: "Bu sunucu/küme şu servisi/uygulamayı çalıştırır"
+    from: [server, cluster]
+    to: [service, project]
+    synonyms: [hosts]
+  deployed_on:
+    description: "Proje/servis şu sunucu, küme veya ortamda yayında"
+    from: [project, service]
+    to: [server, cluster, environment]
+    synonyms: [runs_on, hosted_on]
+  depends_on:
+    description: "Çalışmak için şuna ihtiyaç duyar (veritabanı, kuyruk, başka servis)"
+    synonyms: [uses, requires, needs, connects_to]
+  behind:
+    description: "Trafik şunun arkasından gelir (load balancer, WAF, proxy)"
+    to: [network, server, service]
+    synonyms: [proxied_by]
+  routes_to:
+    description: "Load balancer/proxy trafiği şuna yönlendirir (behind'ın tersi, istenirse)"
+    from: [network, service]
+  part_of:
+    description: "Daha büyük bir bütünün parçası (ortam, küme, proje)"
+    synonyms: [member_of, belongs_to]
+  authenticates_with:
+    description: "Kimlik doğrulama için şunu kullanır (Keycloak realm, LDAP/AD)"
+  owned_by:
+    description: "Sorumlu kişi/ekip"
+    to: [person, team]
+  related:
+    description: "Genel ilişki. Daha özel bir tür varsa onu kullan."

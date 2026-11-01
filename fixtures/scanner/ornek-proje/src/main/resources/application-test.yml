@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:oracle:thin:@ornek-db-test.ornek.example:1521/ORNEKTST
+    username: ornek_app
+    password: ${DB_PASSWORD}

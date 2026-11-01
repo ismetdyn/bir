@@ -1,0 +1,10 @@
+# ~/.config/systemd/user/agentkb-sync.service — grafın anlık görüntüsünü yazar ve GitHub ile senkronlar.
+
+[Unit]
+Description=agentkb anlık görüntü ve senkron
+After=agentkb.service
+Requires=agentkb.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/kb sync

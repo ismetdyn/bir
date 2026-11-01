@@ -1,0 +1,22 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+spring:
+  datasource:
+    # Prod Oracle (sahte örnek)
+    url: jdbc:oracle:thin:@ornek-db.ornek.example:1521/ORNEKPDB
+    username: ornek_app
+    password: Ornek-Prod-Sifre-1  # gitleaks:allow — sahte test verisi
+  data:
+    redis:
+      host: ornek-redis.ornek.example
+      port: 6379
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://giris.ornek.example/realms/ornek
+ornek:
+  rapor-servisi:
+    url: https://rapor.ornek.example/api

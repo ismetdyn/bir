@@ -1,0 +1,22 @@
+# Varlık türleri. Her varlık :Entity etiketi + aşağıdaki tür etiketiyle saklanır (ör. :Entity:Server).
+# operational: true → kb_stale bu türlerin fact'lerine bakar.
+# Tarayıcının oluşturduğu varlıklar status: observed ile gelir; kullanıcı doğrulayınca current olur.
+# Varlık dışındaki kayıtlar sabittir ve burada tanımlanmaz:
+#   Fact, Decision, Lesson, Secret, SourceFile, Repo, Document, Stack, Topic, Proposal, Signal (bkz. docs/SPEC.md §6)
+version: 3
+entity_types:
+  server:      {label: Server,      operational: true}
+  cluster:     {label: Cluster,     operational: true}
+  service:     {label: Service,     operational: true}
+  database:    {label: Database,    operational: true}
+  network:     {label: Network,     operational: true}
+  environment: {label: Environment, operational: true}
+  project:     {label: Project,     operational: false}
+  person:      {label: Person,      operational: false}
+  team:        {label: Team,        operational: false}
+
+entity_status: [current, observed, archived]
+
+decision:
+  status: [proposed, accepted, superseded]
+  scope: [global, project]          # global ve APPLIES_TO kenarı yoksa her yerde geçerli

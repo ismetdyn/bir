@@ -1,0 +1,21 @@
+# ~/.config/systemd/user/agentkb.service
+# Kurulum:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now agentkb
+#   loginctl enable-linger "$USER"   # oturum açılmadan da çalışsın istiyorsan
+
+[Unit]
+Description=agentkb — AI ajanları için bilgi bankası sunucusu
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/java -Xms128m -Xmx512m -XX:+UseG1GC -jar %h/kb-tools/agentkb-server.jar
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

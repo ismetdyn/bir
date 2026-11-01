@@ -1,0 +1,6 @@
+# ornek-proje çalıştırma notu
+
+- Servis: `ornek-proje.service` (systemd), ornek-app-01 üzerinde.
+- Yeniden başlatma: `sudo systemctl restart ornek-proje`
+- Loglar: `journalctl -u ornek-proje -f`
+- Sağlık kontrolü: `https://ornek.example/actuator/health`

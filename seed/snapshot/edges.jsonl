@@ -1,0 +1,59 @@
+{"from": "ornek-proje", "id": "01KF0E44M00BSW3MBHESDJ09NM", "props": {"env": "prod", "observed_at": "2026-01-15T09:00:00Z", "source": "user", "updated_at": "2026-05-10T09:00:00Z", "valid_from": "2026-01-15T09:00:00Z", "valid_to": "2026-05-10T09:00:00Z"}, "to": "ornek-app-00", "type": "DEPLOYED_ON"}
+{"from": "ornek-app-01", "id": "01KF0E44M011D9CED76QYB9Z3M", "props": {"updated_at": "2026-01-15T09:00:00Z"}, "to": "01KF0E44M0REBC4C4TEKFP81ZQ", "type": "HAS_FACT"}
+{"from": "ornek-app-00", "id": "01KF0E44M0KB3M5GJ8P8DA68TJ", "props": {"updated_at": "2026-01-15T09:00:00Z"}, "to": "01KF0E44M07NA59J9S50ZD2R86", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM01CM2Z1N3EN0775KW", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM0MGXRSDXBJREZ64YS", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM02A6W4P97W8MX9P3A", "props": {"observed_at": "2026-05-10T09:00:00Z", "source": "user", "updated_at": "2026-05-10T09:00:00Z", "valid_from": "2026-05-10T09:00:00Z"}, "to": "ornek-proje", "type": "RUNS"}
+{"from": "ornek-app-01", "id": "01KR8HTSM03PHWNWZ7E1G942HK", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM096AH6GBDZDQGR083", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM03TMJ1TPA5RRZY9BC", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "ornek-app-01/prod/deploy-ssh-key", "type": "HAS_SECRET"}
+{"from": "ornek-proje", "id": "01KR8HTSM09ESCE4XGN7BXG5CR", "props": {"env": "prod", "observed_at": "2026-05-10T09:00:00Z", "source": "user", "updated_at": "2026-05-10T09:00:00Z", "valid_from": "2026-05-10T09:00:00Z"}, "to": "ornek-app-01", "type": "DEPLOYED_ON"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0F6ES0CFV7RX9E0K4", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM02GZKN0PEPS2M3PYE", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0JB0CE671YFMPJS8A", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM03EFJH5CTTTGSWBV2", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0KT2VBFT1579GSNCF", "props": {"observed_at": "2026-05-10T09:00:00Z", "source": "user", "updated_at": "2026-05-10T09:00:00Z", "valid_from": "2026-05-10T09:00:00Z"}, "to": "ornek-lb", "type": "BEHIND"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0M7XJHJDDJSP6FPPK", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM01AYHP9J1PCYNG64N", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0MZMD5K1H0K7BXCCG", "props": {"observed_at": "2026-05-10T09:00:00Z", "source": "user", "updated_at": "2026-05-10T09:00:00Z", "valid_from": "2026-05-10T09:00:00Z"}, "to": "ornek-prod-ortami", "type": "PART_OF"}
+{"from": "ornek-app-01", "id": "01KR8HTSM0WNRWQTKSHPM0EGK4", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KR8HTSM0X7W3T83WWEE73R0E", "type": "HAS_FACT"}
+{"from": "01KR8HTSM02GZKN0PEPS2M3PYE", "id": "01KR8HTSM0YQ7CBPWNDRQC5FX5", "props": {"updated_at": "2026-05-10T09:00:00Z"}, "to": "01KF0E44M0REBC4C4TEKFP81ZQ", "type": "SUPERSEDES"}
+{"from": "karar-ornek-ayri-systemd-servisleri", "id": "01M0F6C3M0Q7GNG9DZFMXNCYHJ", "props": {"updated_at": "2026-08-20T09:00:00Z"}, "to": "ornek-proje", "type": "APPLIES_TO"}
+{"from": "karar-ornek-ayri-systemd-servisleri", "id": "01M0F6C3M0YMM0T7J0K5K7J44E", "props": {"updated_at": "2026-08-20T09:00:00Z"}, "to": "ornek-app-01", "type": "ABOUT"}
+{"from": "ders-ornek-tls-yaniltici-test", "id": "01M2ADGMM0RZW3GRBRG44YANSE", "props": {"updated_at": "2026-09-12T09:00:00Z"}, "to": "ornek-app-01", "type": "ABOUT"}
+{"from": "ders-ornek-tls-yaniltici-test", "id": "01M2ADGMM0VCK1ZJ8QF662DWMS", "props": {"updated_at": "2026-09-12T09:00:00Z"}, "to": "topic:tls", "type": "ABOUT"}
+{"from": "ornek-lb", "id": "01M3VB29M02VJXSCSVQ8ZFBQRS", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M0VDYR6N0HF3TYZ227", "type": "HAS_FACT"}
+{"from": "ornek-lb", "id": "01M3VB29M05BQ1B3H7E7TJN6XQ", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M06D5EDRVPY66QSZPW", "type": "HAS_FACT"}
+{"from": "ornek-lb", "id": "01M3VB29M0AH31CSWBQCWHTP7A", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M0HPD8EN1HH5KE1SBY", "type": "HAS_FACT"}
+{"from": "ornek-lb", "id": "01M3VB29M0BVXA6V8G5KC1B03N", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M07YN09HNN5EYTHYZC", "type": "HAS_FACT"}
+{"from": "ornek-lb", "id": "01M3VB29M0FYHN5TG53Q1TFGGJ", "props": {"observed_at": "2026-10-01T09:00:00Z", "source": "user", "updated_at": "2026-10-01T09:00:00Z", "valid_from": "2026-10-01T09:00:00Z"}, "to": "ornek-prod-ortami", "type": "PART_OF"}
+{"from": "ornek-lb", "id": "01M3VB29M0H8PFX9WSMY8Z2BYY", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "ornek-lb/prod/panel-admin", "type": "HAS_SECRET"}
+{"from": "ornek-proje", "id": "01M3VB29M0HP1W81GTQ1Z4C1MN", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M0R958QPFTQQQMNXDR", "type": "HAS_FACT"}
+{"from": "ornek-proje", "id": "01M3VB29M0J35XRHYDECJRYP5C", "props": {"updated_at": "2026-10-01T09:00:00Z"}, "to": "01M3VB29M023Z4CFNYAJ8BP2NE", "type": "HAS_FACT"}
+{"from": "ornek-app-01", "id": "01M61GCWC0KMFWVBWXY5E145P8", "props": {"updated_at": "2026-10-28T15:00:00Z"}, "to": "01M61GCWC0NFEDZ0ZZM1GC9N44", "type": "HAS_FACT"}
+{"from": "karar-global-constructor-injection", "id": "01M63E6DM0TQA51DBN3Q3BMH5S", "props": {"updated_at": "2026-10-29T09:00:00Z"}, "to": "stack:java-spring", "type": "APPLIES_TO"}
+{"from": "ornek-proje", "id": "01M63HM9801Q9RCE1YT5TY5T9C", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980PF7QQKDY7RPFDHZW", "type": "HAS_FACT"}
+{"from": "ornek-grup/ornek-proje:pom.xml", "id": "01M63HM9802AH60ANJKJXXRYFF", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje", "type": "IN"}
+{"from": "ornek-db", "id": "01M63HM9802K8M827RJP0JSQNZ", "props": {"observed_at": "2026-10-29T10:00:00Z", "source": "scan", "updated_at": "2026-10-29T10:00:00Z", "valid_from": "2026-10-29T10:00:00Z"}, "to": "ornek-prod-ortami", "type": "PART_OF"}
+{"from": "01M63HM98013Z40YYEKM7VGZCA", "id": "01M63HM98035HWP6EREBNAQP2S", "props": {"commit": "a1b2c3d", "line": 8, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "01M63HM9806ZFFD8Q45RR0ME9F", "id": "01M63HM98047QRXKD0YTK4K1DT", "props": {"commit": "a1b2c3d", "line": 8, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "01M63HM980JENWYXMWAJ08D366", "id": "01M63HM9804V3V3MXN1SNSSTJ7", "props": {"commit": "a1b2c3d", "line": 8, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "ornek-grup/ornek-proje:.gitlab-ci.yml", "id": "01M63HM9806NQGMXJRJE1K8TX8", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje", "type": "IN"}
+{"from": "ornek-proje/prod/spring.datasource.password", "id": "01M63HM9806TEQAFA0PD3ZHZZA", "props": {"commit": "a1b2c3d", "line": 10, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "ornek-proje", "id": "01M63HM98072F7KM7D3MZM510F", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje", "type": "HAS_REPO"}
+{"from": "01M63HM980N4SBMHXWQ007Z1X8", "id": "01M63HM9807MQ5Y4ZW84SBE7J6", "props": {"commit": "a1b2c3d", "line": 8, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "01M63HM980PF7QQKDY7RPFDHZW", "id": "01M63HM98098907XP44R6HV8A2", "props": {"commit": "a1b2c3d", "line": 15, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:.gitlab-ci.yml", "type": "FROM"}
+{"from": "01M63HM980T0AVGND1PBHMN86X", "id": "01M63HM98098QB3A2W6K3J4XK5", "props": {"commit": "a1b2c3d", "line": 8, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:pom.xml", "type": "FROM"}
+{"from": "ornek-proje", "id": "01M63HM9809G2WPWF2B3P6XNEZ", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980KE78SWXM9GXYZ2X4", "type": "HAS_FACT"}
+{"from": "ornek-proje", "id": "01M63HM980AY38YVQS2TKSSQ6T", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM9807D34RKH634SKNB9C", "type": "HAS_FACT"}
+{"from": "01M63HM980Z4M7TG5KV9N3K9HY", "id": "01M63HM980BRMPA2Z6DYK0VB9R", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-proje", "type": "TARGET"}
+{"from": "01M63HM980Z4M7TG5KV9N3K9HY", "id": "01M63HM980BYCP6D2QKDEHF3KR", "props": {"commit": "a1b2c3d", "line": 2, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "ornek-proje", "id": "01M63HM980D0AM5TWP7J76865C", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-proje/prod/spring.datasource.password", "type": "HAS_SECRET"}
+{"from": "ornek-proje", "id": "01M63HM980DEDBDYNB3JRKWFF6", "props": {"env": "prod", "observed_at": "2026-10-29T10:00:00Z", "source": "scan", "updated_at": "2026-10-29T10:00:00Z", "valid_from": "2026-10-29T10:00:00Z"}, "to": "ornek-db", "type": "DEPENDS_ON"}
+{"from": "ornek-app-01", "id": "01M63HM980EHX59R508E4Q5736", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980Z4M7TG5KV9N3K9HY", "type": "HAS_FACT"}
+{"from": "ornek-db", "id": "01M63HM980M77Q14R9SSTJJ8B8", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM9806ZFFD8Q45RR0ME9F", "type": "HAS_FACT"}
+{"from": "ornek-proje", "id": "01M63HM980NCHNQYBVGY3JCGAR", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980T0AVGND1PBHMN86X", "type": "HAS_FACT"}
+{"from": "ornek-db", "id": "01M63HM980PMTGX11W5FNHC05C", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM98013Z40YYEKM7VGZCA", "type": "HAS_FACT"}
+{"from": "01M63HM980KE78SWXM9GXYZ2X4", "id": "01M63HM980RA3ZVHD2RGACH4XD", "props": {"commit": "a1b2c3d", "line": 10, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "type": "FROM"}
+{"from": "ornek-grup/ornek-proje:src/main/resources/application-prod.yml", "id": "01M63HM980RE43VVYKSX74CSEJ", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje", "type": "IN"}
+{"from": "01M63HM9807D34RKH634SKNB9C", "id": "01M63HM980T6ZN7EHT06DTX1FK", "props": {"commit": "a1b2c3d", "line": 16, "updated_at": "2026-10-29T10:00:00Z"}, "to": "ornek-grup/ornek-proje:pom.xml", "type": "FROM"}
+{"from": "ornek-db", "id": "01M63HM980VAV4HFCTV08DKM2M", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980N4SBMHXWQ007Z1X8", "type": "HAS_FACT"}
+{"from": "ornek-db", "id": "01M63HM980VVE0VTDX26AXZKZM", "props": {"updated_at": "2026-10-29T10:00:00Z"}, "to": "01M63HM980JENWYXMWAJ08D366", "type": "HAS_FACT"}
+{"from": "ornek-proje", "id": "01M66HRER06YE9QJMHJKNP48ZF", "props": {"updated_at": "2026-10-30T14:00:00Z"}, "to": "01M66HRER0PK04107QSJF4Q96C", "type": "HAS_FACT"}
+{"from": "doc:ded48257b6f3", "id": "01M66HRER0JCRXKDD76W8M5G95", "props": {"updated_at": "2026-10-30T14:00:00Z"}, "to": "ornek-proje", "type": "ABOUT"}
+{"from": "01M66HRER0PK04107QSJF4Q96C", "id": "01M66HRER0R42WRV4R2HK3SRP0", "props": {"updated_at": "2026-10-30T14:00:00Z"}, "to": "doc:ded48257b6f3", "type": "FROM"}

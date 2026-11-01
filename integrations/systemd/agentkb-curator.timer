@@ -1,0 +1,14 @@
+# ~/.config/systemd/user/agentkb-curator.timer
+#   systemctl --user enable --now agentkb-curator.timer
+
+[Unit]
+Description=agentkb küratörünü saatte bir kontrol et
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - oracle

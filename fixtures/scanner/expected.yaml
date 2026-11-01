@@ -1,0 +1,106 @@
+# kb_scan fixtures/scanner/ornek-proje için beklenen sonuç (golden test).
+#
+# Test kurulumu: fixture geçici bir dizine kopyalanır; git init, remote
+# https://gitlab.ornek.example/ornek-grup/ornek-proje.git, git add -A, git commit. .env .gitignore'da olduğu için
+# izlenmez. Böylece Repo id'si ornek-grup/ornek-proje olur ve "git'te izlenen dosya" kuralı test edilebilir.
+#
+# Kurallar:
+#  - Secret DEĞERLERİ bu dosyada yok. Değer sadece bu bilgisayardaki grafta (`secret_value`) durur; anlık görüntü,
+#    git, log, audit, MCP/REST okuma cevabı ve ScanReport'ta olmamalı. Test: "Ornek-Prod-Sifre-1" ve
+#    "Ornek-Yerel-Sifre-2" dizeleri tüm bu çıktılarda aranır; `GET /api/v1/secrets/{id}` doğru değeri döner.
+#  - id kuralı: agentkb.scan.internal-domains içindeki host'lar için ilk DNS etiketi (ornek-db.ornek.example →
+#    ornek-db), diğerleri için tam host adı; Ids.normalize() ile.
+#  - Ortam: application-<profil>; k8s namespace soneki (ornek-test → test); CI environment adı (production → prod);
+#    .env ve docker-compose → local; application.yml → default; env yazılmamışsa default.
+#    Eşanlamlılar: schema/facts.yaml#environments.
+#  - from: "<dosya>:<satır>" → kaydın SourceFile'a FROM {line, commit} kenarı. Satır birebir eşleşmeli; commit
+#    kontrol edilmez.
+#  - Tarayıcının yazdığı her kaydın source'u scan'dir; yeni varlıklar status: observed ile oluşur.
+
+scan:
+  path: fixtures/scanner/ornek-proje
+  internal_domains: [ornek.example]
+
+repo: {id: ornek-grup/ornek-proje, remote: gitlab.ornek.example/ornek-grup/ornek-proje}
+
+project:
+  id: ornek-proje                  # HAS_REPO → ornek-grup/ornek-proje
+  facts:
+    - {key: stack, value: java-spring, from: "pom.xml:8"}
+    - {key: framework_version, value: "spring-boot 3.5.6", from: "pom.xml:9"}
+    - {key: java_version, value: "21", from: "pom.xml:16"}
+    - {key: url, value: "https://ornek.example", env: prod, from: ".gitlab-ci.yml:15"}
+    - {key: url, value: "https://ornek-test.ornek.example", env: test, from: "k8s/deployment.yaml:50"}
+    - {key: namespace, value: ornek-test, env: test, from: "k8s/deployment.yaml:5"}
+    - {key: image, value: "registry.ornek.example/ornek/ornek-proje:1.4.2", env: test, from: "k8s/deployment.yaml:18"}
+    # application-prod.yml git'te izleniyor ve düz metin parola içeriyor → bulgu.
+    # .env .gitignore'da olduğu için bulgu AÇILMAZ (secret yine Secret düğümüne yazılır).
+    - {key: finding, contains: "application-prod.yml:10", env: prod, from: "src/main/resources/application-prod.yml:10"}
+  secrets:                         # HAS_SECRET; secret_value dolu, placeholder kb:secret/<id>
+    - {id: ornek-proje/prod/spring.datasource.password, env: prod, from: "src/main/resources/application-prod.yml:10"}
+    - {id: ornek-proje/local/ORACLE_PASSWORD, env: local, from: ".env:2"}
+  relations:
+    - {type: DEPENDS_ON, target: ornek-db, env: prod}
+    - {type: DEPENDS_ON, target: ornek-db-test, env: test}
+    - {type: DEPENDS_ON, target: ornek-redis, env: prod}
+    - {type: DEPENDS_ON, target: rapor, env: prod}
+    - {type: AUTHENTICATES_WITH, target: giris, env: prod}
+    - {type: DEPLOYED_ON, target: ornek-app-01, env: prod}
+
+entities:
+  - id: ornek-db
+    type: database
+    facts:
+      - {key: engine, value: oracle, env: prod, from: "src/main/resources/application-prod.yml:8"}
+      - {key: hostname, value: ornek-db.ornek.example, env: prod, from: "src/main/resources/application-prod.yml:8"}
+      - {key: port, value: "1521", env: prod, from: "src/main/resources/application-prod.yml:8"}
+      - {key: db_name, value: ORNEKPDB, env: prod, from: "src/main/resources/application-prod.yml:8"}
+  - id: ornek-db-test
+    type: database
+    facts:
+      - {key: engine, value: oracle, env: test, from: "src/main/resources/application-test.yml:3"}
+      - {key: hostname, value: ornek-db-test.ornek.example, env: test, from: "src/main/resources/application-test.yml:3"}
+      - {key: port, value: "1521", env: test, from: "src/main/resources/application-test.yml:3"}
+      - {key: db_name, value: ORNEKTST, env: test, from: "src/main/resources/application-test.yml:3"}
+  - id: ornek-redis
+    type: service
+    facts:
+      - {key: engine, value: redis, env: prod, from: "src/main/resources/application-prod.yml:13"}
+      - {key: hostname, value: ornek-redis.ornek.example, env: prod, from: "src/main/resources/application-prod.yml:13"}
+      - {key: port, value: "6379", env: prod, from: "src/main/resources/application-prod.yml:14"}
+  - id: ornek-app-01
+    type: server
+    facts:
+      - {key: hostname, value: ornek-app-01.ornek.example, env: prod, from: ".gitlab-ci.yml:17"}
+      - {key: ip, value: 192.0.2.21, env: prod, from: "deploy/inventory.ini:2"}
+      # Türetilmiş: proje prod'da ornek-app-01'e deploy ediliyor + prod profilinde server.port 8443 ve ssl açık
+      - {key: port, value: "8443/https", target: ornek-proje, env: prod, from: "src/main/resources/application-prod.yml:2"}
+  - id: ornek-app-test-01
+    type: server
+    facts:
+      - {key: ip, value: 198.51.100.21, env: test, from: "deploy/inventory.ini:5"}
+  - id: rapor
+    type: service
+    facts:
+      - {key: url, value: "https://rapor.ornek.example/api", env: prod, from: "src/main/resources/application-prod.yml:22"}
+  - id: giris
+    type: service
+    facts:
+      - {key: url, value: "https://giris.ornek.example/realms/ornek", env: prod, from: "src/main/resources/application-prod.yml:19"}
+
+# seed/ yüklüyken taranınca (yazma politikası, SPEC §7):
+merge_with_seed:
+  - "ornek-app-01 ip 192.0.2.21 @prod seed'de user kaynaklı → aynı değer: sadece observed_at tazelenir; valid_from değişmez, source user kalır"
+  - "ornek-app-01 hostname aynı → tazelenir; ip 192.0.2.25 (agent, conflict) değişmez"
+  - "ornek-db fact'leri aynı → tazelenir; varlık status observed kalır"
+  - "ornek-proje stack/java_version/url/finding aynı → tazelenir; framework_version eklenir"
+  - "ornek-proje/prod/spring.datasource.password seed'de source scan, değeri yok → değer yazılır (kural 9); id aynı kalır"
+  - "Yeni varlıklar (ornek-db-test, ornek-redis, ornek-app-test-01, rapor, giris) status observed ile eklenir"
+
+not_expected:
+  - "application-test.yml'deki ${DB_PASSWORD} için secret oluşturulmaz (yer tutucu)"
+  - "docker-compose.yml'deki ${ORACLE_PASSWORD} için ikinci bir secret oluşturulmaz"
+  - "docker-compose servisleri için ayrı varlık oluşturulmaz (local ortam; istenirse projeye @local fact)"
+  - "k8s secretKeyRef için secret oluşturulmaz (değer yok)"
+  - "application.yml server.port 8080 @default prod sunucusuna bağlanmaz"
+  - "Hiçbir düz metin çıktıda 'Ornek-Prod-Sifre-1' veya 'Ornek-Yerel-Sifre-2' yok"

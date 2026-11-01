@@ -1,0 +1,12 @@
+# ~/.config/systemd/user/agentkb-curator.service — timer tarafından tetiklenir.
+# Sunucu "gerekli mi?" kararını verir (≥24 saat VE (≥5 oturum VEYA ≥50 sinyal)); gerekli değilse hemen çıkar.
+
+[Unit]
+Description=agentkb küratör çalışması (gerekliyse)
+After=agentkb.service
+Requires=agentkb.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/kb curator run --if-needed
+Nice=10

@@ -1,0 +1,14 @@
+# ~/.config/systemd/user/agentkb-sync.timer
+#   systemctl --user enable --now agentkb-sync.timer
+# Secret değerleri bu bilgisayardan çıkmaz; anlık görüntüye girmez ve senkronlanmaz (ADR-0015).
+
+[Unit]
+Description=agentkb anlık görüntü ve senkronu 10 dakikada bir
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
