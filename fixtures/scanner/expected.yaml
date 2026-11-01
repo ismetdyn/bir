@@ -1,7 +1,7 @@
 # kb_scan fixtures/scanner/ornek-proje için beklenen sonuç (golden test).
 #
 # Test kurulumu: fixture geçici bir dizine kopyalanır; git init, remote
-# https://gitlab.ornek.example/ornek-grup/ornek-proje.git, git add -A, git commit. .env .gitignore'da olduğu için
+# https://git.ornek.example/ornek-grup/ornek-proje.git, git add -A, git commit. .env .gitignore'da olduğu için
 # izlenmez. Böylece Repo id'si ornek-grup/ornek-proje olur ve "git'te izlenen dosya" kuralı test edilebilir.
 #
 # Kurallar:
@@ -10,7 +10,7 @@
 #    "Ornek-Yerel-Sifre-2" dizeleri tüm bu çıktılarda aranır; `GET /api/v1/secrets/{id}` doğru değeri döner.
 #  - id kuralı: agentkb.scan.internal-domains içindeki host'lar için ilk DNS etiketi (ornek-db.ornek.example →
 #    ornek-db), diğerleri için tam host adı; Ids.normalize() ile.
-#  - Ortam: application-<profil>; k8s namespace soneki (ornek-test → test); CI environment adı (production → prod);
+#  - Ortam: application-<profil>; k8s namespace soneki (ornek-test → test);
 #    .env ve docker-compose → local; application.yml → default; env yazılmamışsa default.
 #    Eşanlamlılar: schema/facts.yaml#environments.
 #  - from: "<dosya>:<satır>" → kaydın SourceFile'a FROM {line, commit} kenarı. Satır birebir eşleşmeli; commit
@@ -21,7 +21,7 @@ scan:
   path: fixtures/scanner/ornek-proje
   internal_domains: [ornek.example]
 
-repo: {id: ornek-grup/ornek-proje, remote: gitlab.ornek.example/ornek-grup/ornek-proje}
+repo: {id: ornek-grup/ornek-proje, remote: git.ornek.example/ornek-grup/ornek-proje}
 
 project:
   id: ornek-proje                  # HAS_REPO → ornek-grup/ornek-proje
@@ -29,7 +29,6 @@ project:
     - {key: stack, value: java-spring, from: "pom.xml:8"}
     - {key: framework_version, value: "spring-boot 3.5.6", from: "pom.xml:9"}
     - {key: java_version, value: "21", from: "pom.xml:16"}
-    - {key: url, value: "https://ornek.example", env: prod, from: ".gitlab-ci.yml:15"}
     - {key: url, value: "https://ornek-test.ornek.example", env: test, from: "k8s/deployment.yaml:50"}
     - {key: namespace, value: ornek-test, env: test, from: "k8s/deployment.yaml:5"}
     - {key: image, value: "registry.ornek.example/ornek/ornek-proje:1.4.2", env: test, from: "k8s/deployment.yaml:18"}
@@ -71,7 +70,6 @@ entities:
   - id: ornek-app-01
     type: server
     facts:
-      - {key: hostname, value: ornek-app-01.ornek.example, env: prod, from: ".gitlab-ci.yml:17"}
       - {key: ip, value: 192.0.2.21, env: prod, from: "deploy/inventory.ini:2"}
       # Türetilmiş: proje prod'da ornek-app-01'e deploy ediliyor + prod profilinde server.port 8443 ve ssl açık
       - {key: port, value: "8443/https", target: ornek-proje, env: prod, from: "src/main/resources/application-prod.yml:2"}
@@ -91,9 +89,9 @@ entities:
 # seed/ yüklüyken taranınca (yazma politikası, SPEC §7):
 merge_with_seed:
   - "ornek-app-01 ip 192.0.2.21 @prod seed'de user kaynaklı → aynı değer: sadece observed_at tazelenir; valid_from değişmez, source user kalır"
-  - "ornek-app-01 hostname aynı → tazelenir; ip 192.0.2.25 (agent, conflict) değişmez"
+  - "ornek-app-01 hostname taranmaz, seed'deki kayıt değişmez; ip 192.0.2.25 (agent, conflict) değişmez"
   - "ornek-db fact'leri aynı → tazelenir; varlık status observed kalır"
-  - "ornek-proje stack/java_version/url/finding aynı → tazelenir; framework_version eklenir"
+  - "ornek-proje stack/java_version/finding aynı → tazelenir; framework_version eklenir; prod url taranmaz, seed'deki kayıt değişmez"
   - "ornek-proje/prod/spring.datasource.password seed'de source scan, değeri yok → değer yazılır (kural 9); id aynı kalır"
   - "Yeni varlıklar (ornek-db-test, ornek-redis, ornek-app-test-01, rapor, giris) status observed ile eklenir"
 

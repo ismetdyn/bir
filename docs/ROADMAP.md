@@ -40,7 +40,7 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
       (hedefe `ABOUT`)
 - [ ] Secret'lar: `Secret` düğümü, `GET/PUT /api/v1/secrets/{id}`, veri dizini 0700; `secret_value` anlık görüntüye,
       loga ve araç çıktılarına girmiyor (test)
-- [ ] Tarayıcı: önce SpringConfig, DotEnv, BuildFile; sonra Compose, K8s, GitlabCi, Ansible; `kb_scan` + allowed-roots;
+- [ ] Tarayıcı: önce SpringConfig, DotEnv, BuildFile; sonra Compose, K8s, Ansible; `kb_scan` + allowed-roots;
       `fixtures/scanner` golden testi (sahte secret dizeleri hiçbir çıktıda yok)
 - [ ] Anlık görüntü + `kb sync` + `kb restore`; iki geçici repo ile senkron testi; systemd timer; commit öncesi satır
       sayısı kontrolü; force-push yok; `kb check`'te `git fsck`

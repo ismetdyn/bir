@@ -93,12 +93,11 @@ DC = "2026-10-30T14:00:00Z"
 COMMIT = "a1b2c3d"
 
 # --- repo, source files, stacks, topics
-repo = node("ornek-grup/ornek-proje", ["Repo"], remote="gitlab.ornek.example/ornek-grup/ornek-proje", updated_at=SC)
+repo = node("ornek-grup/ornek-proje", ["Repo"], remote="git.ornek.example/ornek-grup/ornek-proje", updated_at=SC)
 f_prod = node("ornek-grup/ornek-proje:src/main/resources/application-prod.yml", ["SourceFile"],
               repo=repo, path="src/main/resources/application-prod.yml", updated_at=SC)
 f_pom = node("ornek-grup/ornek-proje:pom.xml", ["SourceFile"], repo=repo, path="pom.xml", updated_at=SC)
-f_ci = node("ornek-grup/ornek-proje:.gitlab-ci.yml", ["SourceFile"], repo=repo, path=".gitlab-ci.yml", updated_at=SC)
-for f in (f_prod, f_pom, f_ci):
+for f in (f_prod, f_pom):
     edge("IN", f, repo, SC)
 stack = node("stack:java-spring", ["Stack"], updated_at=D3)
 tls = node("topic:tls", ["Topic"], updated_at=D2)
@@ -142,7 +141,7 @@ for key, value in (("engine", "oracle"), ("hostname", "ornek-db.ornek.example"),
 # --- ornek-proje
 fact("ornek-proje", "stack", "java-spring", None, "scan", SC, src_file=f_pom, line=8, commit=COMMIT)
 fact("ornek-proje", "java_version", "21", None, "scan", SC, src_file=f_pom, line=16, commit=COMMIT)
-fact("ornek-proje", "url", "https://ornek.example", "prod", "scan", SC, src_file=f_ci, line=15, commit=COMMIT)
+fact("ornek-proje", "url", "https://ornek.example", "prod", "user", U3)
 fact("ornek-proje", "build", "./mvnw verify", None, "user", U3)
 fact("ornek-proje", "convention", "REST uçları /api/v1 altında", None, "user", U3)
 fact("ornek-proje", "finding", "application-prod.yml:10'da düz metin parola vardı; ortam değişkenine taşınmalı",

@@ -28,7 +28,7 @@ facts:
   build:             {kind: text}
   finding:           {kind: text}      # tarayıcı bulguları (ör. repoda düz metin secret)
 
-# Ortam adları ve eşanlamlıları (tarayıcı profil/namespace/CI environment adlarını bunlara çevirir)
+# Ortam adları ve eşanlamlıları (tarayıcı profil/namespace adlarını bunlara çevirir)
 environments:
   prod:    [prod, production, prd, canli]
   test:    [test, tst, qa, uat]

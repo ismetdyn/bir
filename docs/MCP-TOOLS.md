@@ -82,7 +82,7 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 
 ### kb_scan
 > Extracts infrastructure facts from a repository on this machine WITHOUT reading files into your context: hosts, IPs,
-> ports, datasource URLs, environments (Spring profiles, .env, docker-compose, Kubernetes, GitLab CI, Ansible, build
+> ports, datasource URLs, environments (Spring profiles, .env, docker-compose, Kubernetes, Ansible, build
 > files). Secret values found stay on this machine; you get placeholders to use with `kb run`. Call it when
 > you start working in a repository the briefing says was never scanned or has changed, instead of grepping config files
 > for hosts and passwords. Input: `path` (absolute). Returns a summary of new entities, facts, conflicts and findings.

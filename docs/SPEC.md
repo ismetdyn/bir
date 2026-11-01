@@ -221,7 +221,7 @@ Kurallar:
 
 | Yol | Tetikleyici | Ne toplar |
 |---|---|---|
-| **Tarayıcı** (`kb_scan`, `kb scan`) | Ajan, SessionStart (repo değiştiyse), kullanıcı | Spring `application*.yml/properties`, `.env`, docker-compose, Kubernetes, `.gitlab-ci.yml`, Ansible envanteri, `pom.xml`/`build.gradle`. Secret'lar `Secret` düğümüne |
+| **Tarayıcı** (`kb_scan`, `kb scan`) | Ajan, SessionStart (repo değiştiyse), kullanıcı | Spring `application*.yml/properties`, `.env`, docker-compose, Kubernetes, Ansible envanteri, `pom.xml`/`build.gradle`. Secret'lar `Secret` düğümüne |
 | **`kb_remember`** | Ajan, öğrendiği anda | Koddan/dokümandan çıkarımlar, kullanıcı cevapları |
 | **Hook yakalama** | PostToolUse: AskUserQuestion, `request_user_input` | Ham soru-cevap → sinyal (secret görünümlü değerler maskelenir); işlenene kadar aramada `ham` olarak bulunur, küratör yapılandırır |
 | **Kullanıcı** | TUI/GUI | Her şey |

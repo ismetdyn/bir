@@ -7,7 +7,7 @@
 Proje incelenirken sunucu adı, IP, port, datasource gibi bilgiler otomatik toplanmalı.
 
 ## Karar
-Spring config, `.env`, docker-compose, Kubernetes manifestleri, GitLab CI, Ansible envanteri ve build dosyaları
+Spring config, `.env`, docker-compose, Kubernetes manifestleri, Ansible envanteri ve build dosyaları
 sunucudaki deterministik extractor'larla okunur (`kb_scan`). Ajan sadece tarayıcının anlayamadığını (`kb_remember`)
 ekler. Sunucu LLM çağırmaz.
 

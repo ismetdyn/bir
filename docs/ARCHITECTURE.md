@@ -56,7 +56,7 @@ agentkb/
 ├── config/     KbProperties, Neo4jConfig, McpConfig (iki uç nokta)
 ├── graph/      GraphStore, EmbeddedNeo4jStore, KnowledgeQueries, CypherGuard, Schema (schema/*.yaml)
 ├── write/      WriteService (tek yazıcı kilidi), EntityResolver, BatchRevert   — WritePolicy kb-core'da
-├── scan/       ScannerService, extract/ (SpringConfig, DotEnv, Compose, K8s, GitlabCi, Ansible, BuildFile)
+├── scan/       ScannerService, extract/ (SpringConfig, DotEnv, Compose, K8s, Ansible, BuildFile)
 ├── secrets/    SecretService (değer sadece secret ucundan çıkar)
 ├── docs/       DocumentService (kb doc add: secret taraması, blobs/, Document düğümü)
 ├── snapshot/   SnapshotExporter, SnapshotImporter, SyncService (sistem git)
@@ -127,7 +127,6 @@ kb_scan(path) / kb scan <path> / SessionStart (HEAD değiştiyse)
 | DotEnv | `.env`, `.env.<ortam>` | Anahtarlar; secret görünümlüler Secret düğümüne |
 | Compose | `docker-compose*.yml`, `compose*.yml` | servisler, imajlar, portlar, `depends_on` → ilişki |
 | K8s | `kind: Deployment/Service/Ingress/ConfigMap` | servisler, portlar, ingress host'ları, namespace, imaj; `Secret` nesnelerinin sadece adı |
-| GitlabCi | `.gitlab-ci.yml` | `environment` adları/URL'leri, deploy script'lerindeki `ssh user@host` |
 | Ansible | `inventory*`, `hosts*`, `*.ini` | host'lar, gruplar, `ansible_host` |
 | BuildFile | `pom.xml`, `build.gradle*` | stack (java-spring, java, kotlin…), Spring Boot ve Java sürümü |
 

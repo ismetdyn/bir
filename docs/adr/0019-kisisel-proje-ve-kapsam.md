@@ -24,7 +24,8 @@ kullanımını anlatır.
 ## Sonuçlar
 - Faz numaraları değişmez: F1–F5 kalır, F0 ve F6 emekliye ayrılır.
 - Git geçmişi yeniden yazıldı; bu bilgileri içeren commit'ler silindi. Henüz uzak depo yoktu.
-- Tarayıcının GitLab CI extractor'ı ayrı bir karardır: F2'de tarayıcıdan önce sorulur.
+- Tarayıcının GitLab CI extractor'ı kaldırıldı; GitHub Actions extractor'ı da yazılmadı. Bir projede bu bilgi eksik kalırsa
+  eklenir.
 
 ## Değerlendirilen alternatifler
 - **agentguard'ı `guard/` altında bağımsız tutmak:** Bilgi bankasının iş mantığı dışında; kapsamı bulandırır.
