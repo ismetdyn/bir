@@ -84,7 +84,7 @@ Ajanlar birbirleriyle konuşmaz.
 |---|---|---|
 | `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`) | Sunucu, veritabanı, servis, proje… | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
 | `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?` |
-| `Decision` | Mimari karar veya kural | `id`, `rule`, `scope`, `review_by`, `status`, `body` |
+| `Decision` | Mimari karar veya kural | `id`, `rule`, `scope`, `date`, `review_by`, `status`, `body` |
 | `Lesson` | Çıkarılmış ders | `id`, `title`, `body`, `date` |
 | `Secret` | Secret değeri; ajan ona placeholder `kb:secret/<id>` ile atıf yapar | `id` (`<varlık>/<ortam>/<ad>`), `name`, `env`, `secret_value` (sadece bu bilgisayarda), `source`, `observed_at` |
 | `SourceFile`, `Repo` | Bilginin geldiği dosya ve depo | `SourceFile {id:'<repo>:<yol>', repo, path}`, `Repo {id, remote}` |
@@ -116,7 +116,7 @@ anlık görüntüden içeri alma ve restore hiçbir kaydı reddetmez, kırpmaz.
 
 ### 6.3 Sürümleme ve erişim kuralı
 
-Fact, ilişki ve sinyaller silinmez. Değer değişince eskisine `valid_to` yazılır ve yeni fact `SUPERSEDES` ile eskisine
+Fact, ilişki ve sinyaller silinmez; tek istisna `kb revert --batch`, geri alınan partinin açtığı kayıtları siler. Değer değişince eskisine `valid_to` yazılır ve yeni fact `SUPERSEDES` ile eskisine
 bağlanır. Güncel bilgi, `valid_to`'su boş olandır. `valid_from` bilginin ilk görüldüğü andır ve hiç değişmez;
 `observed_at` son görüldüğü andır ve aynı değer yeniden görüldükçe tazelenir. Geçmiş aralığı `valid_from → valid_to`'dur.
 Varlık alanları (`aliases`, `summary`) üzerine yazılır; geçmişleri git anlık görüntülerinde durur. Birleştirilen

@@ -50,6 +50,7 @@ npx @modelcontextprotocol/inspector http://127.0.0.1:7411/mcp
 5. **Silme yok.** Fact ve ilişki değişince eskisi kapanır (`valid_to`), yenisi `SUPERSEDES` ile bağlanır; `valid_from`
    (ilk görülme) hiç değişmez. Sinyaller de silinmez; kapanınca sonucu yazılır, ürettiğine `PRODUCED` ile bağlanır.
    Normatif değişiklikler (karar, kural, şema, arşiv) sadece `Proposal` + kullanıcı onayı ile.
+   Tek istisna: `kb revert --batch` geri alınan partinin açtığı kayıtları siler, kapattıklarını yeniden açar.
 6. **Yazma politikası** `kb-core`'da saftır ve tablo güdümlü testlerle korunur: düşük güvenli kaynak yükseği ezemez.
 7. **Cypher sadece okuma** (`CypherGuard`); `LOAD CSV` ve `secret_value` yasak; ilişki türleri sadece
    `schema/relations.yaml` izin listesinden.
