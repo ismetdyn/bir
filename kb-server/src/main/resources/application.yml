@@ -1,0 +1,20 @@
+# Overridable through the environment by Spring relaxed binding:
+# SERVER_ADDRESS, SERVER_PORT, AGENTKB_DATA_DIR.
+server:
+  address: 127.0.0.1
+  port: 7411
+
+spring:
+  ai:
+    mcp:
+      server:
+        name: agentkb
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
+
+agentkb:
+  # The graph lives in <data-dir>/graph (docs/ARCHITECTURE.md §14).
+  data-dir: ${user.home}/.local/share/agentkb
