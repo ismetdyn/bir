@@ -69,6 +69,13 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Karar (kullanıcı 2026-11-05, ADR-0022 karar 38): restore'da eski görüntüde olmayan Secret değeriyle kalır, sinyal kalır, hedefi yoksa kenar düşer, sayı raporlanır. `kb check` yinelenen `id` de raporlar.
   Scope: kb-server/**, kb-client/**
   Depends: G8, G11
+- [ ] G12f G12 düzeltmeleri + sıraya bağlı test taraması
+  Scope: kb-server/**, kb-client/**
+  Depends: G12
+- [ ] G12b Kayıt kaynağı (ADR-0023, `Episode`) + genel bilgi (ADR-0024, Wikidata modeli: `topic` türü, `note`, yönetilen sözlük, okumada güven işareti)
+  Scope: kb-core/**, kb-server/**, seed/schema/**, integrations/**
+  Depends: G12f, ADR-0023/0024 dokümanları
+  Doğrula: Claude Code/Codex MCP isteklerinde oturum kimliği gidiyor mu. Eval'e genel bilgi soruları kullanıcıya önerilir (hakem dosyası).
 - [ ] G13 Senkron + timer
   Açık (CP2'den): restore ve `SyncService` grafa yazacaksa `write`'ta durur ya da `Snapshot` record'ları taşınır; yoksa döngü kuralı düşer. RSS ≈ 2 × Xmx (1,07 GB): servis dosyasına `MemoryMax` konacaksa buna göre.
   Açık (G4'ten): aynı saniyede eşit `updated_at` için birleştirme kuralı (SPEC §10 eki, kullanıcıya sorulacak); anlık görüntü yazımı geçici dosya + rename ile atomik.

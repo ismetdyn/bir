@@ -82,7 +82,8 @@ Düğüm ve kenarlar: SPEC §6. Fiziksel ayrıntılar:
 
 - Her düğüm ve kenarın `id`'si vardır; senkron `id` ile birleştirir. Biçimler: varlık, karar ve derste kısa ad
   (`ornek-app-01`); fact, kenar, öneri ve sinyalde ULID; secret `<varlık>/<ortam>/<ad>`; Repo `<grup>/<ad>`;
-  SourceFile `<repo>:<yol>`; Stack ve Topic `stack:<ad>`, `topic:<ad>`; Document `doc:<sha256'nın ilk 12 hanesi>`.
+  SourceFile `<repo>:<yol>`; Stack ve Topic `stack:<ad>`, `topic:<ad>`; Document `doc:<sha256'nın ilk 12 hanesi>`;
+  Episode ULID (ADR-0023; anlık görüntüye girer).
 - Kısıtlar: her etikette `id` unique. İndeksler: `Fact.key`, `Fact.value`, `Entity.aliases`.
 - Tam metin indeksi: varlık `id`/`aliases`/`summary`, fact değerleri (güncel ve kapanmış), `Decision.rule`/`body`,
   `Lesson.title`/`body`, `Document.name` ve bilgi taşıyan sinyallerin `payload`'u. Türkçe analizör seçimi F1
@@ -98,12 +99,12 @@ Düğüm ve kenarlar: SPEC §6. Fiziksel ayrıntılar:
 ## 5. Yazma yolu
 
 ```
-WriteRequest {source, entity ipucu, facts[], relations[], evidence?, batch?}
+WriteRequest {source, entity ipucu, facts[], relations[], evidence?, batch?, episode?}
   1. Doğrula: şema, anahtar sözlüğü, metin sınırları, secret görünümlü değer → RED (kb secret set ipucuyla);
      sadece MCP/REST yazmaları, içeri alma doğrulamadan geçmez
   2. Varlığı bul: id / alias / hostname / ip; yoksa oluştur (scan → observed, user → current)
   3. WritePolicy (kb-core, saf): mevcut fact'lerle karşılaştır → {tazele, ekle, kapat + ekle, çelişki}
-  4. Tek graf işlemi, tek yazıcı kilidi altında; her kayda source, observed_at, updated_at, batch
+  4. Tek graf işlemi, tek yazıcı kilidi altında; her kayda source, observed_at, updated_at, batch, episode
   5. WriteResult {eklenen, tazelenen, kapanan, çelişkiler, yeni varlıklar}
 ```
 
@@ -111,6 +112,10 @@ WriteRequest {source, entity ipucu, facts[], relations[], evidence?, batch?}
   onaylayan `user`. `user` kaynağı arşivi doğrudan yapar (ADR-0022).
 - **Tazeleme** (aynı değerin yeniden görülmesi) `batch` yazmaz; yoksa `kb revert` tazelenen eski kaydı silerdi. Bir
   partinin kapattığı kayıtlar `SUPERSEDES` ile bulunur (ADR-0022).
+- **Episode (ADR-0023):** `episode` oturumu ya da olayı gruplar, `batch` bir yazmayı; Episode'un partisi yoktur ve revert
+  onu silmez. `user_stated` yazmada kanıt, UserPromptSubmit'in `session_id` ile PromptRing'e yazdığı mesajla eşleşirse
+  kayıt o oturumun episode'una otomatik bağlanır; yoksa `episode` argümanı, o da yoksa kayıt episode'suz kalır (hata değil).
+- **Yönetilen sözlük (ADR-0024):** adım 1 sözlükte olmayan anahtarı `note`/`kb_propose(kind=schema)` ipucuyla reddeder.
 - **Geri alma:** `kb revert --batch <id>` partinin açtığı kayıtları siler, kapattıklarının `valid_to`'sunu kaldırır ve
   kapattığı sinyalleri yeniden açar (yoksa yapılandırılamamış soru-cevap kapalı kalır ve küratör ona bir daha bakmaz).
   Daha eski bir duruma dönmek için `kb restore --at <commit>`.
@@ -216,7 +221,8 @@ Token yok (ADR-0020); tüm uçlar `OriginGuard` arkasındadır (§10).
 |---|---|---|---|
 | KB hook'ları | `integrations/kb-hook.sh <olay> <istemci>` | Sunucuda (`/hooks/*`) — script sadece taşıyıcı | 2 sn zaman aşımı, fail-open |
 
-KB hook olayları: `SessionStart` → brief (+ gerekiyorsa arka planda tarama), `UserPromptSubmit` → recall + PromptRing,
+KB hook olayları: `SessionStart` → `(istemci, session_id)` için Episode'u açar ya da tazeler (ADR-0023), brief (episode
+kimliği satırıyla; + gerekiyorsa arka planda tarama), `UserPromptSubmit` → recall + PromptRing (`session_id` ile),
 `PostToolUse` (AskUserQuestion / `request_user_input`) → ham soru-cevap sinyali; `CaptureService` secret görünümlü
 değerleri yazmadan önce `****` ile maskeler.
 

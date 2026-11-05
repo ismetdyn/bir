@@ -43,6 +43,10 @@ F2'nin kapsam kararları: ADR-0022.
 - [ ] Okuma kuralı: hiçbir kayıt gizlenmiyor; güncel önce, eski değer, biten ilişki ve arşiv işaretli sonra; eski değer
       eşleşince güncel değer de yazılıyor; metin sınırları (`summary` 300, metin fact 500, `body` 4.000) yazarken
       doğrulanıyor (ADR-0017)
+- [ ] Kayıt kaynağı ve genel bilgi (ADR-0023, ADR-0024): `Episode` düğümü ve kayıtlarda `episode`; SessionStart'ta
+      Episode, brief'te kimlik satırı, `kb_remember`/`kb_propose`/`kb_scan` `episode` argümanı; `topic` varlık türü, `note`
+      anahtarı, bilinmeyen anahtar ipucu; okumada kaynak ve durum. **Doğrula:** Claude Code/Codex MCP isteğinde oturum
+      kimliği gönderiyor mu. Eval'e genel bilgi soruları kullanıcıya öneri (`eval/questions.yaml` hakem dosyası)
 - [ ] `kb_remember` + PromptRing kanıt doğrulaması; secret görünümlü değer reddi; `kb_propose` → `Proposal`
       (hedefe `ABOUT`)
 - [ ] Secret'lar: `Secret` düğümü, `GET/PUT /api/v1/secrets/{id}`, veri dizini 0700; `secret_value` anlık görüntüye,
@@ -91,6 +95,8 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 - [ ] Sinyallerin kalanı (en küçük hali F2'de: `conflict`, `qa-capture`, `imported-memory`; `kind` + `key` tek düğüm,
       `count`, `last_at`, `ABOUT`): `empty-search` ve `scan-finding` türleri; kapanınca `outcome` ve `PRODUCED`;
       bilgi taşıyanlar işlenmeden önce aramada `ham`; yeniden açma ve TUI'de "Atılanlar" ekranı
+- [ ] Genel bilgi (ADR-0024): tekrar eden `note`'ları onaylı anahtara yükseltme önerisi; iki adla açılmış konuları
+      (`Topic`) birleştirme
 - [ ] `/mcp/curator` araçları (bkz. CURATOR.md) ve sunucuda zorlanan sınırlar
 - [ ] Parti: `cur_begin_batch` → yazmalar parti kimliğiyle → `cur_end_batch` → eval + `kb check` → gerilediyse geri alma
       (partinin kapattığı sinyaller yeniden açılır; test)

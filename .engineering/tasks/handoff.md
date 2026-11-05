@@ -7,8 +7,10 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G10, G11, CP5 bitti (verify exit 0; kb-core 3168, kb-server 1007 + `SecretLeakIT`, kb-client 38; H2 %100; tarama süresi CP6'da boş makinede ölçülecek). Workflow `f2-g12-revert-restore-check` (run `wf_292d691a-45c`): revert, restore (yerel veri korunur, karar 38), check + git fsck, REST + kb-client, inceleme.
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-g12-revert-restore-check-wf_292d691a-45c.js, resumeFromRunId: "wf_292d691a-45c"})`.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G12 bitti ve commit edildi (`1300230`). Çalışan iki workflow:
+  - `f2-g12-followups-isolation` (run `wf_b31a6d07-05b`): kullanıcıya ait secret, git takılması, sınırlar, terminal kaçışı, sıraya bağlı test taraması, temiz worktree doğrulaması. Bitince commit.
+  - `adr-0023-0024-provenance-general-knowledge` (run `wf_21f81af1-e39`): ADR-0023 kayıt kaynağı, ADR-0024 Wikidata modeli, doküman hizalama. Bitince docs commit.
+  Sonra G12b (kod), G13, G14, CP6.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
@@ -17,6 +19,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - `kb_cypher` ile heap tükenmesi kabul edilen risk (lider, karar 25).
 - `finding` çok değerli (kullanıcı, 2026-11-05); bulgu metni `Düz metin parola bulundu: <dosya>:<satır>; ortam değişkenine taşınmalı` (lider; `parola:` biçimi secret deseni sayılıyordu).
 - Restore yerel veriyi korur (kullanıcı, karar 38).
+- Ana amaç: ajan kullanıcıdan önce agentkb'ye sorar; her konuda her bilgi (SPEC §1). Wikidata modeli + kayıt kaynağı (ADR-0023/0024, 2026-11-06).
+- Her iş bitince commit (kullanıcı, 2026-11-05).
 - `user_stated` kanıtı değeri içermeli ve mesajda birebir geçmeli; port hedefi değerin parçası ("sektör standardı") (karar 29–30).
 
 ## Denenip başarısız olan

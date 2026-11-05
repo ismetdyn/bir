@@ -12,6 +12,9 @@ Claude Code ve Codex her oturuma sıfırdan başlıyor. Sunucu bilgileri, proje 
 her seferinde elle yeniden anlatılıyor. İki ajanın yerleşik hafızaları birbirini görmüyor, makineye bağlı ve
 denetlenemiyor.
 
+**Ana amaç:** ajan bir bilgiye ihtiyaç duyduğunda kullanıcıya sormadan önce agentkb'ye sorar. Bilgi bankası yalnız
+altyapı ve secret'lar için değildir; herhangi bir konudaki herhangi bir bilgi tutulabilir (kullanıcı, 2026-11-06).
+
 ## 2. Çözüm özeti
 
 **Bilgi grafta durur. Sunucu onu tek başına yazar ve ajanlara Markdown olarak sunar. Git sadece yedek ve senkron içindir.**
@@ -37,7 +40,7 @@ Ajanlar birbirleriyle konuşmaz.
 | H5 | Bilgi yerelde, bulut sadece senkron | Sunucu sadece `127.0.0.1`'e bağlanır; senkron GitHub (private) |
 | H6 | Secret değeri ajana ve bu bilgisayarın dışına çıkmaz | Taranan repodaki parola anlık görüntü, git, log ve araç çıktılarının hiçbirinde yok; ajan onu sadece placeholder ile kullanır |
 | H7 | Otomatik yazmalar güvenli | Doğrulanmış bilgi sessizce ezilmez; hiçbir fact silinmez; parti tek komutla geri alınır |
-| H8 | Eski bilgi taze bilgi gibi kullanılmaz | Her fact kaynağı ve `observed_at` ile görünür; `kb_stale` |
+| H8 | Eski bilgi taze bilgi gibi kullanılmaz | Her fact kaynağı, durumu ve `observed_at` ile görünür; kaynak oturumu bilinir (ADR-0023); `kb_stale` |
 | H9 | Emekli (ADR-0019) | — |
 | H10 | Bilgi bankası kendini düzenler ama bozulmaz | Küratör partisi eval skorunu düşürürse otomatik geri alınır |
 | H11 | Sade | Bir kişi bütün tasarımı bir günde okuyup anlayabilir (ADR-0016) |
@@ -82,18 +85,21 @@ Ajanlar birbirleriyle konuşmaz.
 
 | Etiket | Ne | Başlıca alanlar |
 |---|---|---|
-| `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`, `Person`, `Team`) | Sunucu, veritabanı, servis, proje… | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
-| `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?` |
+| `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`, `Person`, `Team`, `Topic`) | Sunucu, veritabanı, servis, proje, herhangi bir konu… (`Topic`: ADR-0024) | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
+| `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?`, `episode?` |
+| `Episode` | Bilginin geldiği oturum ya da olay; içerik tutmaz (ADR-0023) | `id` (ULID), `kind` (`session` \| `scan` \| `user` \| `import`), `client` (`claude` \| `codex` \| `kb` \| `curator` \| `scan`), `session_id?`, `transcript_path?`, `started_at`, `last_at` |
 | `Decision` | Mimari karar veya kural | `id`, `rule`, `scope`, `date`, `review_by`, `status`, `body` |
 | `Lesson` | Çıkarılmış ders | `id`, `title`, `body`, `date` |
 | `Secret` | Secret değeri; ajan ona placeholder `kb:secret/<id>` ile atıf yapar | `id` (`<varlık>/<ortam>/<ad>`), `name`, `env`, `secret_value` (sadece bu bilgisayarda), `source`, `observed_at` |
 | `SourceFile`, `Repo` | Bilginin geldiği dosya ve depo | `SourceFile {id:'<repo>:<yol>', repo, path}`, `Repo {id, remote}` |
 | `Document` | Bilgi bankasının sakladığı ham dosya (PDF, runbook, not) | `id` (`doc:<sha256'nın ilk 12 hanesi>`), `sha256`, `name`, `mime`, `size`, `path` (`blobs/…`), `origin?`, `source`, `added_at` |
-| `Stack`, `Topic` | Teknoloji yığını; varlık olmayan konu (TLS, ...) | `id` |
+| `Stack` | Teknoloji yığını | `id` |
 | `Proposal` | Onay bekleyen normatif değişiklik; neyi değiştirdiği `ABOUT` kenarıyla | `id`, `kind`, `content`, `evidence`, `by`, `status` |
 | `Signal` | Küratör için ham sinyal; **cihaza yerel, anlık görüntüye girmez**, silinmez; aynı `kind` + `key` tek düğümdür | `id`, `kind`, `key`, `payload` (secret görünümlü değerler maskeli), `at`, `last_at`, `count`, `status` (`open` \| `done`), `outcome?` |
 
 `body` alanları Markdown metindir. Her kayıtta ayrıca sunucunun yazdığı teknik `updated_at` vardır (senkron için).
+Bir yazmanın açtığı her düğüm ve kenar, bilinen oturum ya da olayın `episode` kimliğini de taşır; `batch` bir yazmayı,
+`episode` oturumu gruplar (ADR-0023). `Topic` bir varlık türüdür: her konu fact ve ilişki taşıyabilir (ADR-0024).
 Metin sınırları: `summary` 300, metin türündeki fact 500, `body` 4.000 karakter; aşan yazma reddedilir, uzun metin
 doküman olarak eklenir (ADR-0017). Sınırlar ve şema doğrulaması sadece MCP ve REST'ten gelen yeni yazmalara uygulanır;
 anlık görüntüden içeri alma ve restore hiçbir kaydı reddetmez, kırpmaz.
@@ -105,7 +111,7 @@ anlık görüntüden içeri alma ve restore hiçbir kaydı reddetmez, kırpmaz.
 | `HAS_FACT`, `HAS_SECRET` | Entity → Fact / Secret |
 | `SUPERSEDES` | Fact → Fact, Document → Document (yeni → eski) |
 | `FROM {line, commit}` | Fact / Secret → SourceFile; Fact / Decision / Lesson → Document (`line`/`commit` yok) |
-| `IN`, `HAS_REPO` | SourceFile → Repo, Project → Repo |
+| `IN`, `HAS_REPO` | SourceFile → Repo, Episode → Repo (oturumun deposu biliniyorsa), Project → Repo |
 | `TARGET` | Fact (port) → Entity ("8443/https bu proje için") |
 | `APPLIES_TO` | Decision → Stack / Project |
 | `ABOUT` | Decision / Lesson / Document → Entity / Topic; Proposal → değiştirdiği kayıt; Signal → ilgili kayıt (Fact, Entity, SourceFile, Decision; sinyalinki yerel) |
@@ -169,6 +175,10 @@ Okuma araçları kaydı Markdown olarak render eder. Örnek (`kb_read ornek-app-
 - ip: 192.0.2.20 @prod · user, 2026-01-15 → 2026-05-10
 ```
 
+Her satır kaynağını ve güvenini taşır: `source` ve `status` (`ok`, `unverified`, `conflict`) görünür; kaynak oturum
+(Episode) varsa `kb_read` istemciyi, tarihi ve yerelse transcript yolunu da yazar (ADR-0023, ADR-0024). Sıra Wikidata
+rütbeleri gibidir: güncel ve doğrulanmış önce, doğrulanmamış işaretli, çelişki uyarılı, geçmiş sonra; hiçbiri gizlenmez.
+
 "Geçmiş" bölümü kapanmış fact'leri ve biten ilişkileri gösterir. Arama sonuçlarında işaretsiz satır güncel bilgidir
 (`kb_search "192.0.2.20"` ve `kb_search "uygulama sunucusu"`):
 
@@ -221,6 +231,9 @@ Kurallar:
 9. Secret değeri geçmişsiz tek alandır: değişince eskisi tutulmaz. Tarayıcı kullanıcının yazdığı değeri değiştirmez;
    farklı bir değer bulursa `conflict` sinyali açar (değer sinyale girmez).
 10. Metin sınırını aşan yazma reddedilir (`kb doc add` ipucuyla).
+11. **Yönetilen sözlük (ADR-0024).** `schema/facts.yaml`'da olmayan anahtar ipuçlu hatayla reddedilir: bilgiyi `note`
+    (metin, çok değerli, en çok 500 karakter) olarak yaz ya da `kb_propose(kind=schema)` ile anahtarı öner; kullanıcı
+    onaylarsa anahtar sözlüğe girer.
 
 ## 8. Otomatik bilgi toplama
 
@@ -245,7 +258,8 @@ bilgisayarlar arasında senkronlanmaz. Ayrıntılar: SECRETS.md.
 
 - 10 dakikada bir ve kapanışta graf `~/kb/snapshot/nodes.jsonl` ve `edges.jsonl` olarak yazılır: satır başına bir kayıt,
   `id`'ye göre sıralı, sabit biçimde (anahtarlar özyinelemeli alfabetik; ADR-0022). Değişiklik varsa commit'lenir. Sinyaller ve secret değerleri
-  (`secret_value`) yazılmaz; içeri alırken yereldeki değer korunur. `blobs/` aynı repoda durur.
+  (`secret_value`) yazılmaz; içeri alırken yereldeki değer korunur. `Episode` düğümleri ve kayıtların `episode` alanı
+  yazılır, kayıt kaynağı senkronla taşınır (ADR-0023). `blobs/` aynı repoda durur.
 - `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (`updated_at`'i yeni olan kazanır), grafa uygular,
   yeni anlık görüntüyü uzak dalın üstüne commit'leyip gönderir. Commit'lemeden önce yazdığı satır sayısını graftaki
   kayıt sayısıyla karşılaştırır (sinyaller hariç); tutmazsa commit'lemez ve hata verir. Hiçbir zaman force-push
