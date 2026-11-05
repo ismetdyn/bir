@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server;
 
+import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -42,6 +43,20 @@ public abstract class RunningServerTestBase {
         registry.add("agentkb.repo", () -> WORK_DIR.resolve("repo").toString());
         registry.add("agentkb.scan.allowed-roots", () -> scanRoot().toString());
         registry.add("agentkb.scan.internal-domains", () -> "ornek.example");
+    }
+
+    /**
+     * {@code agentkb.repo} as kb init leaves it: a git repository whose HEAD holds the seed
+     * snapshot, for kb restore and kb check. Made on first use, so tests that never restore do not
+     * depend on git; synchronized because the context, and so the repo, is shared.
+     */
+    protected static synchronized Path committedRepo() {
+        Path repo = WORK_DIR.resolve("repo");
+        if (!Files.isDirectory(repo.resolve(".git"))) {
+            ScanProjects.git(repo, "init", "--quiet");
+            ScanProjects.commitAll(repo, "seed snapshot");
+        }
+        return repo;
     }
 
     /** The one allowed root of the scanner; its sibling directories are outside it. */

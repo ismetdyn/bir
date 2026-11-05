@@ -63,7 +63,8 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Depends: G10
 - [x] CP5 H2 ≥ %95 + tarama süresi
   Kanıt: H2 17/17 = %100 (fixture, satırı birebir 23/23); 500 dosya değişmemiş yeniden tarama 18/18 koşuda added=0 closed=0; `ScanPerformanceTest` (çağrı sayısı doğrusal); `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1007, `SecretLeakIT` 1, kb-client 38); `-Peval` 18/18; `quality_gate.py` → exit 0. Süre: yük 7–13'te ölçülemedi (17 sn); boş makinede CP6'da yeniden ölçülür (ADR-0022 karar 37).
-- [ ] G12 Revert, restore, check
+- [x] G12 Revert, restore, check
+  Kanıt: `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1054 + `SecretLeakIT`, kb-client 51); `-Peval` 18/18; `quality_gate.py` → exit 0; 10.000 düğüm + 8.000 kenar restore 1,9 sn (`-Xmx512m`, sınır 30 sn); uçtan uca `kb check`/`kb revert`/`kb restore` gerçek jar ile. İnceleme: anlık görüntü satırıyla `secret_value` sokulabiliyordu → RED → içeri alma süzgeci.
   Çözüldü (G7'de uygulanır): yükseltme ve çelişki çözme yeni sürüm açar (kullanıcı kararı 2026-11-05, ADR-0022 karar 22–23); revert açtığını siler, kapattığını açar.
   Karar (kullanıcı 2026-11-05, ADR-0022 karar 38): restore'da eski görüntüde olmayan Secret değeriyle kalır, sinyal kalır, hedefi yoksa kenar düşer, sayı raporlanır. `kb check` yinelenen `id` de raporlar.
   Scope: kb-server/**, kb-client/**

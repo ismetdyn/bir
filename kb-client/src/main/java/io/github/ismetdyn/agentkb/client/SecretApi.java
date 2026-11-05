@@ -39,6 +39,16 @@ final class SecretApi {
     }
 
     static SecretApi fromEnvironment() {
+        return new SecretApi(serverUrl());
+    }
+
+    /**
+     * The server address from {@code AGENTKB_URL}, without a trailing slash; every kb command that
+     * talks to the server uses it (JsonApi too).
+     *
+     * @throws KbException if it does not name this machine
+     */
+    static String serverUrl() {
         String url = System.getenv("AGENTKB_URL");
         String base = url == null || url.isBlank() ? DEFAULT_URL : url.strip();
         if (!isLoopback(host(base))) {
@@ -47,7 +57,7 @@ final class SecretApi {
                             + " the only place the server runs; refusing "
                             + base);
         }
-        return new SecretApi(base.endsWith("/") ? base.substring(0, base.length() - 1) : base);
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 
     private static String host(String url) {

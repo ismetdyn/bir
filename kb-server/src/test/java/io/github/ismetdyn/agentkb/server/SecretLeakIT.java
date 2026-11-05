@@ -2,6 +2,7 @@ package io.github.ismetdyn.agentkb.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.ismetdyn.agentkb.server.api.MaintenanceHttp;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.hooks.HookHttp;
 import io.github.ismetdyn.agentkb.server.mcp.McpClient;
@@ -35,7 +36,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
  * a commit of it, the application log, every file under the data directory except the store itself
  * (Neo4j's logs), Signal payloads and the three hook answers (brief, recall, and a question
  * answered with the value, whose qa-capture signal must hold it masked). One class, extended as new
- * ways out arrive (sync G13). The values are fake.
+ * ways out arrive (sync G13); G12 adds the restore, check and revert answers. The values are fake.
  *
  * <p>The scanner (G10) is a second way in: fixtures/scanner/ornek-proje is copied under the allowed
  * root and scanned twice, so its two fake passwords are stored by kb_scan, not by PUT, and are
@@ -52,6 +53,7 @@ class SecretLeakIT extends RunningServerTestBase {
     private static final String SEED_ID = "ornek-lb/prod/panel-admin";
     private static final String NEW_ID = "ornek-app-01/prod/kbtest-leak-token";
     private static final String ENTITY = "zz-g8-leak";
+    private static final String ORPHANED_ID = ENTITY + "/prod/kbtest-orphaned";
     private static final Path STORE = Path.of("graph", "data");
     private static final String QUESTION = "zz-g9-leak-q";
     private static final String SCANNED_PROD_ID = "ornek-proje/prod/spring.datasource.password";
@@ -81,6 +83,16 @@ class SecretLeakIT extends RunningServerTestBase {
         paths.putAll(hookAnswers());
         paths.putAll(restErrorBodies(secrets));
         paths.putAll(snapshotAndGitHistory());
+        // G12 (ADR-0022 decision 38): the Secret under the agent's entity is not in HEAD, so the
+        // restore keeps it without its entity and check lists it as a local record. The unknown
+        // commit and batch are the value itself, so an echoing error shows. GET still returns
+        // the values afterwards: the restore really kept them.
+        committedRepo();
+        assertThat(secrets.put(ORPHANED_ID, VALUE).statusCode()).as("PUT orphaned").isEqualTo(204);
+        paths.putAll(new MaintenanceHttp(port).answers(VALUE));
+        assertThat(paths.get("check")).contains(ORPHANED_ID);
+        assertThat(secrets.get(ORPHANED_ID).body()).as("kept by restore").isEqualTo(VALUE);
+        assertThat(secrets.get(NEW_ID).body()).as("kept by restore").isEqualTo(NEW_VALUE);
         paths.put("signal payloads", signals());
         paths.putAll(filesUnderDataDir());
         paths.put("application log", output.getAll());

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +32,22 @@ class RestErrorHandler {
     @ExceptionHandler(WriteRejectedException.class)
     ResponseEntity<Map<String, String>> rejected(WriteRejectedException e) {
         return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "hint", e.hint()));
+    }
+
+    /**
+     * A JSON body that is missing, broken or of the wrong shape is the client's error. Jackson's
+     * message is left out: it may quote the body.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<Map<String, String>> unreadable(HttpMessageNotReadableException e) {
+        return ResponseEntity.badRequest()
+                .body(
+                        Map.of(
+                                "error",
+                                "the request body is not the JSON object this endpoint takes",
+                                "hint",
+                                "Send a JSON object; docs/CLIENTS.md lists the fields of each"
+                                        + " endpoint."));
     }
 
     /**

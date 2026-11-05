@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /** The only writer of the graph (invariant 1). */
@@ -165,15 +166,39 @@ public class WriteService {
 
     /**
      * Loads snapshot rows as they are: no schema, key or length checks and {@code updated_at} kept
-     * (invariant 11), all rows in one transaction. Fails, leaving the data unchanged, only when a
-     * row cannot exist in a graph: a duplicate id or an edge whose endpoint is missing.
+     * (invariant 11), all rows in one transaction; only an {@code id} or secret_value prop is
+     * ignored (RecordImport, invariant 2). Fails, leaving the data unchanged, only when a row
+     * cannot exist in a graph: a duplicate id or an edge whose endpoint is missing.
      */
     public void importRecords(Snapshot snapshot) {
-        Set<String> labels = new TreeSet<>();
-        snapshot.nodes().forEach(node -> labels.addAll(node.labels()));
-        Set<String> types = new TreeSet<>();
-        snapshot.edges().forEach(edge -> types.add(edge.type()));
-        GraphSchema.ensure(store, labels, types);
+        GraphSchema.ensureFor(store, snapshot);
         store.write(tx -> RecordImport.create(tx, snapshot));
+    }
+
+    /**
+     * {@code kb revert --batch <id>} (BatchRevert): deletes what the batch opened and reopens what
+     * it closed, in one transaction.
+     *
+     * @throws WriteRejectedException if the batch is empty or unknown, or a later batch built on
+     *     it; nothing changed
+     */
+    public RevertResult revert(@Nullable String batch) {
+        if (batch == null || batch.isBlank()) {
+            throw new WriteRejectedException(
+                    "no batch given",
+                    "Give the batch id a write returned, e.g. kb revert --batch <id>.");
+        }
+        String now = Times.format(Instant.now());
+        return store.write(tx -> BatchRevert.revert(tx, batch, now));
+    }
+
+    /**
+     * {@code kb restore} (RecordRestore): rebuilds the graph from {@code snapshot} in one
+     * transaction, keeping local data (ADR-0022 decision 38). Rows are taken as they are (invariant
+     * 11). Fails, leaving the graph unchanged, only when a row cannot exist in a graph.
+     */
+    public RestoreResult replaceAll(Snapshot snapshot) {
+        GraphSchema.ensureFor(store, snapshot);
+        return store.write(tx -> RecordRestore.replace(tx, snapshot));
     }
 }

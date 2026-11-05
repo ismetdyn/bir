@@ -43,12 +43,12 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | `kb rel add <id> <tür> <hedef>` · `kb rel close <relId>` | İlişki |
 | `kb conflicts` · `kb resolve <id> --accept-new\|--keep-old` | Çelişkiler |
 | `kb proposals` · `kb accept <id>` · `kb reject <id> -m "..."` | Öneriler |
-| `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma |
+| `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı Secret, o an tuttuğu değerle silinir (sonradan `kb secret set` ile yazılan dahil); değer yalnız bu bilgisayarda olduğu için geri gelmez, çıktı sayısını verir |
 | `kb scan <yol>` | Tarama |
 | `kb doc add <dosya> [--about <id>] [--origin <url>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB içinde, son alınan parçadan devam; diske akıtılır. Ayrıntı F3 başında tasarlanır (ADR-0022 karar 21) |
 | `kb secret set <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için). F2'de yalnız bu ikisi çıkar (`GET/PUT /secrets/{id}`). `kb secret list` `GET /secrets?prefix=` ister, F3'tedir. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |
 | `kb run --env AD=kb:secret/<id> [--file AD=…] -- <komut>` | Placeholder'ı ortam değişkenine çözüp komutu çalıştırır (bkz. SECRETS.md) |
-| `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme |
+| `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme. Anlık görüntü satırındaki `secret_value` ve `props.id` yüklenmez (değişmez 2); çıktı yok sayılan değer sayısını verir |
 | `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir (F2: yalnız tutarlılık + `git fsck`) |
 | `kb curator run [--if-needed]` · `kb import-memories` | Küratör |
 | `kb tui` · `kb gui` | Arayüzler |

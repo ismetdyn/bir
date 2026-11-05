@@ -153,6 +153,29 @@ class ImportRecordsTest {
         assertThat(count("MATCH (n:Topic {id: 'node-a'}) RETURN count(n) AS v")).isEqualTo(1);
     }
 
+    /** Invariant 2: the start-up import ignores a secret_value or id a snapshot row carries. */
+    @Test
+    void a_secret_value_or_id_in_a_row_is_not_imported() {
+        Node secret =
+                new Node(
+                        "zz-app/prod/db-password",
+                        List.of("Secret"),
+                        Map.of(
+                                "secret_value",
+                                "kbtest-FAKE-import-4f9d2a17",
+                                "id",
+                                "zz-app/prod/other",
+                                "updated_at",
+                                AT));
+
+        writeService.importRecords(new Snapshot(List.of(secret), List.of()));
+
+        assertThat(count("MATCH (s:Secret) WHERE s.secret_value IS NOT NULL RETURN count(s) AS v"))
+                .isZero();
+        assertThat(count("MATCH (s:Secret {id: 'zz-app/prod/db-password'}) RETURN count(s) AS v"))
+                .isEqualTo(1);
+    }
+
     private int propertyLength(String id, String property) {
         return ((String)
                         store.database()

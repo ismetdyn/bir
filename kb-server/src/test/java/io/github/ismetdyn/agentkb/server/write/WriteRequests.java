@@ -34,6 +34,16 @@ final class WriteRequests {
         return new WriteRequest(source, entity, SERVER, List.of(facts), List.of(), null, batch, at);
     }
 
+    static WriteRequest inBatch(
+            Source source,
+            String entity,
+            Instant at,
+            String batch,
+            List<FactInput> facts,
+            List<RelationInput> relations) {
+        return new WriteRequest(source, entity, SERVER, facts, relations, null, batch, at);
+    }
+
     /** No type: the entity must already exist. */
     static WriteRequest untyped(Source source, String entity, Instant at, FactInput... facts) {
         return new WriteRequest(source, entity, null, List.of(facts), List.of(), null, null, at);

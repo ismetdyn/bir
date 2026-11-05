@@ -2,6 +2,7 @@ package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.Schema;
+import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Snapshot;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,15 @@ final class GraphSchema {
                     tx.schema().awaitIndexesOnline(ONLINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                     return null;
                 });
+    }
+
+    /** {@link #ensure} for the labels and types the rows of {@code snapshot} carry. */
+    static void ensureFor(EmbeddedNeo4jStore store, Snapshot snapshot) {
+        Set<String> labels = new TreeSet<>();
+        snapshot.nodes().forEach(node -> labels.addAll(node.labels()));
+        Set<String> types = new TreeSet<>();
+        snapshot.edges().forEach(edge -> types.add(edge.type()));
+        ensure(store, labels, types);
     }
 
     private static Set<String> union(List<String> fixed, Collection<String> extra) {

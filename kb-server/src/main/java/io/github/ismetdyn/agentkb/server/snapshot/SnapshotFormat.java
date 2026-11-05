@@ -48,9 +48,15 @@ public final class SnapshotFormat {
     public record Snapshot(List<Node> nodes, List<Edge> edges) {}
 
     public static Snapshot read(Path dir) throws IOException {
+        return parse(
+                Files.readString(dir.resolve(NODES_FILE), StandardCharsets.UTF_8),
+                Files.readString(dir.resolve(EDGES_FILE), StandardCharsets.UTF_8));
+    }
+
+    /** The two files' text, as git gives a committed version of them (SnapshotHistory). */
+    static Snapshot parse(String nodes, String edges) throws IOException {
         return new Snapshot(
-                readRows(dir.resolve(NODES_FILE), Node.class),
-                readRows(dir.resolve(EDGES_FILE), Edge.class));
+                rows(NODES_FILE, nodes, Node.class), rows(EDGES_FILE, edges, Edge.class));
     }
 
     public static void write(Path dir, Snapshot snapshot) throws IOException {
@@ -73,14 +79,14 @@ public final class SnapshotFormat {
         writeRows(dir.resolve(EDGES_FILE), edges);
     }
 
-    private static <T> List<T> readRows(Path file, Class<T> type) throws IOException {
-        List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+    private static <T> List<T> rows(String file, String text, Class<T> type) throws IOException {
+        List<String> lines = text.lines().toList();
         List<T> rows = new ArrayList<>(lines.size());
         for (int i = 0; i < lines.size(); i++) {
             try {
                 rows.add(JSON.readValue(lines.get(i), type));
             } catch (JacksonException e) {
-                throw new IOException(file.getFileName() + " line " + (i + 1) + ": not a row", e);
+                throw new IOException(file + " line " + (i + 1) + ": not a row", e);
             }
         }
         return rows;

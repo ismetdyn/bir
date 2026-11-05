@@ -16,11 +16,20 @@ import picocli.CommandLine.Command;
         name = "kb",
         mixinStandardHelpOptions = true,
         description = "Client of the local agentkb server.",
-        subcommands = {SecretCommand.class, RunCommand.class})
+        subcommands = {
+            SecretCommand.class,
+            RunCommand.class,
+            MaintenanceCommands.Revert.class,
+            MaintenanceCommands.Restore.class,
+            MaintenanceCommands.Check.class
+        })
 public final class Kb {
 
-    /** kb itself failed; for kb run, the command did not start. */
+    /** kb itself failed; for kb run, the command did not start; for kb check, it found problems. */
     static final int FAILED = 1;
+
+    /** docs/CLIENTS.md: the server could not be reached (revert, restore, check). */
+    static final int UNREACHABLE = 3;
 
     private Kb() {}
 
@@ -39,7 +48,7 @@ public final class Kb {
                                     // clear line). Only KbException messages are known to carry
                                     // no value; a JDK message may quote one.
                                     command.getErr().println("kb: " + message(e));
-                                    return FAILED;
+                                    return e instanceof KbException kb ? kb.exitCode() : FAILED;
                                 });
         int exitCode = cli.execute(args);
         out.flush();

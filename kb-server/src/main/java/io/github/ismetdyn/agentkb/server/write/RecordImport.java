@@ -8,27 +8,32 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 
-/** The rows of {@link WriteService#importRecords} as graph records, in its one transaction. */
+/**
+ * The rows of {@link WriteService#importRecords} and {@link WriteService#replaceAll} as graph
+ * records, in the caller's one transaction.
+ */
 final class RecordImport {
 
     private static final String ID = "id";
 
     private RecordImport() {}
 
-    static Void create(Transaction tx, Snapshot snapshot) {
+    /**
+     * @return the created nodes by id
+     */
+    static Map<String, org.neo4j.graphdb.Node> create(Transaction tx, Snapshot snapshot) {
         Map<String, org.neo4j.graphdb.Node> created = new HashMap<>();
         for (Node node : snapshot.nodes()) {
             org.neo4j.graphdb.Node graphNode =
                     tx.createNode(node.labels().stream().map(Label::label).toArray(Label[]::new));
             graphNode.setProperty(ID, node.id());
-            node.props()
-                    .forEach(
-                            (key, value) ->
-                                    graphNode.setProperty(key, stored(node.id(), key, value)));
+            setProps(graphNode, node.id(), node.props());
             if (created.put(node.id(), graphNode) != null) {
                 throw new IllegalArgumentException("duplicate node id " + node.id());
             }
@@ -44,12 +49,37 @@ final class RecordImport {
                                     endpoint(created, edge, edge.to()),
                                     RelationshipType.withName(edge.type()));
             relationship.setProperty(ID, edge.id());
-            edge.props()
-                    .forEach(
-                            (key, value) ->
-                                    relationship.setProperty(key, stored(edge.id(), key, value)));
+            setProps(relationship, edge.id(), edge.props());
         }
-        return null;
+        return created;
+    }
+
+    /**
+     * Copies a row's props, but never {@code id} (the row's own id is set) or a secret_value: a
+     * snapshot is pulled from a remote, so a value in it is untrusted and must not become the one
+     * {@code kb run} injects (invariant 2). SnapshotExporter never writes either.
+     */
+    private static void setProps(Entity record, String recordId, Map<String, Object> props) {
+        props.forEach(
+                (key, value) -> {
+                    if (!ID.equals(key) && !isSecret(key)) {
+                        record.setProperty(key, stored(recordId, key, value));
+                    }
+                });
+    }
+
+    /** The rows of {@code snapshot} that carry a secret_value key in any case. */
+    static int secretValues(Snapshot snapshot) {
+        return (int)
+                Stream.concat(
+                                snapshot.nodes().stream().map(Node::props),
+                                snapshot.edges().stream().map(Edge::props))
+                        .filter(props -> props.keySet().stream().anyMatch(RecordImport::isSecret))
+                        .count();
+    }
+
+    private static boolean isSecret(String key) {
+        return SecretWrite.SECRET_VALUE.equalsIgnoreCase(key);
     }
 
     private static org.neo4j.graphdb.Node endpoint(
