@@ -39,6 +39,7 @@ görünmediğini, `kb run`'ın ise onu alt sürece verdiğini kontrol eder.
 | Proje kararı | `karar-ornek-ayri-systemd-servisleri` → `APPLIES_TO` → `ornek-proje` | Sadece `ornek-proje` brief'inde |
 | Repo eşleme | `ornek-proje` → `HAS_REPO` → `ornek-grup/ornek-proje` | Bu remote'taki repoda brief `ornek-proje` döner |
 | Ders | `ders-ornek-tls-yaniltici-test` → `ABOUT` → `ornek-app-01`, `topic:tls` | "TLS hatası curl -k" araması bu dersi bulur |
+| Türkçe büyük İ | `ornek-yedek-01` (özette `İzmir`; id ve alias'ta geçmez) | `kb_search "izmir"` bu kaydı analizör üzerinden bulur (eval q12) |
 
 Eşanlamlı ilişki türü (`uses` → `DEPENDS_ON`) yazma anında çevrildiği için seed'de yok; `WritePolicy` birim testinde.
 Tarayıcı fixture'ı: `fixtures/scanner/ornek-proje/`, beklenen sonuç `fixtures/scanner/expected.yaml`.

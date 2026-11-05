@@ -26,7 +26,7 @@ facts:
   access:            {kind: text}
   convention:        {kind: text}
   build:             {kind: text}
-  finding:           {kind: text}      # tarayıcı bulguları (ör. repoda düz metin secret)
+  finding:           {kind: text, multi: true}  # tarayıcı bulguları (ör. repoda düz metin secret)
 
 # Ortam adları ve eşanlamlıları (tarayıcı profil/namespace adlarını bunlara çevirir)
 environments:

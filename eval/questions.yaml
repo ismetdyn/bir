@@ -78,11 +78,10 @@ questions:
     expect: [ornek-db]
 
   - id: q12
-    question: "İzmir sunucusu"   # Türkçe büyük İ testi — seed'e İzmir içeren bir kayıt eklenince aç
+    question: "İzmir sunucusu"   # Türkçe büyük İ testi: kayıtta "İzmir" yazar, sorgu "izmir"dir
     tool: kb_search
     query: "izmir"
-    expect: []
-    skip: true
+    expect: [ornek-yedek-01]
 
   - id: q13
     question: "ornek-app-01'in eski IP'si neydi?"

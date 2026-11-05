@@ -144,7 +144,7 @@ fact("ornek-proje", "java_version", "21", None, "scan", SC, src_file=f_pom, line
 fact("ornek-proje", "url", "https://ornek.example", "prod", "user", U3)
 fact("ornek-proje", "build", "./mvnw verify", None, "user", U3)
 fact("ornek-proje", "convention", "REST uçları /api/v1 altında", None, "user", U3)
-fact("ornek-proje", "finding", "application-prod.yml:10'da düz metin parola vardı; ortam değişkenine taşınmalı",
+fact("ornek-proje", "finding", "Düz metin parola bulundu: src/main/resources/application-prod.yml:10; ortam değişkenine taşınmalı",
      "prod", "scan", SC, src_file=f_prod, line=10, commit=COMMIT)
 secret("ornek-proje", "prod", "spring.datasource.password", "scan", SC, src_file=f_prod, line=10, commit=COMMIT)
 
@@ -208,6 +208,10 @@ entity("ornek-app-00", "Server", "archived",
        "Eski uygulama sunucusu; uygulamalar 2026-05'te ornek-app-01'e taşındı.", U2, ["app00"])
 fact("ornek-app-00", "hostname", "ornek-app-00.ornek.example", "prod", "user", U1)
 rel("ornek-proje", "DEPLOYED_ON", "ornek-app-00", "user", U1, env="prod", valid_to=U2)
+
+# --- Turkish dotted capital İ (eval q12): "izmir" must match only through the analyzer, so the id and aliases
+# do not contain it. An entity draws no ULID, so the ids generated above stay the same.
+entity("ornek-yedek-01", "Server", "current", "İzmir veri merkezindeki yedek sunucu.", U3)
 
 # --- checks and output
 ids = [n["id"] for n in nodes]
