@@ -2,10 +2,7 @@
   "mcpServers": {
     "kbc": {
       "type": "http",
-      "url": "http://127.0.0.1:7411/mcp/curator",
-      "headers": {
-        "Authorization": "Bearer ${KB_CURATOR_TOKEN}"
-      }
+      "url": "http://127.0.0.1:7411/mcp/curator"
     }
   }
 }

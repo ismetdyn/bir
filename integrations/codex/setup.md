@@ -7,12 +7,19 @@
 ```toml
 [mcp_servers.kb]
 url = "http://127.0.0.1:7411/mcp"
+# Yazma araçları (kb_remember, kb_propose) codex exec'te onay istemeden çağrılsın
+default_tools_approval_mode = "approve"
 
 [features]
 # Normal modda yapılandırılmış soru aracı (soru-cevap yakalama için; AGENT-RULES ile birlikte)
 default_mode_request_user_input = true
 # Codex Memories açılmaz (varsayılan kapalı) — tek beyin agentkb
 ```
+
+Codex 0.161.0'da ölçüldü (ADR-0022 karar 28): okuma araçları `readOnlyHint: true` ve `destructiveHint: false` taşıdığı
+için ayarsız da onaysız çalışır. `destructiveHint` varsayılanı (`true`) ile `codex exec` çağrıyı "requires approval"
+diye reddediyordu. `default_tools_approval_mode` yazma araçları içindir; araç başına
+`[mcp_servers.kb.tools.<ad>] approval_mode = "approve"` de çalışır (ADR-0018).
 
 Token ve ortam değişkeni gerekmez (ADR-0020). `OriginGuard` eklenince bağlantının geçtiği F2'de doğrulanır.
 

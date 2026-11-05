@@ -10,7 +10,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/java -Xms128m -Xmx512m -XX:+UseG1GC -jar %h/kb-tools/agentkb-server.jar
+ExecStart=/usr/bin/java -Xms128m -Xmx512m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -jar %h/kb-tools/agentkb-server.jar
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
