@@ -17,14 +17,30 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>kb-core</module>
     <module>kb-server</module>
+    <module>kb-client</module>
   </modules>
 
   <properties>
     <java.version>21</java.version>
     <spring-ai.version>2.0.2</spring-ai.version>
     <neo4j.version>2026.10.1</neo4j.version>
+    <archunit.version>1.5.1</archunit.version>
+    <spotless.version>3.10.4</spotless.version>
+    <!-- Surefire's user property: the eval gate runs only under -Peval (ADR-0022 decision 8). -->
+    <excludedGroups>eval</excludedGroups>
   </properties>
+
+  <profiles>
+    <!-- ./mvnw -Peval verify: every test plus the eval gate; its exit code is the gate until CI exists. -->
+    <profile>
+      <id>eval</id>
+      <properties>
+        <excludedGroups/>
+      </properties>
+    </profile>
+  </profiles>
 
   <dependencyManagement>
     <dependencies>
@@ -37,4 +53,29 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <googleJavaFormat>
+              <!-- The code base indents by four spaces. -->
+              <style>AOSP</style>
+            </googleJavaFormat>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -1,0 +1,25 @@
+{
+    "session_id": "01a1a91f-778a-76d1-9a06-8f89bc47296c",
+    "transcript_path": "/home/user/.codex/sessions/2026/11/05/rollout-2026-11-05T03-32-54-01a1a91f-778a-76d1-9a06-8f89bc47296c.jsonl",
+    "cwd": "/home/user/project",
+    "hook_event_name": "PostToolUse",
+    "model": "example-model-slug",
+    "permission_mode": "default",
+    "turn_id": "example-turn-id-1",
+    "tool_name": "request_user_input",
+    "tool_use_id": "call_example0001",
+    "tool_input": {
+        "questions": [
+            {
+                "id": "framework",
+                "header": "Framework",
+                "question": "Which framework?",
+                "options": [
+                    {"label": "React", "description": "Component library"},
+                    {"label": "Vue", "description": "Progressive framework"}
+                ]
+            }
+        ]
+    },
+    "tool_response": "{\"answers\":{\"framework\":{\"answers\":[\"React\"]}}}"
+}

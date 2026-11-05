@@ -15,8 +15,9 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.QueryExecutionException;
 
 /**
- * K6: what each Neo4j fulltext analyzer really returns for Turkish casing. Every analyzer the database lists is
- * measured against real indexes; the table is written to target/f1-analyzer-table.md for the ADR.
+ * K6: what each Neo4j fulltext analyzer really returns for Turkish casing. Every analyzer the
+ * database lists is measured against real indexes; the table is written to
+ * target/f1-analyzer-table.md for the ADR.
  */
 class FulltextAnalyzerTest {
 
@@ -36,18 +37,24 @@ class FulltextAnalyzerTest {
     static void measureEveryAnalyzer(@TempDir Path dataDir) throws IOException {
         try (EmbeddedNeo4jStore store = new EmbeddedNeo4jStore(dataDir)) {
             GraphDatabaseService database = store.database();
-            List<String> analyzers = database.executeTransactionally(
-                    "CALL db.index.fulltext.listAvailableAnalyzers() YIELD analyzer RETURN analyzer ORDER BY analyzer",
-                    Map.of(),
-                    result -> result.stream().map(row -> (String) row.get("analyzer")).toList());
-            // Neo4j allows one fulltext index per label and property, so each analyzer gets its own label.
+            List<String> analyzers =
+                    database.executeTransactionally(
+                            "CALL db.index.fulltext.listAvailableAnalyzers() YIELD analyzer RETURN analyzer ORDER BY analyzer",
+                            Map.of(),
+                            result ->
+                                    result.stream()
+                                            .map(row -> (String) row.get("analyzer"))
+                                            .toList());
+            // Neo4j allows one fulltext index per label and property, so each analyzer gets its own
+            // label.
             for (int i = 0; i < analyzers.size(); i++) {
                 database.executeTransactionally(
                         "UNWIND $values AS value CREATE (:" + labelName(i) + " {text: value})",
                         Map.of("values", INDEXED_VALUES));
                 createIndex(database, i, analyzers.get(i));
             }
-            database.executeTransactionally("CALL db.awaitIndexes($seconds)", Map.of("seconds", INDEX_AWAIT_SECONDS));
+            database.executeTransactionally(
+                    "CALL db.awaitIndexes($seconds)", Map.of("seconds", INDEX_AWAIT_SECONDS));
 
             for (int i = 0; i < analyzers.size(); i++) {
                 Map<String, String> row = new LinkedHashMap<>();
@@ -79,7 +86,8 @@ class FulltextAnalyzerTest {
     void table_file_reports_every_analyzer_and_query() throws IOException {
         String table = Files.readString(TABLE_FILE);
 
-        assertThat(table).contains(TABLE.keySet().stream().map(analyzer -> "| " + analyzer + " |").toList());
+        assertThat(table)
+                .contains(TABLE.keySet().stream().map(analyzer -> "| " + analyzer + " |").toList());
         assertThat(table).contains(QUERIES);
     }
 
@@ -99,8 +107,10 @@ class FulltextAnalyzerTest {
     }
 
     @Test
-    void current_behavior_standard_folding_matches_every_case_form_and_merges_dotted_with_dotless() {
-        assertThat(cellValues(STANDARD_FOLDING, "izmir")).containsExactly("İzmir", "IZMIR", "izmir", "Izmir");
+    void
+            current_behavior_standard_folding_matches_every_case_form_and_merges_dotted_with_dotless() {
+        assertThat(cellValues(STANDARD_FOLDING, "izmir"))
+                .containsExactly("İzmir", "IZMIR", "izmir", "Izmir");
         assertThat(cellValues(STANDARD_FOLDING, "ısı")).containsExactly("ısı", "ISI", "İSİ");
         assertThat(cellValues(STANDARD_FOLDING, "ISI")).containsExactly("ısı", "ISI", "İSİ");
     }
@@ -121,16 +131,24 @@ class FulltextAnalyzerTest {
 
     private static void createIndex(GraphDatabaseService database, int position, String analyzer) {
         // Analyzer names come from the database's own list.
-        database.executeTransactionally("CREATE FULLTEXT INDEX " + indexName(position) + " FOR (n:" + labelName(position)
-                + ") ON EACH [n.text] OPTIONS {indexConfig: {`fulltext.analyzer`: '" + analyzer + "'}}");
+        database.executeTransactionally(
+                "CREATE FULLTEXT INDEX "
+                        + indexName(position)
+                        + " FOR (n:"
+                        + labelName(position)
+                        + ") ON EACH [n.text] OPTIONS {indexConfig: {`fulltext.analyzer`: '"
+                        + analyzer
+                        + "'}}");
     }
 
     private static String queryCell(GraphDatabaseService database, String index, String query) {
         try {
-            List<String> found = database.executeTransactionally(
-                    "CALL db.index.fulltext.queryNodes($index, $query) YIELD node RETURN node.text AS text",
-                    Map.of("index", index, "query", query),
-                    result -> result.stream().map(row -> (String) row.get("text")).toList());
+            List<String> found =
+                    database.executeTransactionally(
+                            "CALL db.index.fulltext.queryNodes($index, $query) YIELD node RETURN node.text AS text",
+                            Map.of("index", index, "query", query),
+                            result ->
+                                    result.stream().map(row -> (String) row.get("text")).toList());
             List<String> ordered = INDEXED_VALUES.stream().filter(found::contains).toList();
             return ordered.isEmpty() ? "-" : String.join(", ", ordered);
         } catch (QueryExecutionException e) {
@@ -139,13 +157,19 @@ class FulltextAnalyzerTest {
     }
 
     private static String renderTable() {
-        StringBuilder out = new StringBuilder("| analyzer | ")
-                .append(String.join(" | ", QUERIES))
-                .append(" |\n|---|")
-                .append("---|".repeat(QUERIES.size()))
-                .append('\n');
-        TABLE.forEach((analyzer, row) ->
-                out.append("| ").append(analyzer).append(" | ").append(String.join(" | ", row.values())).append(" |\n"));
+        StringBuilder out =
+                new StringBuilder("| analyzer | ")
+                        .append(String.join(" | ", QUERIES))
+                        .append(" |\n|---|")
+                        .append("---|".repeat(QUERIES.size()))
+                        .append('\n');
+        TABLE.forEach(
+                (analyzer, row) ->
+                        out.append("| ")
+                                .append(analyzer)
+                                .append(" | ")
+                                .append(String.join(" | ", row.values()))
+                                .append(" |\n"));
         return out.toString();
     }
 }

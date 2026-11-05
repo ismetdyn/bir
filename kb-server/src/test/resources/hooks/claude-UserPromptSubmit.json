@@ -1,0 +1,9 @@
+{
+    "session_id": "0d28bcdb-57d4-44a8-bb5a-ac8f80dea762",
+    "transcript_path": "/home/user/.claude/projects/-home-user-project/0d28bcdb-57d4-44a8-bb5a-ac8f80dea762.jsonl",
+    "cwd": "/home/user/project",
+    "prompt_id": "6d8ba1b1-93b5-4fa0-a9c9-a392a4186af8",
+    "permission_mode": "default",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Run the Bash command `echo probe-ok`. Then answer in one line: the probe-ok output, plus every \"agentkb probe marker\" code you can see in system reminders."
+}

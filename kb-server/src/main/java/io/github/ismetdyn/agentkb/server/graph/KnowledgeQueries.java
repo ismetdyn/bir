@@ -1,0 +1,289 @@
+package io.github.ismetdyn.agentkb.server.graph;
+
+import io.github.ismetdyn.agentkb.core.Ids;
+import io.github.ismetdyn.agentkb.core.Times;
+import io.github.ismetdyn.agentkb.core.render.EntityView;
+import io.github.ismetdyn.agentkb.core.render.ResultList;
+import io.github.ismetdyn.agentkb.core.render.ResultList.Hit;
+import io.github.ismetdyn.agentkb.core.render.SecretView;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
+import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.Transaction;
+import org.springframework.stereotype.Component;
+
+/**
+ * The read side of the graph for the read tools, always through {@link EmbeddedNeo4jStore#read}.
+ * Queries project the properties they need; none returns a whole node, so {@code secret_value}
+ * cannot ride along (invariant 2). The agent's own query ({@link #cypher}) can, so its rows are
+ * filtered.
+ */
+@Component
+public class KnowledgeQueries {
+
+    /** Which way kb_related follows relations from the start record. */
+    public enum Direction {
+        OUT("-[*1..%d]->"),
+        IN("<-[*1..%d]-"),
+        BOTH("-[*1..%d]-");
+
+        private final String pattern;
+
+        Direction(String pattern) {
+            this.pattern = pattern;
+        }
+    }
+
+    public static final int MAX_DEPTH = 3;
+
+    // Same name as in write/GraphSchema; graph cannot import write (write depends on graph).
+    private static final String FULLTEXT_INDEX = "kb_fulltext";
+    // Lucene query syntax; the agent's words are text, never operators (ReadToolContractTest).
+    private static final Pattern LUCENE_SPECIAL =
+            Pattern.compile("[\\\\+\\-!():^\\[\\]\"{}~*?|&/]");
+    private static final String TYPE_OF =
+            "coalesce([l IN labels(%s) WHERE l <> 'Entity'][0], 'Entity')";
+
+    private static final String RESOLVE =
+            """
+            MATCH (e:Entity) WHERE e.id IN $ids OR any(a IN coalesce(e.aliases, []) WHERE a IN $ids)
+            RETURN e.id AS id ORDER BY CASE WHEN e.id IN $ids THEN 0 ELSE 1 END, e.id LIMIT 1
+            """;
+    private static final String ENTITY =
+            """
+            MATCH (e:Entity {id: $id})
+            RETURN e.id AS id, %s AS type, e.status AS status, e.summary AS summary,
+                   [a IN coalesce(e.aliases, []) | a] AS aliases
+            """
+                    .formatted(TYPE_OF.formatted("e"));
+    private static final String FACTS =
+            """
+            MATCH (:Entity {id: $id})-[:HAS_FACT]->(f:Fact)
+            OPTIONAL MATCH (f)-[from:FROM]->(src)
+            WITH f, head(collect({id: src.id, path: src.path, repo: src.repo, line: from.line})) AS src
+            RETURN f {.id, .key, .value, .env, .source, .valid_from, .observed_at, .valid_to, .status}
+                     AS fact,
+                   [(f)-[:TARGET]->(t) | t.id][0] AS target,
+                   src.id AS originId, src.path AS originPath, src.repo AS originRepo,
+                   src.line AS originLine
+            ORDER BY f.key, f.env, f.valid_from, f.id
+            """;
+    private static final String RELATIONS =
+            """
+            MATCH (e:Entity {id: $id})-[r]-(o:Entity)
+            RETURN type(r) AS type, startNode(r) = e AS outgoing, o.id AS other, r.env AS env,
+                   r.source AS source, r.valid_from AS validFrom,
+                   coalesce(r.observed_at, r.valid_from) AS observedAt, r.valid_to AS validTo
+            ORDER BY r.valid_from, type(r), o.id
+            """;
+    private static final String SECRETS =
+            """
+            MATCH (:Entity {id: $id})-[:HAS_SECRET]->(s:Secret)
+            RETURN s.id AS id, s.name AS name, s.env AS env ORDER BY s.id
+            """;
+    private static final String SEARCH =
+            """
+            CALL db.index.fulltext.queryNodes($index, $query) YIELD node, score
+            WHERE $env IS NULL OR NOT node:Fact OR node.env = $env
+            OPTIONAL MATCH (owner:Entity)-[:HAS_FACT]->(node)
+            WITH node, score, coalesce(owner, node) AS record
+            RETURN score, record.id AS id, %s AS type, record:Entity AS isEntity,
+                   record.status AS status, node:Signal AS isSignal,
+                   coalesce(record.summary, record.rule, record.title, record.name, record.payload)
+                     AS text,
+                   CASE WHEN node:Fact THEN node {.id, .key, .value, .env, .source, .valid_from,
+                     .observed_at, .valid_to, .status} END AS fact,
+                   CASE WHEN node:Fact THEN [(node)-[:TARGET]->(t) | t.id][0] END AS target,
+                   [(record)-[:HAS_FACT]->(c:Fact) WHERE node:Fact AND c <> node
+                     AND c.valid_to IS NULL AND c.status <> 'conflict' AND c.key = node.key
+                     AND c.env = node.env | c.value] AS kept
+            """
+                    .formatted(TYPE_OF.formatted("record"));
+    // Every record on a path is an entity and appears once; the relations between entities are
+    // the vocabulary ones (SPEC §6.2), which always carry source and valid_from.
+    private static final String RELATED =
+            """
+            MATCH p = (s:Entity {id: $id})%s(x:Entity)
+            WHERE all(n IN nodes(p) WHERE n:Entity AND single(m IN nodes(p) WHERE m = n))
+              AND ($rel IS NULL OR all(r IN relationships(p) WHERE type(r) = $rel))
+            WITH nodes(p) AS ns, relationships(p) AS rs
+            RETURN [i IN range(0, size(rs) - 1) | {
+                     type: type(rs[i]), outgoing: startNode(rs[i]) = ns[i], other: ns[i + 1].id,
+                     otherType: %s, status: ns[i + 1].status,
+                     env: rs[i].env, source: rs[i].source, validFrom: rs[i].valid_from,
+                     observedAt: coalesce(rs[i].observed_at, rs[i].valid_from),
+                     validTo: rs[i].valid_to}] AS steps
+            """;
+
+    // Current facts of the given entity labels last seen before $before, or not ok (conflict,
+    // unverified) whatever their age. Rows have the shape of SEARCH, so they read as search hits;
+    // a fact that is not ok ranks first.
+    private static final String STALE =
+            """
+            MATCH (e:Entity)-[:HAS_FACT]->(f:Fact)
+            WHERE f.valid_to IS NULL AND any(l IN labels(e) WHERE l IN $labels)
+              AND (f.observed_at < $before OR f.status <> 'ok')
+            RETURN CASE WHEN f.status <> 'ok' THEN 1.0 ELSE 0.0 END AS score, e.id AS id,
+                   %s AS type, true AS isEntity, e.status AS status, false AS isSignal,
+                   e.summary AS text,
+                   f {.id, .key, .value, .env, .source, .valid_from, .observed_at, .valid_to,
+                     .status} AS fact,
+                   [(f)-[:TARGET]->(t) | t.id][0] AS target,
+                   [(e)-[:HAS_FACT]->(c:Fact) WHERE c <> f AND c.valid_to IS NULL
+                     AND c.status <> 'conflict' AND c.key = f.key AND c.env = f.env | c.value]
+                     AS kept
+            ORDER BY e.id, f.key, f.env, f.valid_from, f.id
+            """
+                    .formatted(TYPE_OF.formatted("e"));
+
+    /** SPEC §13.5: kb_cypher rows; {@link #cypher} returns one more to show the cut. */
+    public static final int CYPHER_ROWS = 200;
+
+    private static final Duration CYPHER_TIMEOUT = Duration.ofSeconds(5);
+
+    private final EmbeddedNeo4jStore store;
+
+    public KnowledgeQueries(EmbeddedNeo4jStore store) {
+        this.store = store;
+    }
+
+    /** The entity with this id or alias, in any case (Ids.normalize). */
+    public Optional<EntityView> entity(String idOrAlias) {
+        return store.read(tx -> resolve(tx, idOrAlias).map(id -> view(tx, id)));
+    }
+
+    /**
+     * Fulltext hits, one per record: the best of its matches, current before history. {@code text}
+     * is plain words; Lucene operators in it are escaped.
+     */
+    public List<Hit> search(String text, @Nullable String type, @Nullable String env) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("index", FULLTEXT_INDEX);
+        params.put("query", LUCENE_SPECIAL.matcher(Ids.normalize(text)).replaceAll("\\\\$0"));
+        params.put("env", env == null ? null : Ids.normalize(env));
+        List<Hit> hits =
+                store.read(tx -> rows(tx, SEARCH, params, KnowledgeQueriesRows::searchHit));
+        Map<String, Hit> best = new LinkedHashMap<>();
+        for (Hit hit : hits) {
+            if (type == null || Ids.normalize(type).equals(Ids.normalize(hit.type()))) {
+                best.merge(hit.id(), hit, (a, b) -> ResultList.ORDER.compare(a, b) <= 0 ? a : b);
+            }
+        }
+        return List.copyOf(best.values());
+    }
+
+    /**
+     * Every simple path of up to {@code depth} relations from the entity, as a hit about the record
+     * it reaches; empty if there is no such entity.
+     */
+    public Optional<List<Hit>> related(
+            String idOrAlias, @Nullable String rel, Direction direction, int depth) {
+        if (depth < 1 || depth > MAX_DEPTH) {
+            throw new IllegalArgumentException("depth out of range: " + depth);
+        }
+        String query =
+                RELATED.formatted(
+                        direction.pattern.formatted(depth), TYPE_OF.formatted("ns[i + 1]"));
+        return store.read(
+                tx ->
+                        resolve(tx, idOrAlias)
+                                .map(
+                                        id -> {
+                                            Map<String, Object> params = new HashMap<>();
+                                            params.put("id", id);
+                                            params.put("rel", rel);
+                                            return rows(tx, query, params, row -> path(id, row));
+                                        }));
+    }
+
+    /**
+     * Facts to verify again (docs/MCP-TOOLS.md kb_stale): current facts of entities with one of
+     * {@code labels} last seen before {@code observedBefore}, and every conflict or unverified one.
+     * Archived entities are not left out (invariant 12); their hits are marked.
+     */
+    public List<Hit> stale(List<String> labels, Instant observedBefore) {
+        Map<String, Object> params =
+                Map.of("labels", List.copyOf(labels), "before", Times.format(observedBefore));
+        return store.read(tx -> rows(tx, STALE, params, KnowledgeQueriesRows::searchHit));
+    }
+
+    /**
+     * Runs a query kb_cypher let through, unchecked: CypherGuard is the caller's job. It runs in a
+     * read-only transaction that ends after 5 s (SPEC §13.5), and no row holds a secret value. At
+     * most {@link #CYPHER_ROWS} + 1 rows, in the column order of the query; the extra one means
+     * there were more.
+     */
+    public List<Map<String, Object>> cypher(String query) {
+        return store.read(
+                CYPHER_TIMEOUT,
+                tx -> {
+                    CypherRows filter = CypherRows.in(tx);
+                    try (Result result = tx.execute(query)) {
+                        return filter.rows(result, CYPHER_ROWS + 1);
+                    }
+                });
+    }
+
+    private static Hit path(String startId, Map<String, Object> row) {
+        return ResultList.path(
+                startId,
+                ((List<?>) row.get("steps"))
+                        .stream()
+                                .map(step -> KnowledgeQueriesRows.step((Map<?, ?>) step))
+                                .toList());
+    }
+
+    /**
+     * The id of the entity with this id or alias, in any case; an id wins over an alias. The write
+     * path resolves inside its own transaction with it (ARCHITECTURE §5 step 2).
+     */
+    public static Optional<String> resolve(Transaction tx, String idOrAlias) {
+        String raw = idOrAlias.strip();
+        List<String> ids = List.of(raw, Ids.normalize(raw)).stream().distinct().toList();
+        return rows(tx, RESOLVE, Map.of("ids", ids), row -> (String) row.get("id")).stream()
+                .findFirst();
+    }
+
+    private static EntityView view(Transaction tx, String id) {
+        Map<String, Object> params = Map.of("id", id);
+        Map<String, Object> entity = rows(tx, ENTITY, params, row -> row).getFirst();
+        return new EntityView(
+                id,
+                (String) entity.get("type"),
+                String.valueOf(entity.get("status")),
+                (String) entity.get("summary"),
+                KnowledgeQueriesRows.strings(entity.get("aliases")),
+                rows(tx, FACTS, params, KnowledgeQueriesRows::factView),
+                rows(tx, RELATIONS, params, KnowledgeQueriesRows::relation),
+                rows(
+                        tx,
+                        SECRETS,
+                        params,
+                        row ->
+                                new SecretView(
+                                        (String) row.get("id"),
+                                        (String) row.get("name"),
+                                        String.valueOf(row.get("env")))));
+    }
+
+    private static <T> List<T> rows(
+            Transaction tx,
+            String query,
+            Map<String, Object> params,
+            Function<Map<String, Object>, T> mapper) {
+        List<T> mapped = new ArrayList<>();
+        try (Result result = tx.execute(query, params)) {
+            result.forEachRemaining(row -> mapped.add(mapper.apply(row)));
+        }
+        return mapped;
+    }
+}

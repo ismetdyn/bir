@@ -22,8 +22,7 @@ class EmbeddedNeo4jStoreTest {
     private static final int EXIT_OPEN_SUCCEEDED = 4;
     private static final long CHILD_TIMEOUT_SECONDS = 120;
 
-    @TempDir
-    Path dataDir;
+    @TempDir Path dataDir;
 
     @Test
     void node_survives_close_and_reopen_on_same_directory() {
@@ -37,7 +36,8 @@ class EmbeddedNeo4jStoreTest {
     }
 
     @Test
-    void graph_files_live_under_data_dir_graph_and_other_directory_stays_empty(@TempDir Path otherDir) {
+    void graph_files_live_under_data_dir_graph_and_other_directory_stays_empty(
+            @TempDir Path otherDir) {
         try (EmbeddedNeo4jStore store = new EmbeddedNeo4jStore(dataDir)) {
             createNote(store, "kept");
         }
@@ -64,9 +64,13 @@ class EmbeddedNeo4jStoreTest {
         try (EmbeddedNeo4jStore first = new EmbeddedNeo4jStore(dataDir)) {
             createNote(first, "before");
 
-            assertThatThrownBy(this::openAndClose).as("second open").hasStackTraceContaining(LOCK_ERROR);
+            assertThatThrownBy(this::openAndClose)
+                    .as("second open")
+                    .hasStackTraceContaining(LOCK_ERROR);
             // A failed attempt must not drop the lock held by the first store.
-            assertThatThrownBy(this::openAndClose).as("third open").hasStackTraceContaining(LOCK_ERROR);
+            assertThatThrownBy(this::openAndClose)
+                    .as("third open")
+                    .hasStackTraceContaining(LOCK_ERROR);
 
             createNote(first, "after");
         }
@@ -77,20 +81,23 @@ class EmbeddedNeo4jStoreTest {
     }
 
     @Test
-    void second_open_from_another_process_fails_while_first_is_open() throws IOException, InterruptedException {
+    void second_open_from_another_process_fails_while_first_is_open()
+            throws IOException, InterruptedException {
         try (EmbeddedNeo4jStore first = new EmbeddedNeo4jStore(dataDir)) {
             createNote(first, "before");
 
             Path output = Files.createTempFile("agentkb-child", ".log");
-            Process child = new ProcessBuilder(
-                            Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                            "-cp",
-                            System.getProperty("java.class.path"),
-                            OpenStoreProbe.class.getName(),
-                            dataDir.toString())
-                    .redirectErrorStream(true)
-                    .redirectOutput(output.toFile())
-                    .start();
+            Process child =
+                    new ProcessBuilder(
+                                    Path.of(System.getProperty("java.home"), "bin", "java")
+                                            .toString(),
+                                    "-cp",
+                                    System.getProperty("java.class.path"),
+                                    OpenStoreProbe.class.getName(),
+                                    dataDir.toString())
+                            .redirectErrorStream(true)
+                            .redirectOutput(output.toFile())
+                            .start();
 
             try {
                 assertThat(child.waitFor(CHILD_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
@@ -110,7 +117,8 @@ class EmbeddedNeo4jStoreTest {
     }
 
     private static void createNote(EmbeddedNeo4jStore store, String name) {
-        store.database().executeTransactionally("CREATE (:Note {name: $name})", Map.of("name", name));
+        store.database()
+                .executeTransactionally("CREATE (:Note {name: $name})", Map.of("name", name));
     }
 
     private static List<String> noteNames(EmbeddedNeo4jStore store) {
@@ -121,7 +129,10 @@ class EmbeddedNeo4jStoreTest {
                         result -> result.stream().map(row -> (String) row.get("name")).toList());
     }
 
-    /** Runs in a child JVM. A distinct exit code keeps a classpath or startup crash (exit 1) from passing the test. */
+    /**
+     * Runs in a child JVM. A distinct exit code keeps a classpath or startup crash (exit 1) from
+     * passing the test.
+     */
     static final class OpenStoreProbe {
 
         public static void main(String[] args) {

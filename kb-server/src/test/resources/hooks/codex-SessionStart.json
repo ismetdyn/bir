@@ -1,0 +1,9 @@
+{
+    "session_id": "01a1a91f-778a-76d1-9a06-8f89bc47296c",
+    "transcript_path": "/home/user/.codex/sessions/2026/11/05/rollout-2026-11-05T03-32-54-01a1a91f-778a-76d1-9a06-8f89bc47296c.jsonl",
+    "cwd": "/home/user/project",
+    "hook_event_name": "SessionStart",
+    "model": "example-model-slug",
+    "permission_mode": "default",
+    "source": "startup"
+}

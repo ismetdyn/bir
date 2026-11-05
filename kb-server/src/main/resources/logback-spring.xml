@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+  <!--
+    Invariants 2 and 10: the MCP SDK and its WebMvc transport quote client-supplied JSON at INFO, WARN and ERROR, in the
+    message and in the exception text. Which part of it is the secret cannot be known, so the event stays visible (time,
+    level, logger) and all of its text is replaced. %nopex stops Logback from appending the stack trace on its own.
+    Tomcat's Http11Processor does the same at INFO with bytes it could not parse as a request, such as a body running
+    past a short Content-Length, and org.apache.tomcat.util.http.parser.Cookie with an invalid Cookie header.
+    The DispatcherServlet's container logger quotes an invalid Accept header: the WebMvc transport parses it outside its
+    own error handling. The cost is that any exception escaping this servlet is logged without class or stack trace.
+    The curator servlet's container logger does the same with the two bytes after a bad % in a PUT form body, because
+    FormContentFilter fails ahead of the servlet.
+    Container loggers are named ContainerBase.[<engine>].[localhost].[/].[<servlet>], and the engine is Tomcat, Tomcat-1,
+    ... depending on how many servers the JVM started, so the parent ContainerBase is masked: Logback's hierarchy covers
+    every engine and servlet below it. Its context logger's startup lines ("Initializing Spring ...") are masked too.
+  -->
+  <appender name="MASKED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}} %5p ${PID:-} --- [%15.15t] %-40.40logger{39} : *****%n%nopex</pattern>
+      <charset>${CONSOLE_LOG_CHARSET}</charset>
+    </encoder>
+  </appender>
+
+  <logger name="io.modelcontextprotocol" additivity="false">
+    <appender-ref ref="MASKED_CONSOLE"/>
+  </logger>
+  <logger name="org.springframework.ai.mcp.server.webmvc.transport" additivity="false">
+    <appender-ref ref="MASKED_CONSOLE"/>
+  </logger>
+
+  <logger name="org.apache.coyote.http11.Http11Processor" additivity="false">
+    <appender-ref ref="MASKED_CONSOLE"/>
+  </logger>
+  <logger name="org.apache.tomcat.util.http" additivity="false">
+    <appender-ref ref="MASKED_CONSOLE"/>
+  </logger>
+  <logger name="org.apache.catalina.core.ContainerBase" additivity="false">
+    <appender-ref ref="MASKED_CONSOLE"/>
+  </logger>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

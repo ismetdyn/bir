@@ -1,0 +1,25 @@
+{
+    "session_id": "0d28bcdb-57d4-44a8-bb5a-ac8f80dea762",
+    "transcript_path": "/home/user/.claude/projects/-home-user-project/0d28bcdb-57d4-44a8-bb5a-ac8f80dea762.jsonl",
+    "cwd": "/home/user/project",
+    "prompt_id": "6d8ba1b1-93b5-4fa0-a9c9-a392a4186af8",
+    "permission_mode": "default",
+    "effort": {
+        "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+        "command": "echo probe-ok",
+        "description": "Print probe-ok string"
+    },
+    "tool_response": {
+        "stdout": "probe-ok",
+        "stderr": "",
+        "interrupted": false,
+        "isImage": false,
+        "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01UYSyzKSMfbJp7x18bTHpTr",
+    "duration_ms": 1353
+}

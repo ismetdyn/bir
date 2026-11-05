@@ -29,17 +29,18 @@ class ServerBindingTest extends RunningServerTestBase {
 
     private static final int CONNECT_TIMEOUT_MILLIS = 2_000;
     private static final String TCP_STATE_LISTEN = "0A";
-    // /proc prints 127.0.0.1 in little-endian hex; the IPv4-mapped IPv6 form has the same suffix, a wildcard has not.
+    // /proc prints 127.0.0.1 in little-endian hex; the IPv4-mapped IPv6 form has the same suffix, a
+    // wildcard has not.
     private static final String LOOPBACK_V4_HEX_SUFFIX = "0100007F";
 
-    @Autowired
-    private Environment environment;
+    @Autowired private Environment environment;
 
     @Test
     void application_yml_defaults_to_loopback_and_port_7411() throws IOException {
-        PropertySource<?> yaml = new YamlPropertySourceLoader()
-                .load("application", new ClassPathResource("application.yml"))
-                .getFirst();
+        PropertySource<?> yaml =
+                new YamlPropertySourceLoader()
+                        .load("application", new ClassPathResource("application.yml"))
+                        .getFirst();
 
         assertThat(yaml.getProperty("server.address")).hasToString("127.0.0.1");
         assertThat(yaml.getProperty("server.port")).hasToString("7411");
@@ -53,7 +54,9 @@ class ServerBindingTest extends RunningServerTestBase {
     @Test
     void accepts_connection_on_loopback() throws IOException {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), CONNECT_TIMEOUT_MILLIS);
+            socket.connect(
+                    new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port),
+                    CONNECT_TIMEOUT_MILLIS);
 
             assertThat(socket.isConnected()).isTrue();
         }
@@ -65,11 +68,14 @@ class ServerBindingTest extends RunningServerTestBase {
         assumeFalse(addresses.isEmpty(), "no non-loopback interface is up");
 
         for (InetAddress address : addresses) {
-            assertThatThrownBy(() -> {
-                        try (Socket socket = new Socket()) {
-                            socket.connect(new InetSocketAddress(address, port), CONNECT_TIMEOUT_MILLIS);
-                        }
-                    })
+            assertThatThrownBy(
+                            () -> {
+                                try (Socket socket = new Socket()) {
+                                    socket.connect(
+                                            new InetSocketAddress(address, port),
+                                            CONNECT_TIMEOUT_MILLIS);
+                                }
+                            })
                     .as("connection to %s:%d", address.getHostAddress(), port)
                     .isInstanceOf(ConnectException.class);
         }
@@ -86,12 +92,15 @@ class ServerBindingTest extends RunningServerTestBase {
             localAddresses.addAll(listeningAddressesOnPort(tcp6));
         }
 
-        assertThat(localAddresses).isNotEmpty().allMatch(address -> address.endsWith(LOOPBACK_V4_HEX_SUFFIX));
+        assertThat(localAddresses)
+                .isNotEmpty()
+                .allMatch(address -> address.endsWith(LOOPBACK_V4_HEX_SUFFIX));
     }
 
     private static List<InetAddress> nonLoopbackLocalAddresses() throws IOException {
         List<InetAddress> addresses = new ArrayList<>();
-        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+        for (NetworkInterface networkInterface :
+                Collections.list(NetworkInterface.getNetworkInterfaces())) {
             if (networkInterface.isUp()) {
                 Collections.list(networkInterface.getInetAddresses()).stream()
                         .filter(address -> !address.isLoopbackAddress())
@@ -106,7 +115,10 @@ class ServerBindingTest extends RunningServerTestBase {
         return Files.readAllLines(procNetFile).stream()
                 .skip(1)
                 .map(line -> line.trim().split("\\s+"))
-                .filter(columns -> columns[3].equals(TCP_STATE_LISTEN) && columns[1].endsWith(portSuffix))
+                .filter(
+                        columns ->
+                                columns[3].equals(TCP_STATE_LISTEN)
+                                        && columns[1].endsWith(portSuffix))
                 .map(columns -> columns[1].substring(0, columns[1].indexOf(':')))
                 .toList();
     }

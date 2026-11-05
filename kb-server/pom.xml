@@ -14,6 +14,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.github.ismetdyn</groupId>
+      <artifactId>kb-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.ai</groupId>
       <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
     </dependency>
@@ -29,9 +34,20 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- schema/*.yaml and eval/questions.yaml; version from the Boot BOM (jackson-bom). -->
+    <dependency>
+      <groupId>tools.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <version>${archunit.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -39,9 +55,38 @@
   <build>
     <finalName>agentkb-server</finalName>
     <plugins>
+      <!-- kb_schema shows the example queries of docs/MCP-TOOLS.md; the document stays their one place. -->
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-mcp-tools-doc</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/docs</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../docs</directory>
+                  <includes>
+                    <include>MCP-TOOLS.md</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- Runs *IT classes (SecretLeakIT, plan.md CP4) in verify; version and goals come from the Boot parent. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

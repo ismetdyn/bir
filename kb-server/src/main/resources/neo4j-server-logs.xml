@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Neo4j's internal logs for the embedded graph. A copy of default-server-logs.xml from
+    neo4j-logging 2026.10.1 with one change: the TransactionMonitor logger is off. Its two WARN
+    lines (a transaction timed out, a terminated transaction may have leaked) print the executing
+    query through reflectionToString, raw query text and parameters included, and no Neo4j setting
+    obfuscates them. A kb_cypher query can hold anything, a secret value included (CLAUDE.md
+    invariant 10). Every other Neo4j category keeps its INFO and WARN lines in debug.log.
+-->
+<Configuration status="ERROR">
+    <Appenders>
+        <RollingRandomAccessFile name="DebugLog" fileName="${config:server.directories.logs}/debug.log"
+                                 filePattern="$${config:server.directories.logs}/debug.log.%02i">
+            <JsonTemplateLayout eventTemplateUri="classpath:org/neo4j/logging/StructuredLayoutWithMessage.json"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="7"/>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="HttpLog" fileName="${config:server.directories.logs}/http.log"
+                                 filePattern="$${config:server.directories.logs}/http.log.%02i">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSSZ}{GMT+0} %-5p %m%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="5"/>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="QueryLog" fileName="${config:server.directories.logs}/query.log"
+                                 filePattern="$${config:server.directories.logs}/query.log.%02i">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSSZ}{GMT+0} %-5p %m%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="7"/>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="SecurityLog" fileName="${config:server.directories.logs}/security.log"
+                                 filePattern="$${config:server.directories.logs}/security.log.%02i">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSSZ}{GMT+0} %-5p %m%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="20 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="7"/>
+        </RollingRandomAccessFile>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="DebugLog"/>
+        </Root>
+
+        <Logger name="org.neo4j.kernel.impl.api.transaction.monitor.TransactionMonitor" level="OFF"/>
+
+        <Logger name="QueryLogger" level="INFO" additivity="false">
+            <AppenderRef ref="QueryLog"/>
+        </Logger>
+
+        <Logger name="HttpLogger" level="INFO" additivity="false">
+            <AppenderRef ref="HttpLog"/>
+        </Logger>
+
+        <Logger name="SecurityLogger" level="INFO" additivity="false">
+            <AppenderRef ref="SecurityLog"/>
+        </Logger>
+    </Loggers>
+</Configuration>

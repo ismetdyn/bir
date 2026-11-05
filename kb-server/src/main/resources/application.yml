@@ -18,3 +18,7 @@ spring:
 agentkb:
   # The graph lives in <data-dir>/graph (docs/ARCHITECTURE.md §14).
   data-dir: ${user.home}/.local/share/agentkb
+  scan:
+    # kb_scan reads only under these folders (invariant 9, docs/ARCHITECTURE.md §14); a missing
+    # one allows nothing. AGENTKB_SCAN_ALLOWED_ROOTS overrides the list (comma separated).
+    allowed-roots: ${user.home}/projects,${user.home}/git
