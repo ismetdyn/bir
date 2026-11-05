@@ -9,13 +9,17 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * The JSON endpoints of the local server kb calls (docs/CLIENTS.md §1: revert, restore, check): no
  * token and no Origin (ADR-0020), the address from {@code AGENTKB_URL} as for kb secret. A refusal
- * ({@code {error, hint}}) and any other non-2xx answer exit 1, an unreachable server exits 3.
+ * ({@code {error, hint}}) and any other non-2xx answer exit 1, an unreachable server exits 3. All
+ * text of an answer or error comes back without terminal control characters (tab and newline stay).
  */
 final class JsonApi {
 
@@ -25,6 +29,9 @@ final class JsonApi {
     private static final int FIRST_PRINTABLE = 0x20;
     private static final int SUCCESS_CLASS = 2;
     private static final int STATUS_CLASS = 100;
+    // Every C0 control but tab and newline, DEL and the C1 range (U+009B is a CSI on many
+    // terminals).
+    private static final Pattern CONTROL = Pattern.compile("[\\x00-\\x08\\x0b-\\x1f\\x7f-\\x9f]");
 
     private final String base;
     private final HttpClient http =
@@ -72,12 +79,29 @@ final class JsonApi {
         HttpResponse<String> reply = exchange(request);
         if (reply.statusCode() / STATUS_CLASS != SUCCESS_CLASS) {
             throw new KbException(
-                    "the server answered " + reply.statusCode() + ": " + error(reply));
+                    "the server answered " + reply.statusCode() + ": " + printable(error(reply)));
         }
-        if (Json.parse(reply.body()) instanceof Map<?, ?> answer) {
+        if (printable(Json.parse(reply.body())) instanceof Map<?, ?> answer) {
             return answer;
         }
         throw new KbException("the server answered with JSON that is not an object");
+    }
+
+    /**
+     * Server text as kb may print it: strings without terminal control characters, so a record or
+     * an error cannot move the cursor, clear the screen or retitle the window.
+     */
+    private static Object printable(Object value) {
+        return switch (value) {
+            case String text -> CONTROL.matcher(text).replaceAll("");
+            case Map<?, ?> map -> {
+                Map<Object, Object> clean = new LinkedHashMap<>();
+                map.forEach((key, item) -> clean.put(key, printable(item)));
+                yield clean;
+            }
+            case List<?> list -> list.stream().map(JsonApi::printable).toList();
+            case null, default -> value;
+        };
     }
 
     private HttpResponse<String> exchange(HttpRequest.Builder request) {

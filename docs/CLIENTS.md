@@ -43,7 +43,7 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | `kb rel add <id> <tür> <hedef>` · `kb rel close <relId>` | İlişki |
 | `kb conflicts` · `kb resolve <id> --accept-new\|--keep-old` | Çelişkiler |
 | `kb proposals` · `kb accept <id>` · `kb reject <id> -m "..."` | Öneriler |
-| `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı Secret, o an tuttuğu değerle silinir (sonradan `kb secret set` ile yazılan dahil); değer yalnız bu bilgisayarda olduğu için geri gelmez, çıktı sayısını verir |
+| `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı ve hâlâ ona ait Secret değeriyle silinir, çıktı sayısını verir. `kb secret set` ile değer yazılan Secret kullanıcıya geçer ve geri almada kalır (ADR-0022 karar 39) |
 | `kb scan <yol>` | Tarama |
 | `kb doc add <dosya> [--about <id>] [--origin <url>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB içinde, son alınan parçadan devam; diske akıtılır. Ayrıntı F3 başında tasarlanır (ADR-0022 karar 21) |
 | `kb secret set <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için). F2'de yalnız bu ikisi çıkar (`GET/PUT /secrets/{id}`). `kb secret list` `GET /secrets?prefix=` ister, F3'tedir. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |

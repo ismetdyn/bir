@@ -24,6 +24,8 @@ final class SecretWrite {
     private static final Label ENTITY = Label.label("Entity");
     private static final String HAS_SECRET = "HAS_SECRET";
     private static final String SCAN = "scan";
+    private static final String USER = "user";
+    private static final String SOURCE = "source";
     private static final String OBSERVED_AT = "observed_at";
     private static final String STORED_VALUES =
             "MATCH (s:Secret) WHERE s.secret_value IS NOT NULL RETURN s.secret_value AS v";
@@ -39,13 +41,20 @@ final class SecretWrite {
 
     /**
      * Sets the value of the Secret {@code id}, creating it under its entity when it is new. The old
-     * value is overwritten, not kept. {@code updated_at} stays: the value never leaves this
-     * machine, so a snapshot must not change because of it.
+     * value is overwritten, not kept (SPEC §7 rule 9). The Secret becomes user-owned: source user
+     * and the batch of this write, so reverting the scan that opened it keeps it and a rescan never
+     * overwrites the value. The value itself never leaves this machine, so it does not move
+     * updated_at; the changed source does.
      */
     static @Nullable Void put(GraphWrite graph, String id, String value) {
         Node secret = graph.tx.findNode(SECRET, GraphWrite.ID, id);
         if (secret == null) {
             secret = create(graph, id);
+        } else {
+            if (!USER.equals(secret.getProperty(SOURCE, null))) {
+                graph.set(secret, SOURCE, USER);
+            }
+            secret.setProperty(GraphWrite.BATCH, graph.batch);
         }
         secret.setProperty(SECRET_VALUE, value);
         return null;
@@ -70,7 +79,7 @@ final class SecretWrite {
                                     parts[ID_PARTS - 1],
                                     "env",
                                     parts[1],
-                                    "source",
+                                    SOURCE,
                                     SCAN,
                                     OBSERVED_AT,
                                     seen),
@@ -83,7 +92,7 @@ final class SecretWrite {
         if (value.equals(stored)) {
             return secret;
         }
-        if (stored == null || SCAN.equals(secret.getProperty("source", null))) {
+        if (stored == null || SCAN.equals(secret.getProperty(SOURCE, null))) {
             secret.setProperty(SECRET_VALUE, value);
         } else {
             conflict(
@@ -142,8 +151,8 @@ final class SecretWrite {
                                 parts[2],
                                 "env",
                                 parts[1],
-                                "source",
-                                "user",
+                                SOURCE,
+                                USER,
                                 "observed_at",
                                 Times.format(Instant.now())),
                         SECRET.name());

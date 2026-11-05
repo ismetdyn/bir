@@ -1,8 +1,8 @@
 package io.github.ismetdyn.agentkb.server.snapshot;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,20 +46,27 @@ final class SystemGit {
         builder.environment().put("GIT_NO_LAZY_FETCH", "1");
         builder.environment().put("GIT_TERMINAL_PROMPT", "0");
         builder.environment().put("GIT_OPTIONAL_LOCKS", "0");
-        Process git = builder.start();
-        String output;
-        try (InputStream in = git.getInputStream()) {
-            output = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
+        // Output goes to an owner-only file, not a pipe: a git that hangs with stdout open would
+        // block a read of the pipe for good, past the timeout.
+        Path output = Files.createTempFile("agentkb-git-", ".out");
         try {
-            if (!git.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            builder.redirectOutput(output.toFile());
+            Process git = builder.start();
+            try {
+                if (!git.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    throw new IOException("git " + args[0] + " did not finish");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted while git " + args[0] + " ran", e);
+            } finally {
                 git.destroyForcibly();
-                throw new IOException("git " + args[0] + " did not finish");
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("interrupted while git " + args[0] + " ran", e);
+            return new Result(
+                    git.exitValue(),
+                    new String(Files.readAllBytes(output), StandardCharsets.UTF_8));
+        } finally {
+            Files.deleteIfExists(output);
         }
-        return new Result(git.exitValue(), output);
     }
 }

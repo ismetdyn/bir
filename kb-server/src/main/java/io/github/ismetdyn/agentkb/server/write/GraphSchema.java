@@ -15,9 +15,9 @@ import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 
 /**
- * ARCHITECTURE §4: an id constraint per label and per relationship type, and the fulltext index.
- * Neo4j Community has no constraint across labels or types (Neo4jCommunityBehaviourTest); {@code
- * WriteService} checks across them. Every step is idempotent.
+ * ARCHITECTURE §4: an id constraint and a batch index per label and per relationship type, and the
+ * fulltext index. Neo4j Community has no constraint across labels or types
+ * (Neo4jCommunityBehaviourTest); {@code WriteService} checks across them. Every step is idempotent.
  */
 final class GraphSchema {
 
@@ -79,11 +79,13 @@ final class GraphSchema {
         return all;
     }
 
+    /** The id constraint and the batch index (BatchRevert finds a batch through it). */
     private static void constrainNodes(Transaction tx, String label) {
         tx.execute(
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (n:"
                         + quoted(label)
                         + ") REQUIRE n.id IS UNIQUE");
+        tx.execute("CREATE INDEX IF NOT EXISTS FOR (n:" + quoted(label) + ") ON (n.batch)");
     }
 
     private static void constrainEdges(Transaction tx, String type) {
@@ -91,6 +93,7 @@ final class GraphSchema {
                 "CREATE CONSTRAINT IF NOT EXISTS FOR ()-[r:"
                         + quoted(type)
                         + "]-() REQUIRE r.id IS UNIQUE");
+        tx.execute("CREATE INDEX IF NOT EXISTS FOR ()-[r:" + quoted(type) + "]-() ON (r.batch)");
     }
 
     /**

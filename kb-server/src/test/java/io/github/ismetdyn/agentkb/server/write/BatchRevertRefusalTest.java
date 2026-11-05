@@ -103,6 +103,36 @@ class BatchRevertRefusalTest {
         assertThat(graph.state()).isEqualTo(before);
     }
 
+    /**
+     * Lead decision 4: a later batch disputed a fact of this batch with a lower source, so its
+     * value waits as a conflict next to it (SPEC §7 rule 3). No edge of the later batch touches a
+     * record of this batch (the entity is older), yet deleting the disputed fact would leave the
+     * conflict disputing nothing; the revert is refused whole, naming the later batch.
+     */
+    @Test
+    void a_batch_whose_fact_a_later_batch_disputed_as_a_conflict_is_refused_naming_it() {
+        String entity = "zz-disputed-host";
+        String older = "kbtest-batch-older";
+        String disputed = "kbtest-batch-disputed";
+        graph.write(inBatch(Source.USER, entity, T1, older, fact("version", "2.4", PROD)));
+        graph.write(inBatch(Source.USER, entity, T1, disputed, fact("os", "rhel 9", PROD)));
+        graph.write(inBatch(Source.AGENT, entity, T2, LATER, fact("os", "rhel 10", PROD)));
+        assertThat(graph.openFacts(entity, "os", PROD))
+                .as("precondition: the later value waits as a conflict next to the disputed one")
+                .extracting(f -> f.get("status"))
+                .containsExactlyInAnyOrder("ok", "conflict");
+        Map<String, Object> before = graph.state();
+
+        WriteRejectedException refused = refusedRevert(disputed);
+
+        assertThat(refused.hint()).contains(LATER);
+        assertThat(graph.state()).isEqualTo(before);
+
+        graph.writes.revert(LATER);
+        graph.writes.revert(disputed);
+        assertThat(graph.openFacts(entity, "os", PROD)).as("both reverted in order").isEmpty();
+    }
+
     private WriteRejectedException refusedRevert(String batch) {
         WriteRejectedException refused =
                 catchThrowableOfType(

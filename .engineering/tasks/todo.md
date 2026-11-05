@@ -69,7 +69,8 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Karar (kullanıcı 2026-11-05, ADR-0022 karar 38): restore'da eski görüntüde olmayan Secret değeriyle kalır, sinyal kalır, hedefi yoksa kenar düşer, sayı raporlanır. `kb check` yinelenen `id` de raporlar.
   Scope: kb-server/**, kb-client/**
   Depends: G8, G11
-- [ ] G12f G12 düzeltmeleri + sıraya bağlı test taraması
+- [x] G12f G12 düzeltmeleri + sıraya bağlı test taraması
+  Kanıt: 20 RED test → yeşil; sıra taraması 7 sıra (6 rastgele + ters alfabetik), tek sıraya bağlı test `CypherToolTest` → `restoreSeed()` kuralı; temiz worktree: varsayılan `clean verify` exit 0 (kb-core 3168, kb-server 1067, `SecretLeakIT` 1, kb-client 58), 3 rastgele + ters alfabetik exit 0; yükte düşen saat ölçümlü test varsayılan build'den çıkarıldı (süre CP6'da). `-Peval` 18/18; `quality_gate.py` → exit 0.
   Scope: kb-server/**, kb-client/**
   Depends: G12
 - [ ] G12b Kayıt kaynağı (ADR-0023, `Episode`) + genel bilgi (ADR-0024, Wikidata modeli: `topic` türü, `note`, yönetilen sözlük, okumada güven işareti)

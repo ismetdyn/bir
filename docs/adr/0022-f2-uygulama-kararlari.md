@@ -140,6 +140,15 @@ diğer belgeler buraya bağlanır.
 38. **Restore yerel veriyi korur** (kullanıcı kararı 2026-11-05; değişmez 8): geri yüklenen anlık görüntüde olmayan Secret
     kaydı değeriyle kalır, sinyaller kalır; bağlı oldukları kayıt yoksa yalnız o kenar düşer. Restore kaç kaydın böyle
     kaldığını raporlar, `kb check` listeler. Hiçbir parola ve sinyal kaybolmaz.
+39. **Elle yazılan secret kullanıcınındır** (lider, karar 38'in ilkesi): `PUT /secrets/{id}` Secret'ın kaynağını `user`,
+    partisini PUT'un kendi partisi yapar (secret değeri SPEC §7 kural 9'daki geçmişsiz istisnadır). Taramanın partisi
+    geri alınınca Secret ve değeri kalır, yalnız taramanın `HAS_SECRET` kenarı düşer (`kb check`: yerel kayıt); yeniden
+    tarama kullanıcının değerini ezmez, çelişki sinyali açar.
+40. **Bakım girdileri ve git:** `batch` `[A-Za-z0-9._:-]{0,64}`, `at` en çok 256 karakter ve kontrol karakteri yok; aşan
+    istek 400. `batch` alanı indekslidir. git çıktısı boru yerine sahibine özel (0600) geçici dosyaya yazılır ve çağrı
+    sonunda silinir; böylece takılan bir git zaman aşımında kesilir. Çıktı anlık görüntü ve `fsck` metnidir, secret
+    değeri değildir. Kullanılamayan anlık görüntü 400 `{error, hint}` döner. `kb` istemcisi sunucu metnindeki kontrol
+    karakterlerini (sekme ve satır sonu hariç) yazdırmadan siler; `kb secret show` değeri olduğu gibi basar.
 
 ### F3 notu
 21. **Doküman yükleme (F3):** `kb doc add` sıra numaralı, kaldığı yerden sürdürülebilir yükleme kullanır (ROADMAP F3,
