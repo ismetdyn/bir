@@ -23,7 +23,10 @@ class EvalGateTest extends RunningServerTestBase {
     @Autowired private EvalRunner runner;
 
     @Test
-    void the_seed_scores_at_least_the_gate() {
+    void the_seed_scores_at_least_the_gate() throws Exception {
+        // -Peval runs every test class first in this shared graph; the gate scores the seed.
+        restoreSeed();
+
         EvalReport report = runner.run(QUESTIONS);
 
         assertThat(report.total()).isEqualTo(SEED_QUESTIONS);

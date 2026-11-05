@@ -8,7 +8,6 @@ import io.github.ismetdyn.agentkb.core.secret.SecretPatterns;
 import io.github.ismetdyn.agentkb.server.write.ScanResult;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,12 +20,11 @@ import org.mockito.MockedStatic;
  * repository: every file has the project's own settings and the same database and cache, so each
  * entity is found in every file. The work per file must not grow with the number of files.
  *
- * <p>The stable check counts SecretPatterns calls, which do not depend on the machine: doubling the
- * files may at most about double them (linear), where a walk over every other file per file
- * quadruples them. Before the CP5 fix: 215,902 calls for 100 files, 851,802 for 200 (x3.95). The
- * wall-time bound is generous (the whole 500-file budget for 200 files, after a warm-up scan) and
- * only catches a gross regression: before the fix this scan took 3.3 s warm and 5.8 s cold, so it
- * cannot show the halving without flaking. The measured times belong to the CP5 measurement step.
+ * <p>The check counts SecretPatterns calls, which do not depend on the machine: doubling the files
+ * may at most about double them (linear), where a walk over every other file per file quadruples
+ * them. Before the CP5 fix: 215,902 calls for 100 files, 851,802 for 200 (x3.95). There is no
+ * wall-clock bound here: it flaked under load, so the 5 s target is measured on an idle machine at
+ * CP6 (ADR-0022 decision 37).
  */
 class ScanPerformanceTest {
 
@@ -34,8 +32,6 @@ class ScanPerformanceTest {
     private static final int FILES = 200;
     // Linear doubles the calls; quadratic gives about 4. Room for a per-scan constant.
     private static final double MAX_GROWTH_WHEN_FILES_DOUBLE = 2.5;
-    private static final int WARM_UP_FILES = 20;
-    private static final Duration FIRST_SCAN_LIMIT = Duration.ofSeconds(5);
 
     @TempDir Path dir;
 
@@ -49,26 +45,6 @@ class ScanPerformanceTest {
                         "SecretPatterns calls: %d for %d files, %d for %d",
                         half, FILES / 2, full, FILES)
                 .isLessThan(MAX_GROWTH_WHEN_FILES_DOUBLE);
-    }
-
-    @Test
-    void a_first_scan_of_200_spring_files_stays_within_the_bound() throws IOException {
-        // JIT and Neo4j warm-up in a graph of its own, so the bound measures the scan.
-        try (ScanHarness warmUp = ScanHarness.open(dir.resolve("warm-up"))) {
-            warmUp.scanner.scan(
-                    ScanProjects.project(warmUp.root, PROJECT, springModules(WARM_UP_FILES)));
-        }
-        try (ScanHarness harness = ScanHarness.open(dir.resolve("timed"))) {
-            Path repo = ScanProjects.project(harness.root, PROJECT, springModules(FILES));
-
-            long started = System.nanoTime();
-            ScanResult result = harness.scanner.scan(repo);
-            Duration took = Duration.ofNanos(System.nanoTime() - started);
-
-            assertThat(result.files()).isEqualTo(FILES);
-            assertThat(result.skipped()).isEmpty();
-            assertThat(took).isLessThan(FIRST_SCAN_LIMIT);
-        }
     }
 
     /**

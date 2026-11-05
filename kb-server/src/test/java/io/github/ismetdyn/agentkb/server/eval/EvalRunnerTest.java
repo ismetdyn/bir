@@ -39,7 +39,9 @@ class EvalRunnerTest extends RunningServerTestBase {
     }
 
     @Test
-    void a_broken_expectation_fails_its_question_and_lowers_the_score_by_one() throws IOException {
+    void a_broken_expectation_fails_its_question_and_lowers_the_score_by_one() throws Exception {
+        // The preconditions hold on the seed, not after whichever writer class ran before.
+        restoreSeed();
         EvalReport original = runner.run(QUESTIONS);
         assertThat(original.failed())
                 .as("precondition: q09 passes as written")
@@ -57,7 +59,8 @@ class EvalRunnerTest extends RunningServerTestBase {
     }
 
     @Test
-    void a_missing_expect_text_fails_the_question() throws IOException {
+    void a_missing_expect_text_fails_the_question() throws Exception {
+        restoreSeed();
         EvalReport original = runner.run(QUESTIONS);
         assertThat(original.failed())
                 .as("precondition: q13 passes as written")
@@ -75,7 +78,8 @@ class EvalRunnerTest extends RunningServerTestBase {
 
     /** Three questions broken leave at most 15 of 18 (0.83): the gate must fail. */
     @Test
-    void three_broken_expectations_fail_the_gate() throws IOException {
+    void three_broken_expectations_fail_the_gate() throws Exception {
+        restoreSeed();
         EvalReport original = runner.run(QUESTIONS);
         assertThat(original.failed())
                 .as("precondition: q02, q09 and q13 pass as written")

@@ -46,6 +46,9 @@ class CypherToolTest extends RunningServerTestBase {
 
     @Test
     void rows_come_back_as_a_markdown_table_under_the_data_header() throws Exception {
+        // Q14 matches every open fact from that file, so a scan by another class adds rows.
+        restoreSeed();
+
         String text = cypher(Q14);
 
         assertThat(text.lines().findFirst()).contains(DATA_HEADER);

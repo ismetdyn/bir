@@ -1,8 +1,12 @@
 package io.github.ismetdyn.agentkb.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.ismetdyn.agentkb.server.api.MaintenanceHttp;
 import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -57,6 +61,19 @@ public abstract class RunningServerTestBase {
             ScanProjects.commitAll(repo, "seed snapshot");
         }
         return repo;
+    }
+
+    /**
+     * The shared graph back to the seed through {@code POST /api/v1/restore}; local secret values
+     * and signals stay (SPEC §10). Writer tests keep to their own zz-/kbtest- records, but they
+     * still add rows to whole-graph answers, and the classes run in any order. So a test that
+     * asserts an exact answer over the whole graph (a full Cypher result, the eval score on the
+     * seed) calls this first instead of relying on which classes ran before it.
+     */
+    protected void restoreSeed() throws IOException, InterruptedException {
+        committedRepo();
+        HttpResponse<String> reply = new MaintenanceHttp(port).post(MaintenanceHttp.RESTORE, "{}");
+        assertThat(reply.statusCode()).as("restore the seed: %s", reply.body()).isEqualTo(200);
     }
 
     /** The one allowed root of the scanner; its sibling directories are outside it. */
