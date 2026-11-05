@@ -27,11 +27,12 @@
 ```
 agentkb/
 ├── pom.xml            (parent, Java 21)
-├── kb-api/            JSON sözleşmeleri (record DTO'lar)
+├── kb-api/            JSON sözleşmeleri (record DTO'lar) — F3'te açılır; F2'de yok (ADR-0022)
 ├── kb-core/           Saf Java: alan modeli, WritePolicy, Markdown görünümü, secret desenleri, şema doğrulama.
 │                      Spring/Neo4j bağımlılığı YOK → hızlı birim testleri
 ├── kb-server/         Spring Boot: graf deposu, yazma servisi, tarayıcı, anlık görüntü/senkron, MCP, REST, hook
 ├── kb-client/         picocli CLI + TamboUI TUI + `kb run` + `kb secret`; REST istemcisi; GraalVM native-image
+│                      (F2'de yalnız JVM jar: CLI, `kb run`, `kb secret`; TUI ve native F3)
 ├── kb-gui/            Dear ImGui (`imgui-java`) masaüstü GUI; `/api/v1` istemcisi; JVM ile çalışır, `kb gui` başlatır (ADR-0021)
 ├── curator/           PROMPT.md, mcp.json, run-curator.sh
 └── seed/ fixtures/ eval/ integrations/ docs/
@@ -43,7 +44,7 @@ agentkb/
 | Çatı | Spring Boot 4.x | Spring AI 2.x'in temeli |
 | MCP | Spring AI 2.0.x (`@McpTool`) + MCP Java SDK | `/mcp` auto-config ile; `/mcp/curator` MCP Java SDK ile ikinci uç (F1 spike) |
 | Taşıma | Streamable HTTP | `spring.ai.mcp.server.protocol=STREAMABLE` açıkça ayarlanmalı |
-| Depo | Neo4j Community embedded | `GraphStore` arayüzü arkasında; LadybugDB F1'de ölçülen alternatif (ADR-0002) |
+| Depo | Neo4j Community embedded | `EmbeddedNeo4jStore` (arayüz yok, ADR-0022); LadybugDB alternatif (ADR-0002) |
 | Git | Sistem `git` (+ büyük dokümanlar için `git-lfs`) | Anlık görüntü ve doküman commit'i, senkron |
 | TUI | TamboUI + GraalVM native | B planı: Go/Bubble Tea |
 | GUI | Dear ImGui (`imgui-java`) + ImNodes (graf) | Ayrı `kb-gui` modülü, JVM; Node araç zinciri yok (ADR-0021) |
@@ -55,23 +56,24 @@ agentkb/
 ```
 <kök-paket>.server
 ├── config/     KbProperties, Neo4jConfig, McpConfig (iki uç nokta)
-├── graph/      GraphStore, EmbeddedNeo4jStore, KnowledgeQueries, CypherGuard, Schema (schema/*.yaml)
-├── write/      WriteService (tek yazıcı kilidi), EntityResolver, BatchRevert   — WritePolicy kb-core'da
+├── graph/      EmbeddedNeo4jStore (`read(fn)`, `write(fn)`), KnowledgeQueries, CypherGuard, Schema (schema/*.yaml)
+├── write/      WriteService (tek yazıcı kilidi), EntityResolver, BatchRevert, SnapshotImporter   — WritePolicy kb-core'da
 ├── scan/       ScannerService, extract/ (SpringConfig, DotEnv, Compose, K8s, Ansible, BuildFile)
 ├── secrets/    SecretService (değer sadece secret ucundan çıkar)
 ├── docs/       DocumentService (kb doc add: secret taraması, blobs/, Document düğümü)
-├── snapshot/   SnapshotExporter, SnapshotImporter, SyncService (sistem git)
-├── signals/    PromptRing (RAM); `Signal` düğümleri: silinmez, aynı `kind`+`key` tek düğüm (`count`); `PRODUCED`, `ABOUT`
+├── snapshot/   SnapshotFormat, SnapshotExporter, SyncService (sistem git); `write` → `snapshot` tek yön, grafa yazan içeri alma `write`'ta (ArchUnit döngü kuralı)
+├── signals/    PromptRing (RAM); `Signal` düğümleri: silinmez, aynı `kind`+`key` tek düğüm (`count`); `PRODUCED`, `ABOUT` (F2'de en küçük hal, `PRODUCED` F4: ADR-0022)
 ├── mcp/        worker/ (KbTools), curator/ (CuratorTools), SchemaResource
 ├── api/        REST kontrolcüleri (/api/v1)
 ├── hooks/      HookController (/hooks/*), BriefService, RecallService, CaptureService
-├── eval/       EvalRunner (eval/questions.yaml)
+├── eval/       EvalRunner (eval/questions.yaml); `-Peval` yalnız ince JUnit sarmalayıcı açar (ADR-0022)
 ├── security/   OriginGuard
 └── audit/      AuditLog
 ```
 
 ArchUnit kuralları: `mcp|api|hooks` → `write|graph|scan|snapshot|signals|docs` → `kb-core`. Grafa yazan tek sınıf
-`WriteService`'tir (anlık görüntüden içeri alma ve restore dahil, onun üzerinden). Secret değerini döndüren tek yer
+`WriteService`'tir (anlık görüntüden içeri alma ve restore dahil, onun üzerinden); `EmbeddedNeo4jStore.write` yalnız
+`write` paketinden çağrılabilir. Secret değerini döndüren tek yer
 `api` içindeki secret ucudur; `mcp` paketi `SecretService`'e erişemez.
 
 ## 4. Veri modeli
@@ -105,7 +107,10 @@ WriteRequest {source, entity ipucu, facts[], relations[], evidence?, batch?}
   5. WriteResult {eklenen, tazelenen, kapanan, çelişkiler, yeni varlıklar}
 ```
 
-- **Normatif değişiklik** (karar, silme/arşiv, şema) → `Proposal` düğümü; onay TUI/GUI'den, onaylayan `user`.
+- **Normatif değişiklik** (karar, silme/arşiv, şema) → ajan ve küratör yalnız `Proposal` düğümü açar; onay TUI/GUI'den,
+  onaylayan `user`. `user` kaynağı arşivi doğrudan yapar (ADR-0022).
+- **Tazeleme** (aynı değerin yeniden görülmesi) `batch` yazmaz; yoksa `kb revert` tazelenen eski kaydı silerdi. Bir
+  partinin kapattığı kayıtlar `SUPERSEDES` ile bulunur (ADR-0022).
 - **Geri alma:** `kb revert --batch <id>` partinin açtığı kayıtları siler, kapattıklarının `valid_to`'sunu kaldırır ve
   kapattığı sinyalleri yeniden açar (yoksa yapılandırılamamış soru-cevap kapalı kalır ve küratör ona bir daha bakmaz).
   Daha eski bir duruma dönmek için `kb restore --at <commit>`.
@@ -125,13 +130,22 @@ kb_scan(path) / kb scan <path> / SessionStart (HEAD değiştiyse)
 |---|---|---|
 | SpringConfig | `application*.yml/yaml/properties`, `bootstrap*` | profil → ortam; `server.port`; `spring.datasource.*` (url → host/port/db, password → secret); redis/rabbit/kafka host'ları; OAuth2 `issuer-uri`; `*.url`/`*.host`/`*.uri` |
 | DotEnv | `.env`, `.env.<ortam>` | Anahtarlar; secret görünümlüler Secret düğümüne |
-| Compose | `docker-compose*.yml`, `compose*.yml` | servisler, imajlar, portlar, `depends_on` → ilişki |
-| K8s | `kind: Deployment/Service/Ingress/ConfigMap` | servisler, portlar, ingress host'ları, namespace, imaj; `Secret` nesnelerinin sadece adı |
-| Ansible | `inventory*`, `hosts*`, `*.ini` | host'lar, gruplar, `ansible_host` |
+| Compose | `docker-compose*.yml`, `compose*.yml` | yalnız `services.*.environment` altındaki düz metin secret'lar (ortam `local`); compose servisi varlık, ilişki veya fact üretmez |
+| K8s | üst düzey `kind` taşıyan dosyalar | ortam namespace'in son `-` parçasından; namespace, container imajı ve Ingress url'si proje fact'i olur; `secretKeyRef` secret üretmez; container env'inde düz metin secret görünümlü değer Secret olur |
+| Ansible | `inventory*`, `hosts*`, `*.ini` | INI envanter; her host, grubunun ortamında bir `Server` |
 | BuildFile | `pom.xml`, `build.gradle*` | stack (java-spring, java, kotlin…), Spring Boot ve Java sürümü |
 
 Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s namespace, CI environment adı; bilinmiyorsa
 `default`. Tarayıcı **asla LLM çağırmaz**.
+
+Tarama kuralları (ADR-0022 karar 32–36):
+- `DEPLOYED_ON`: bir ortamın Ansible host'u projeye bağlanır; bir k8s namespace'i projeyi o ortama koyuyorsa bağlanmaz.
+- Bir proje birden çok repoya yayılabilir (ek `HAS_REPO`).
+- Token taşıyan webhook url'leri url fact'i olarak yazılmaz.
+- Okunan her dosya `allowed-roots` altında çözülmelidir (git `core.worktree`/`gitdir` dışarı çıkaramaz).
+- Tek değerli bir anahtar bir taramada aynı ortamda birden çok değer alırsa tek değer kalır (önce yola, sonra satıra göre
+  ilki) ve diğerlerini listeleyen tek bir çelişki sinyali açılır.
+- `finding` çok değerlidir; metni `Düz metin parola bulundu: <dosya>:<satır>; ortam değişkenine taşınmalı`.
 
 ## 7. Secret'lar
 
@@ -159,7 +173,7 @@ Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s n
 ```
 
 - **Yazma:** `kb sync` her çalıştığında (systemd timer, 10 dakikada bir) ve sunucu kapanırken; ayrı bir zamanlayıcı
-  yok. Sabit alan sırası ve sıralı satırlar sayesinde git diff okunur. `Signal` düğümleri, onlara bağlı
+  yok. Biçim sabittir (anahtarlar özyinelemeli alfabetik, `id` sıralı, UTF-8, `\n`; ADR-0022), böylece git diff okunur. `Signal` düğümleri, onlara bağlı
   kenarlar (`PRODUCED`, `ABOUT`) ve `secret_value` alanı yazılmaz; içeri alırken yereldeki secret değeri korunur.
   Yeni dokümanlar aynı commit'e girer. Değişiklik yoksa commit yok. Commit'ten önce yazılan satır sayısı graftaki
   kayıt sayısıyla (sinyaller hariç) karşılaştırılır; tutmazsa commit yapılmaz ve `kb sync` hata verir.
@@ -169,7 +183,8 @@ Ortam: profil adı (`application-prod.yml` → `prod`), dosya adı soneki, k8s n
 - **Restore:** `kb restore [--at <commit>]` grafı boşaltıp anlık görüntüden yeniden kurar. Anlık görüntüde olmayan yerel
   veriler (secret değerleri, sinyaller) önce ayrılır, kurulumdan sonra geri yazılır; restore onları silmez (test).
 - **İlk kurulum:** `kb init` repoyu oluşturur veya klonlar, `schema/`'yı yerleştirir; graf boşsa son anlık görüntü
-  yüklenir.
+  yüklenir. `init` sunucu jar'ında, Neo4j açılmadan çalışır; `sync`, `restore`, `revert`, `check` REST + `kb-client`
+  ile (ADR-0022).
 - **Sunucu kapalıyken:** ajanlar `~/kb/snapshot/*.jsonl`'ü salt okunur okuyabilir (en fazla 10 dk eski, secret değeri
   yok; AGENT-RULES). Yazma sadece sunucudan.
 
@@ -188,9 +203,12 @@ Token yok (ADR-0020); tüm uçlar `OriginGuard` arkasındadır (§10).
 
 ## 10. Ağ güvenliği
 
-- `OriginGuard` (servlet `Filter`, `/*`): `Origin` başlığı varsa 403; `Host` ∈ {`127.0.0.1:7411`, `localhost:7411`}.
+- `OriginGuard` (servlet `Filter`, `/*`): `Origin` başlığı varsa 403; `Host` ∈ {`127.0.0.1:<port>`, `localhost:<port>`};
+  `<port>` `request.getLocalPort()`'tan okunur (ADR-0022), varsayılan 7411.
 - Loopback zorunlu: `server.address` loopback değilse sunucu açılmayı reddeder (ADR-0020).
 - Sunucu dışarıya HTTP çağrısı yapmaz; tek çıkış `kb sync`'in git'idir.
+- İstek gövdesi en çok 1 MiB, aşılırsa 413. Sunucu JVM'i `OutOfMemoryError`'da çıkar, systemd yeniden başlatır. MCP HTTP hatalarında (≥ 400) gövde boştur (`McpErrorBodyFilter`); aktarım
+  logger'ları yükü `*****` yazar. Gerekçe ve kabul edilen ad yansıması: ADR-0022 karar 17–20.
 
 ## 11. Hook entegrasyonu
 
@@ -215,7 +233,8 @@ Code'u sadece `/mcp/curator` araçlarıyla başlatır. Ayrıntılar: CURATOR.md.
   secret yok.
 - **`kb doctor`:** sunucu, graf, son anlık görüntü ve senkron zamanı, veri dizini izinleri, bu bilgisayarda
   değeri olmayan secret'lar, büyük doküman varsa git-lfs kurulumu, iki ajanın MCP ve hook yapılandırması, son küratör çalışması ve eval skoru. LFS gönderimi başarısız olursa `kb sync` hata verir.
-- **`kb check`:** tutarlılık sorunları (sahipsiz kenar, sözlük dışı ilişki, açık çelişki) ve büyüme raporu: varlıklar
+- **`kb check`** (F2: sahipsiz kenar, sözlük dışı ilişki, açık çelişki, `git fsck`; doküman bütünlüğü F3, büyüme raporu
+  F4; ADR-0022): tutarlılık sorunları (sahipsiz kenar, sözlük dışı ilişki, açık çelişki) ve büyüme raporu: varlıklar
   (duruma göre), güncel ve kapalı fact'ler, kararlar, dersler, dokümanlar (toplam boyut), açık, işlenmiş ve atılan
   sinyaller, bayat oranı; her biri için bir önceki `kb check`'e göre fark (ADR-0017). Doküman bütünlüğü: her
   `Document`'ın dosyası `blobs/`'ta var mı ve sha256'sı tutuyor mu. Repo bütünlüğü: `~/kb` için `git fsck`.

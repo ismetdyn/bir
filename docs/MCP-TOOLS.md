@@ -74,8 +74,8 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 > `source` {kind: `user_stated` | `code` | `doc` | `command`, ref?, evidence?}, `document?` (a `doc:…` id you extracted
 > this from). Free-text knowledge goes into facts with text keys such as `role`, `constraint`, `access`, `convention`;
 > keep each to one short statement (max 500 characters). Store knowledge, not transcripts. For `user_stated`, put the
-> user's exact words in
-> `evidence`; if they cannot be matched to a recent user message the fact is stored as unverified. NEVER put secret values
+> user's exact words, including the value, in `evidence`; if they cannot be matched to one recent user message or lack a
+> fact's value, that fact is stored as unverified. NEVER put secret values
 > here (passwords, tokens, keys): they are rejected. Ask the user to run `kb secret set <entity>/<env>/<name>` instead.
 > Facts that contradict verified knowledge do not overwrite it; they are stored as conflicts and the result tells you.
 > For decisions, rules or deletions use `kb_propose`.
@@ -91,7 +91,7 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 > Proposes a normative change that needs the user's approval: a new or changed decision/rule (with its stack or project),
 > a schema change, archiving or deleting a record. Nothing changes until the user accepts it in the TUI or GUI. Use at the
 > end of a task. Input: `kind` (`decision` | `rule-change` | `archive` | `schema`), `target?` (id of the record it
-> changes; linked with an `ABOUT` edge), `content` (Markdown), `reason` (one sentence), `evidence?`.
+> changes; linked with an `ABOUT` edge), `content` (Markdown), `evidence?` (why, and what it is based on).
 
 ---
 

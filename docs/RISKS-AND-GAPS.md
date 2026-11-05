@@ -9,7 +9,7 @@ Her madde bir karar veya görev doğurur. "Faz" sütunu önlemin hangi fazda uyg
 | A1 | Graf artık ana depo | Disk kaybında veri kaybı | Neo4j işlem günlüğü (çökme); 10 dk'lık git anlık görüntüsü (disk kaybı); `kb restore` testi | F2 |
 | A2 | İki cihazda eşzamanlı yazma | Aynı kayıt iki yerde değişir | `id` bazlı birleştirme, yenisi kazanır; fact'ler silinmediği için bilgi kaybolmaz; iki repo ile test | F2 |
 | A3 | Gömülü Neo4j tek süreç kilidi | Sunucu açıkken CLI veritabanını açamaz | CLI her zaman REST API'yi kullanır | F2 |
-| A4 | Bağımlılık çakışması | Boot 4 + Spring AI 2 + Neo4j test edilmemiş kombinasyon | F1 spike; `GraphStore` arayüzü; B planı ayrı Neo4j süreci | F1 |
+| A4 | Bağımlılık çakışması | Boot 4 + Spring AI 2 + Neo4j test edilmemiş kombinasyon | F1 spike; B planı ayrı Neo4j süreci | F1 |
 | A5 | İki MCP uç noktası | Spring AI auto-config tek sunucu kurar | `/mcp/curator` MCP Java SDK ile elle; spike'ta doğrula | F1 |
 | A6 | Yerel HTTP ≠ güvenli | DNS rebinding ile `127.0.0.1`'e istek; MCP SDK'larında CVE'ler çıktı | `OriginGuard` (Host + Origin) + loopback zorunlu (ADR-0020) | F2 |
 | A7 | `kb_cypher` ile sızıntı | `LOAD CSV` dosya okur; `secret_value` sorgulanabilir | `LOAD CSV` yasak; `secret_value` geçen sorgu reddedilir ve sonuçtan çıkarılır | F2 |
@@ -33,6 +33,7 @@ Her madde bir karar veya görev doğurur. "Faz" sütunu önlemin hangi fazda uyg
 | A32 | Anlık görüntünün sessizce eksik yazılması | Dışa aktarma bir kaydı atlarsa yedek eksik kalır ve bu fark edilmez | `kb sync` commit'ten önce satır sayısını grafla karşılaştırır, tutmazsa commit'lemez; `kb check` `git fsck` çalıştırır (test) | F2 |
 | A33 | İlk görülme tarihinin kaybı | `observed_at` tazelendikçe bilginin ne zamandan beri geçerli olduğu kaybolur; geçmiş aralığı yanlış görünür | `valid_from` bir kez yazılır, hiç değişmez (test) | F2 |
 | A34 | Sunucu kapalıyken bilgisizlik | Yerleşik hafızalar kapalı; sunucu çökerse ajanlar hiçbir şey bilmez | Ajanlar `~/kb/snapshot/*.jsonl`'ü salt okunur okur (en fazla 10 dk eski, secret yok); hook'lar fail-open | F2 |
+| A35 | Tek `kb_cypher` sorgusuyla bellek tükenmesi | `RETURN range(1, 200000000)` heap'i Neo4j içinde doldurur; `db.memory.transaction.max` (64 MiB) durdurmadı (ölçüldü) | Kabul edildi: JVM `ExitOnOutOfMemoryError` ile çıkar, systemd 5 sn'de başlatır; sorguyu yalnız güvenilir yerel süreç gönderebilir (ADR-0022 karar 25) | Kabul |
 | A18 | Emekli (ADR-0019) | — | — | — |
 | A19 | Emekli (ADR-0019) | — | — | — |
 | A20 | Emekli (ADR-0019) | — | — | — |

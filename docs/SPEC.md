@@ -19,7 +19,7 @@ denetlenemiyor.
 | Parça | Ne | Çalışma biçimi |
 |---|---|---|
 | **agentkb sunucusu** | Bilgi bankasının kendisi: gömülü Neo4j'deki grafı tutar, tek yazıcıdır, yazma kurallarını uygular, MCP/REST/hook uçlarını sunar. **LLM çağırmaz.** | systemd user servisi, `127.0.0.1:7411` |
-| **kb istemcisi** | CLI + TUI, `kb run` ile secret kullanımı, `kb secret set/show` | GraalVM native binary |
+| **kb istemcisi** | CLI + TUI, `kb run` ile secret kullanımı, `kb secret set/show` | GraalVM native binary (F2'de JVM jar, CLI; TUI ve native F3: ADR-0022) |
 | **Masaüstü GUI** (`kb-gui`) | Arama, düzenleme, graf görünümü, çelişkiler, öneriler, aktivite | Dear ImGui, ayrı modül; `/api/v1` kullanır (ADR-0021) |
 | **Küratör ajan** | Grafın yapısını düzenler; diğer ajanlarla konuşmaz | Zamanlanmış headless Claude Code |
 
@@ -41,7 +41,7 @@ Ajanlar birbirleriyle konuşmaz.
 | H9 | Emekli (ADR-0019) | — |
 | H10 | Bilgi bankası kendini düzenler ama bozulmaz | Küratör partisi eval skorunu düşürürse otomatik geri alınır |
 | H11 | Sade | Bir kişi bütün tasarımı bir günde okuyup anlayabilir (ADR-0016) |
-| H12 | Büyüdükçe işlevini ve bilgisini kaybetmez | Hiçbir kayıt silinmez ya da gizlenmez; aramada güncel bilgi önce, eski değer ve arşiv işaretli olarak sonra gelir; tek çağrının çıktısı bütçeyle sınırlı; `kb check` büyümeyi raporlar (ADR-0017) |
+| H12 | Büyüdükçe işlevini ve bilgisini kaybetmez | Sistem kaydı kendiliğinden silmez veya gizlemez; istisnalar `kb revert --batch` ve disk kaybında yerel sinyaller (ADR-0022); aramada güncel bilgi önce, eski değer ve arşiv işaretli olarak sonra gelir; tek çağrının çıktısı bütçeyle sınırlı; `kb check` büyümeyi raporlar (ADR-0017) |
 
 ## 4. Kapsam dışı
 
@@ -82,7 +82,7 @@ Ajanlar birbirleriyle konuşmaz.
 
 | Etiket | Ne | Başlıca alanlar |
 |---|---|---|
-| `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`) | Sunucu, veritabanı, servis, proje… | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
+| `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`, `Person`, `Team`) | Sunucu, veritabanı, servis, proje… | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
 | `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?` |
 | `Decision` | Mimari karar veya kural | `id`, `rule`, `scope`, `date`, `review_by`, `status`, `body` |
 | `Lesson` | Çıkarılmış ders | `id`, `title`, `body`, `date` |
@@ -203,15 +203,20 @@ Başka yerde silinebilecek ya da değişebilecek dosyaların (PDF, runbook, topl
 | `curator` | — | Hijyen (birleştirme, ilişki düzeltme, yapılandırma) | Doğrudan; yeni bilgi üretemez |
 
 Kurallar:
-1. Aynı anahtar + ortam + değer → sadece `observed_at` tazelenir; `valid_from` ve yüksek güvenli kaynak korunur.
+1. Aynı anahtar + ortam + değer → düşük veya eşit güvenli kaynakta yalnız `observed_at` tazelenir. Yeni kaynağın güveni
+   yüksekse eski fact kapanır, aynı değerle yeni fact açılır (yükselen kaynak, `valid_from` taşınır, `SUPERSEDES`). Değer
+   `status: conflict` ile bekliyorsa ve yeni kaynağın güveni ≥ güncel değer ise bekleyen ve eski güncel fact kapanır, aynı
+   değerle yeni güncel fact açılır. Fact hiç yerinde değişmez (ADR-0022 karar 22–23).
 2. Farklı değer, yeni kaynağın güveni ≥ mevcut → eski fact kapanır, yeni fact `SUPERSEDES` ile bağlanır (eskinin
    `valid_to`'su yeninin `valid_from`'u olur).
 3. Farklı değer, yeni kaynağın güveni < mevcut → yeni fact `status: conflict` ile yazılır, `conflict` sinyali açılır;
    mevcut değer güncel kalır.
 4. Aynı tarama kaynağından (aynı repo + dosya) gelen yeni değer her zaman eskisini kapatır (config değişmiştir).
 5. Çok değerli anahtarlarda (`ip`, `port`) ekleme yapılır; kapatma sadece kullanıcı veya aynı kaynağın yeniden taranmasıyla.
-6. **Normatif değişiklikler** (karar ekleme/değiştirme, silme/arşiv, şema) doğrudan yazılmaz: `Proposal` → kullanıcı onayı.
-7. `user_stated` kanıtı son 2 saatin kullanıcı mesajlarında (PromptRing, sadece RAM) geçmelidir; geçmezse kaynak `agent`.
+6. **Normatif değişiklikler** (karar ekleme/değiştirme, silme/arşiv, şema) ajan ve küratör tarafından doğrudan yazılmaz:
+   `Proposal` → kullanıcı onayı. `user` kaynağı arşivi doğrudan yapar (ADR-0022).
+7. `user_stated` kanıtı son 2 saatin kullanıcı mesajlarında (PromptRing, sadece RAM) birebir geçmeli ve yazılan değeri
+   içermelidir; değer de aynı mesajda geçer. Geçmezse kaynak `agent` (ADR-0022 karar 29).
 8. Secret olmayan bir anahtarda secret görünümlü değer reddedilir (`kb secret set` ipucuyla).
 9. Secret değeri geçmişsiz tek alandır: değişince eskisi tutulmaz. Tarayıcı kullanıcının yazdığı değeri değiştirmez;
    farklı bir değer bulursa `conflict` sinyali açar (değer sinyale girmez).
@@ -239,7 +244,7 @@ bilgisayarlar arasında senkronlanmaz. Ayrıntılar: SECRETS.md.
 ## 10. Anlık görüntü ve senkron (ADR-0014)
 
 - 10 dakikada bir ve kapanışta graf `~/kb/snapshot/nodes.jsonl` ve `edges.jsonl` olarak yazılır: satır başına bir kayıt,
-  `id`'ye göre sıralı, sabit alan sırası. Değişiklik varsa commit'lenir. Sinyaller ve secret değerleri
+  `id`'ye göre sıralı, sabit biçimde (anahtarlar özyinelemeli alfabetik; ADR-0022). Değişiklik varsa commit'lenir. Sinyaller ve secret değerleri
   (`secret_value`) yazılmaz; içeri alırken yereldeki değer korunur. `blobs/` aynı repoda durur.
 - `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (`updated_at`'i yeni olan kazanır), grafa uygular,
   yeni anlık görüntüyü uzak dalın üstüne commit'leyip gönderir. Commit'lemeden önce yazdığı satır sayısını graftaki
@@ -295,7 +300,8 @@ parti geri alınır. Bkz. CURATOR.md.
    `server.address` loopback değilse sunucu açılmayı reddeder (ADR-0020).
 4. **Secret:** değer anlık görüntü, git, log, audit, MCP/REST okuma çıktısı ve hata mesajlarına girmez; sadece bu
    bilgisayardaki grafta durur. Değeri sadece tek uç döndürür. `kb_remember` secret görünümlü değeri
-   reddeder; hook yakalaması onu sinyale yazmadan maskeler. Veri dizini 0700.
+   reddeder; hook yakalaması onu sinyale yazmadan maskeler. Veri dizini 0700. MCP aktarım hataları ve logları:
+   ADR-0022 karar 17–20.
 5. **`kb_cypher`:** EXPLAIN ile READ_ONLY kontrolü; `LOAD CSV` ve yönetim prosedürleri yasak; `secret_value` geçen
    sorgu reddedilir ve sonuçlardan bu alan çıkarılır; 5 sn, 200 satır.
 6. **Tarama:** sadece izinli kökler.
@@ -309,7 +315,8 @@ görüntü reposu asla public olmaz. Kontrol listesi: PUBLISHING.md.
 
 ## 15. Kabul ölçütleri (v1.0)
 
-- [ ] Değerlendirme seti (`eval/questions.yaml`, ≥ 30 soru): ilk 3'te doğru kayıt ≥ %85.
+- [ ] Değerlendirme seti (`eval/questions.yaml`, ≥ 30 soru): ilk 3'te doğru kayıt ≥ %85. (F2 kapısı 18 soru ve
+      %85'tir; bu v1.0 ölçütüdür, ADR-0022.)
 - [ ] Tarayıcı fixture'ı: beklenen bilgilerin ≥ %95'i; sahte secret dizeleri hiçbir çıktıda (anlık görüntü, git, log,
       MCP) yok.
 - [ ] Çelişki: düşük güvenli kaynak yüksek güvenliyi ezemiyor (test).

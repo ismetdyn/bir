@@ -26,11 +26,15 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
 
 ## F2 — Bilgi çekirdeği
 
-- [ ] Maven çoklu modül iskeleti: `kb-api`, `kb-core`, `kb-server`, `kb-client`
+F2'nin kapsam kararları: ADR-0022.
+
+- [ ] Maven çoklu modül iskeleti: `kb-core`, `kb-server`, `kb-client` (JVM jar); `kb-api` F3'te
 - [ ] `OriginGuard` (servlet Filter, `/*`: Host + Origin) + loopback dışı açılış reddi + negatif testler; Claude Code ve
       Codex'in geçtiğini doğrula (ADR-0020). Veri aracından önce.
 - [ ] `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale gelir
-- [ ] Graf modeli (SPEC §6), şema yükleyici (`schema/*.yaml`), kısıtlar ve tam metin indeksi
+- [ ] Graf modeli (SPEC §6), şema yükleyici (`schema/*.yaml`), kısıtlar ve tam metin indeksi; `GraphStore` arayüzü yok
+      (`EmbeddedNeo4jStore`)
+- [ ] `Signal` en küçük hali: `conflict`, `qa-capture`, `imported-memory` türleri (kalanı F4)
 - [ ] `WritePolicy` (kb-core, saf, tablo güdümlü testler): kaynak sırası, tazeleme (`valid_from` değişmez), kapat +
       ekle, çelişki
 - [ ] `WriteService` (tek yazıcı) + `EntityResolver` + `kb revert --batch`
@@ -43,16 +47,20 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
       (hedefe `ABOUT`)
 - [ ] Secret'lar: `Secret` düğümü, `GET/PUT /api/v1/secrets/{id}`, veri dizini 0700; `secret_value` anlık görüntüye,
       loga ve araç çıktılarına girmiyor (test)
+- [ ] `kb-client` (JVM jar, picocli): `kb run` (placeholder → ortam değişkeni, akış süzgeci + maskeleme testleri, değer
+      bu bilgisayarda yoksa net hata), `kb secret set|show` ve REST alt kümesi: `/secrets/{id}`, `/revert`, `/sync`, `/restore`,
+      `/check`, `/signals/imported-memories`
 - [ ] Tarayıcı: önce SpringConfig, DotEnv, BuildFile; sonra Compose, K8s, Ansible; `kb_scan` + allowed-roots;
       `fixtures/scanner` golden testi (sahte secret dizeleri hiçbir çıktıda yok)
 - [ ] Anlık görüntü + `kb sync` + `kb restore`; iki geçici repo ile senkron testi; systemd timer; commit öncesi satır
-      sayısı kontrolü; force-push yok; `kb check`'te `git fsck`
+      sayısı kontrolü; force-push yok; `kb check`: sahipsiz kenar, sözlük dışı ilişki, açık çelişki, `git fsck`
 - [ ] Kayıpsızlık testleri: restore ve senkron yereldeki secret değerlerini ve sinyalleri koruyor; sınırdan uzun eski
       kayıt içeri alınırken reddedilmiyor; eski IP ve arşivli varlık aramada işaretli olarak çıkıyor (eval q16–q18)
 - [ ] Hook uçları (`/hooks/session-start`, `/user-prompt-submit`, `/post-tool-use`) + `integrations/kb-hook.sh`;
       yakalamada secret maskeleme (test)
-- [ ] `kb init` (geçici olarak sunucu jar'ında); systemd servisi
-- [ ] `EvalRunner` + `eval/questions.yaml`; `seed/` ile yüklenen örnek veride CI eşiği
+- [ ] `kb init` (sunucu jar'ında, Neo4j açılmadan); systemd servisi
+- [ ] `server.eval` + `-Peval` JUnit sarmalayıcı + `eval/questions.yaml`; `seed/` ile yüklenen örnek veride eşik
+      0,85 (18 soruda en az 16); CI gelene kadar `-Peval verify` çıkış kodu
 - [ ] AGENT-RULES devreye (sunucu kapalıyken anlık görüntüden salt okunur okuma dahil); yerleşik hafızaları kapatma
       (önce `kb import-memories`)
 
@@ -64,12 +72,13 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 
 ## F3 — kb istemcisi: CLI + TUI
 
-- [ ] REST API v1 (bkz. CLIENTS.md)
-- [ ] `kb-client`: picocli komutları, REST istemcisi, `kb run` (placeholder → ortam değişkeni, akış süzgeci + maskeleme
-      testleri, değer bu bilgisayarda yoksa net hata), `kb secret`
+- [ ] `kb-api` modülü (paylaşılan DTO'lar); REST API v1'in kalanı (bkz. CLIENTS.md; F2 alt kümesi hariç)
+- [ ] `kb-client`: kalan picocli komutları (`kb run` ve `kb secret` F2'de geldi)
 - [ ] `kb check` doküman bütünlüğü (dosya var mı, sha256 tutuyor mu); `kb doctor` git-lfs kontrolü
 - [ ] Doküman deposu: `POST /api/v1/documents`, `kb doc add` (secret taraması, içerik adresli `blobs/`, 20 MB üstü
       `git lfs track`), `Document` düğümü, `kb_read doc:…`, `kb_remember(document=…)` (SPEC §6.7)
+      Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB sınırı içinde,
+      kaldığı yerden devam; diske akıtılır, heap'e değil. Protokol F3 başında tasarlanır (ADR-0022 karar 17, 21)
 - [ ] TamboUI TUI: arama, detay, fact/ilişki düzenleme, arşiv, çelişkiler, öneriler, aktivite + geri alma, bayat liste
 - [ ] GraalVM native-image (`kb` < 50 MB, anında açılış)
 
@@ -79,14 +88,15 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 
 ## F4 — Küratör v1
 
-- [ ] Sinyaller (`Signal` düğümleri, silinmez): boş aramalar, ham soru-cevaplar, tarama bulguları, çelişkiler, içe
-      aktarılan hafızalar; kapanınca `outcome` ve `PRODUCED`; bilgi taşıyanlar işlenmeden önce aramada `ham`; TUI'de
-      "Atılanlar" ekranı ve yeniden açma; aynı `kind` + `key` tek düğüm (`count`, `last_at`); ilgili kayda `ABOUT`
+- [ ] Sinyallerin kalanı (en küçük hali F2'de: `conflict`, `qa-capture`, `imported-memory`; `kind` + `key` tek düğüm,
+      `count`, `last_at`, `ABOUT`): `empty-search` ve `scan-finding` türleri; kapanınca `outcome` ve `PRODUCED`;
+      bilgi taşıyanlar işlenmeden önce aramada `ham`; yeniden açma ve TUI'de "Atılanlar" ekranı
 - [ ] `/mcp/curator` araçları (bkz. CURATOR.md) ve sunucuda zorlanan sınırlar
 - [ ] Parti: `cur_begin_batch` → yazmalar parti kimliğiyle → `cur_end_batch` → eval + `kb check` → gerilediyse geri alma
       (partinin kapattığı sinyaller yeniden açılır; test)
 - [ ] `run-curator.sh`; `agentkb-curator.timer`; `/api/v1/curator/should-run`
-- [ ] Şişmeye karşı: kullanılmayan varlıklar için arşiv önerisi; `kb check` büyüme raporu (`cur_metrics`'e girer)
+- [ ] Şişmeye karşı: kullanılmayan varlıklar için arşiv önerisi; `kb check` büyüme raporu (`cur_metrics`'e girer;
+      F2'deki `kb check` tutarlılık kontrolleri üstüne)
       (ADR-0017)
 
 **Bitti tanımı:** Kasıtlı olarak kötüleştirilmiş bir partinin otomatik geri alındığı test var.

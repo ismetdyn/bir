@@ -1,6 +1,6 @@
 # ADR-0002: Graf motoru olarak gömülü Neo4j Community
 
-- Durum: Kabul edildi (F1 spike ile doğrulanacak)
+- Durum: Kabul edildi (F1 spike ile doğrulanacak; ADR-0022 ile güncellendi: `GraphStore` arayüzü kalktı)
 - Tarih: 2026-10-29
 
 ## Bağlam

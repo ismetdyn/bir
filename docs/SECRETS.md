@@ -66,6 +66,7 @@ yolunu kapatan bir savunma olduğunu belirtir.
 |---|---|
 | Tarayıcı repoda secret bulur | Değer `Secret` düğümüne yazılır, placeholder hazır olur. Dosya git'te izleniyorsa "repoda düz metin secret var, ortam değişkenine taşı" bulgusu açılır. Değer hiçbir çıktıya girmez |
 | Tarayıcı aynı secret'ı yeniden bulur | Kendisi yazdıysa değeri günceller. Kullanıcının `kb secret set` ile yazdığına dokunmaz; değer farklıysa `conflict` sinyali açar |
+| Tarayıcı bir taramada aynı secret id'ye iki farklı değer bulur | İlki tutulur; `conflict` sinyali yalnız id'yi söyler, değer yazmaz |
 | Kullanıcı secret ekler | `kb secret set <id>`: değer terminalde maskeli alınır, `PUT /api/v1/secrets/{id}` ile yazılır |
 | Ajanın secret'a ihtiyacı var | `kb_read` ile placeholder'ı bulur, `kb run --env …=kb:secret/<id> -- …` ile kullanır |
 | Ajan secret'ı bilmiyor | Sohbette **istemez**; "terminalde `kb secret set <önerilen-id>` çalıştır" der |

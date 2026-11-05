@@ -5,6 +5,9 @@ senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 
 ## 1. REST API v1 (`/api/v1`)
 
+F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /revert`, `POST /sync`, `POST /restore`,
+`GET /check`, `POST /signals/imported-memories` (yeni; tabloda yok). Kalanı F3'tedir; DTO'lar F3'te `kb-api` modülüne girer.
+
 | Metot | Yol | Ne |
 |---|---|---|
 | GET | `/search?q=&type=&env=&limit=` | Arama (güncel önce, geçmiş işaretli) |
@@ -42,15 +45,18 @@ senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 | `kb proposals` · `kb accept <id>` · `kb reject <id> -m "..."` | Öneriler |
 | `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma |
 | `kb scan <yol>` | Tarama |
-| `kb doc add <dosya> [--about <id>] [--origin <url>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7) |
-| `kb secret set\|list\|rm <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için) |
+| `kb doc add <dosya> [--about <id>] [--origin <url>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB içinde, son alınan parçadan devam; diske akıtılır. Ayrıntı F3 başında tasarlanır (ADR-0022 karar 21) |
+| `kb secret set <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için). F2'de yalnız bu ikisi çıkar (`GET/PUT /secrets/{id}`). `kb secret list` `GET /secrets?prefix=` ister, F3'tedir. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |
 | `kb run --env AD=kb:secret/<id> [--file AD=…] -- <komut>` | Placeholder'ı ortam değişkenine çözüp komutu çalıştırır (bkz. SECRETS.md) |
 | `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme |
-| `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir |
+| `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir (F2: yalnız tutarlılık + `git fsck`) |
 | `kb curator run [--if-needed]` · `kb import-memories` | Küratör |
 | `kb tui` · `kb gui` | Arayüzler |
 
 Çıkış kodları: 0 başarı, 1 hata/bulgu, 3 sunucuya ulaşılamıyor.
+
+F2'de `kb-client` JVM jar'dır; native-image ve TUI F3'tedir. `kb init` sunucu jar'ında, Neo4j açılmadan çalışır; `revert`,
+`sync`, `restore`, `check`, `import-memories`, `run`, `secret` REST üzerinden gider. (ADR-0022).
 
 ## 3. TUI (TamboUI)
 

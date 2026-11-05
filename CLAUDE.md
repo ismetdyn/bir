@@ -17,9 +17,9 @@ yazıp sor. Var olan aracı yeniden yazma (sürümleme ve senkron için git, sor
 Grafa damıtılmış bilgi girer; ham dosyalar doküman deposunda, uzun metin grafta değil (ADR-0017).
 
 ## Teknoloji
-- Java 21, Maven çoklu modül (`kb-api`, `kb-core`, `kb-server`, `kb-client`, `kb-gui`), wrapper `./mvnw`
+- Java 21, Maven çoklu modül (`kb-core`, `kb-server`, `kb-client`, `kb-gui`; `kb-api` F3'te, ADR-0022), wrapper `./mvnw`
 - Spring Boot 4.x, Spring AI 2.0.x (`spring-ai-starter-mcp-server-webmvc`, `@McpTool`), MCP Java SDK (`/mcp/curator`)
-- Neo4j Community embedded (`GraphStore` arkasında), Jackson (JSON/YAML), sistem `git` (+ `git-lfs`)
+- Neo4j Community embedded (`EmbeddedNeo4jStore`, arayüz yok; ADR-0022), Jackson (JSON/YAML), sistem `git` (+ `git-lfs`)
 - `kb-client`: picocli + TamboUI, GraalVM native-image
 - GUI: Dear ImGui (`imgui-java`), ayrı `kb-gui` modülü (ADR-0021)
 - Paket kökü: `io.github.ismetdyn.agentkb`
@@ -54,7 +54,7 @@ npx @modelcontextprotocol/inspector http://127.0.0.1:7411/mcp
 6. **Yazma politikası** `kb-core`'da saftır ve tablo güdümlü testlerle korunur: düşük güvenli kaynak yükseği ezemez.
 7. **Cypher sadece okuma** (`CypherGuard`); `LOAD CSV` ve `secret_value` yasak; ilişki türleri sadece
    `schema/relations.yaml` izin listesinden.
-8. **Anlık görüntü deterministiktir:** `id`'ye göre sıralı satırlar, sabit alan sırası; `Signal` düğümleri (ve onlara
+8. **Anlık görüntü deterministiktir:** `id`'ye göre sıralı satırlar, özyinelemeli alfabetik anahtarlar; `Signal` düğümleri (ve onlara
    bağlı kenarlar) ve `secret_value` yazılmaz. Restore aynı grafı vermelidir ve anlık görüntüde olmayan yerel verileri
    (secret değerleri, sinyaller) korur (test). Satır sayısı graftakiyle tutmazsa commit yok; force-push hiç yok.
 9. **Tarayıcı** sadece `allowed-roots` altında okur; secret değerini sadece Secret düğümüne yazar.
