@@ -29,6 +29,9 @@ final class ScanFileWrite {
     private final GraphWrite graph;
     private final ScannedFile file;
     private final Node source;
+    // The writer lock keeps every other write out and this file writes no Secret, so the values
+    // stored on Secrets are read once per file, not per fact (CP6 profile).
+    private final List<String> stored;
     private final Outcome outcome = new Outcome();
 
     ScanFileWrite(ScanWrites scan, GraphWrite graph, ScannedFile file) {
@@ -40,6 +43,7 @@ final class ScanFileWrite {
                         graph,
                         graph.tx.findNode(ScanGraph.REPO, GraphWrite.ID, scan.scan.repo()),
                         file.path());
+        this.stored = SecretWrite.storedValues(graph.tx);
     }
 
     Outcome apply() {
@@ -162,7 +166,7 @@ final class ScanFileWrite {
                 WriteCheck.check(
                         request(entity, type, List.of(input(found)), List.of()), scan.schema);
                 if (!FINDING.equals(found.key())) {
-                    SecretWrite.refuseStoredValues(graph.tx, List.of(found.value()));
+                    SecretWrite.refuseStoredValues(stored, List.of(found.value()));
                 }
                 kept.add(found);
             } catch (WriteRejectedException e) {

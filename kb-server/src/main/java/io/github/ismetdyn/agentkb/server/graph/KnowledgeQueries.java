@@ -53,6 +53,9 @@ public class KnowledgeQueries {
     private static final String TYPE_OF =
             "coalesce([l IN labels(%s) WHERE l <> 'Entity'][0], 'Entity')";
 
+    // RESOLVE's id half alone: an index seek, where RESOLVE's alias match scans every entity.
+    private static final String RESOLVE_ID =
+            "MATCH (e:Entity) WHERE e.id IN $ids RETURN e.id AS id ORDER BY id LIMIT 1";
     private static final String RESOLVE =
             """
             MATCH (e:Entity) WHERE e.id IN $ids OR any(a IN coalesce(e.aliases, []) WHERE a IN $ids)
@@ -269,8 +272,14 @@ public class KnowledgeQueries {
     public static Optional<String> resolve(Transaction tx, String idOrAlias) {
         String raw = idOrAlias.strip();
         List<String> ids = List.of(raw, Ids.normalize(raw)).stream().distinct().toList();
-        return rows(tx, RESOLVE, Map.of("ids", ids), row -> (String) row.get("id")).stream()
-                .findFirst();
+        Map<String, Object> params = Map.of("ids", ids);
+        // An id wins over an alias (RESOLVE's order), so RESOLVE runs only when no id matches.
+        return rows(tx, RESOLVE_ID, params, row -> (String) row.get("id")).stream()
+                .findFirst()
+                .or(
+                        () ->
+                                rows(tx, RESOLVE, params, row -> (String) row.get("id")).stream()
+                                        .findFirst());
     }
 
     private static EntityView view(Transaction tx, String id) {

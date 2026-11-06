@@ -40,6 +40,7 @@ final class ScanGraph {
     static final Label REPO = Label.label("Repo");
     private static final Label SOURCE_FILE = Label.label("SourceFile");
     private static final String FROM = "FROM";
+    private static final RelationshipType HAS_FACT = RelationshipType.withName("HAS_FACT");
     private static final String LINE = "line";
     // FROM.commit, and Repo.commit: the HEAD the last scan of the repository read (SPEC S1).
     static final String COMMIT = "commit";
@@ -156,6 +157,11 @@ final class ScanGraph {
      * elsewhere} holds for an open fact of the same key, env and value) stays. Asking per open fact
      * keeps the step linear in the files of the scan (CP5 decision 1).
      *
+     * <p>Only the open facts of {@code entity} with a FROM edge to {@code file} can close, and only
+     * an open fact of the same key, env and value can back one, which is then backed itself. So the
+     * facts are found from the file's side: the project holds the facts of every file, and walking
+     * all of them per file made the scan quadratic (CP6 profile).
+     *
      * @return the ids closed
      */
     static List<String> closeByRescan(
@@ -165,17 +171,27 @@ final class ScanGraph {
             List<CheckedFact> written,
             Predicate<Fact> elsewhere,
             Instant at) {
+        List<Node> records = new ArrayList<>();
+        try (ResourceIterable<Relationship> edges =
+                file.getRelationships(Direction.INCOMING, RelationshipType.withName(FROM))) {
+            edges.forEach(edge -> records.add(edge.getStartNode()));
+        }
         Map<String, Node> open = new HashMap<>();
         List<Sourced> current = new ArrayList<>();
-        try (ResourceIterable<Relationship> edges =
-                entity.getRelationships(
-                        Direction.OUTGOING, RelationshipType.withName("HAS_FACT"))) {
-            for (Relationship edge : edges) {
-                Node node = edge.getEndNode();
-                if (!node.hasProperty(VALID_TO)) {
-                    Fact fact = FactWrites.fact(node, (String) node.getProperty("value"));
-                    open.put(fact.id(), node);
-                    current.add(new Sourced(fact, linked(node, FROM, file) ? THIS_FILE : null));
+        for (Node node :
+                records.stream()
+                        .distinct()
+                        .filter(candidate -> !candidate.hasProperty(VALID_TO))
+                        .toList()) {
+            // One Sourced per HAS_FACT edge from the entity, as walking the entity's edges gave.
+            try (ResourceIterable<Relationship> edges =
+                    node.getRelationships(Direction.INCOMING, HAS_FACT)) {
+                for (Relationship edge : edges) {
+                    if (edge.getStartNode().equals(entity)) {
+                        Fact fact = FactWrites.fact(node, (String) node.getProperty("value"));
+                        open.put(fact.id(), node);
+                        current.add(new Sourced(fact, THIS_FILE));
+                    }
                 }
             }
         }

@@ -162,7 +162,11 @@ final class SecretWrite {
 
     /** Refuses the write when any of {@code texts} holds a value stored on a Secret. */
     static void refuseStoredValues(Transaction tx, List<@Nullable String> texts) {
-        List<String> stored = storedValues(tx);
+        refuseStoredValues(storedValues(tx), texts);
+    }
+
+    /** {@link #refuseStoredValues(Transaction, List)} with the values already read. */
+    static void refuseStoredValues(List<String> stored, List<@Nullable String> texts) {
         for (String text : texts) {
             if (text != null && stored.stream().anyMatch(text::contains)) {
                 throw new WriteRejectedException("a value is a stored secret value", STORED_HINT);
@@ -185,7 +189,7 @@ final class SecretWrite {
         return masked;
     }
 
-    private static List<String> storedValues(Transaction tx) {
+    static List<String> storedValues(Transaction tx) {
         try (Result result = tx.execute(STORED_VALUES)) {
             return result.stream()
                     .map(row -> String.valueOf(row.get("v")))
