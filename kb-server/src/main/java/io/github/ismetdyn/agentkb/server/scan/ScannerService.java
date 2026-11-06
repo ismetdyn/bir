@@ -1,6 +1,5 @@
 package io.github.ismetdyn.agentkb.server.scan;
 
-import io.github.ismetdyn.agentkb.core.Ids;
 import io.github.ismetdyn.agentkb.server.scan.extract.Ansible;
 import io.github.ismetdyn.agentkb.server.scan.extract.BuildFile;
 import io.github.ismetdyn.agentkb.server.scan.extract.Compose;
@@ -104,10 +103,8 @@ public class ScannerService {
         // file of another repository under the same root.
         List<Path> workingCopy = List.of(insideRoots(git, top, roots));
         Optional<String> remote = git.remote().map(RemoteUrl::normalize);
-        String folder =
-                Ids.normalize(dir.getFileName() == null ? "root" : dir.getFileName().toString());
-        String repo =
-                remote.map(url -> url.substring(url.indexOf('/') + 1)).orElse("local/" + folder);
+        String folder = RemoteUrl.folder(dir);
+        String repo = RemoteUrl.repoId(remote, folder);
         String project = isSame(dir, top) ? repo.substring(repo.lastIndexOf('/') + 1) : folder;
 
         Set<String> tracked = new HashSet<>(git.files("--cached"));
@@ -158,7 +155,8 @@ public class ScannerService {
         return result;
     }
 
-    private List<Path> roots() {
+    /** The real paths of the allowed roots; refused if none exists. */
+    List<Path> roots() {
         List<Path> roots = new ArrayList<>();
         for (Path root : properties.allowedRoots()) {
             try {
@@ -178,7 +176,7 @@ public class ScannerService {
     }
 
     /** The real path of {@code path}; symlinks and {@code ..} resolved before the root check. */
-    private static Path allowed(Path path, List<Path> roots) {
+    static Path allowed(Path path, List<Path> roots) {
         if (!path.isAbsolute()) {
             throw new WriteRejectedException("the path is not absolute", ROOTS_HINT);
         }
@@ -205,7 +203,7 @@ public class ScannerService {
      *
      * @return the real path of the working tree
      */
-    private static Path insideRoots(LocalGit git, Path top, List<Path> roots) {
+    static Path insideRoots(LocalGit git, Path top, List<Path> roots) {
         List<Path> gitDirs = git.gitDirs();
         Optional<Path> realTop = realPath(top).filter(real -> RootedFiles.isUnder(real, roots));
         if (gitDirs.isEmpty()

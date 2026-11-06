@@ -10,12 +10,15 @@ import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.userPromptSubmit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ismetdyn.agentkb.server.RunningServerTestBase;
+import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -84,6 +87,29 @@ class HookBudgetTest extends RunningServerTestBase {
             assertThat(timed.context()).doesNotContain("ornek-proje");
         } finally {
             release(config);
+        }
+    }
+
+    /**
+     * SPEC S1's HEAD check of a working copy under the allowed roots must not hang the hook: with
+     * {@code .git/config} a FIFO with no writer, every git command in the working copy blocks. The
+     * hook still answers 200 in time; whatever reads HEAD runs apart or is cut.
+     */
+    @Test
+    void a_working_copy_under_the_roots_whose_git_hangs_is_answered_within_the_budget()
+            throws Exception {
+        Path repo =
+                ScanProjects.project(
+                        scanRoot(),
+                        "zz-s1-hang-" + UUID.randomUUID().toString().substring(0, 8),
+                        Map.of("src/main/resources/application.yml", "server:\n  port: 8080\n"));
+        Path config = GitFifo.make(repo.resolve(".git").resolve("config"));
+        try {
+            Timed timed = timed(SESSION_START, sessionStart("claude", repo));
+
+            assertThat(timed.took()).isLessThan(HOOK_BUDGET);
+        } finally {
+            GitFifo.release(config);
         }
     }
 

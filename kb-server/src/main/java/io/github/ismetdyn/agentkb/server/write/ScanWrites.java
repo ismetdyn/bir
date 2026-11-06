@@ -149,13 +149,19 @@ final class ScanWrites {
         scan.skipped()
                 .forEach(line -> kept.add(line.substring(0, Math.max(0, line.lastIndexOf(": ")))));
         Outcome outcome = new Outcome();
+        Node repo = graph.tx.findNode(ScanGraph.REPO, GraphWrite.ID, scan.repo());
         outcome.closed =
                 ScanGraph.closeUnreported(
                         graph,
                         graph.tx.findNode(ScanGraph.ENTITY, GraphWrite.ID, projectId),
-                        graph.tx.findNode(ScanGraph.REPO, GraphWrite.ID, scan.repo()),
+                        repo,
                         kept,
                         at);
+        // SPEC S1: the HEAD this scan read, set last so a scan that broke off is not taken as done.
+        String commit = scan.commit();
+        if (commit != null && !commit.equals(repo.getProperty(ScanGraph.COMMIT, null))) {
+            graph.set(repo, ScanGraph.COMMIT, commit);
+        }
         return outcome;
     }
 

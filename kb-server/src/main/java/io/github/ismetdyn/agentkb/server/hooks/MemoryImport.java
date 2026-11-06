@@ -17,13 +17,19 @@ import org.springframework.stereotype.Component;
  * of Claude Code auto memory or Codex Memories becomes a raw {@code imported-memory} Signal. Its
  * key is the SHA-256 of the masked content, so the same content again, from any file, opens no
  * second signal (SPEC §15). What looks like a secret is masked as {@code ****} line by line, so the
- * rest of a memory stays (docs/SECRETS.md); a private key block is masked whole. Nothing of a
- * memory is logged (invariant 10).
+ * rest of a memory stays (docs/SECRETS.md); a private key block is masked whole. A memory longer
+ * than {@link #TEXT_LIMIT} is cut with a marker, never refused. Nothing of a memory is logged
+ * (invariant 10).
  */
 @Component
 public class MemoryImport {
 
     static final String KIND = "imported-memory";
+    // ADR-0017 decision 1: long text belongs in the document store; the SPEC §6.1 body limit,
+    // marker included.
+    static final int TEXT_LIMIT = 4_000;
+    // User-facing data, not code text: the full memory stays in the file the path line names.
+    private static final String CUT_MARKER = "\n(kısaltıldı; tamamı kaynak dosyada)";
     private static final Pattern KEY_START =
             Pattern.compile("BEGIN [A-Z0-9 ]{0,64}PRIVATE KEY|PuTTY-User-Key-File-");
     private static final Pattern KEY_END =
@@ -41,23 +47,36 @@ public class MemoryImport {
     }
 
     /**
-     * @return how many signals opened; a memory whose content is already a signal opens none
+     * What an import did, the answer of {@code POST /api/v1/signals/imported-memories}.
+     *
+     * @param received memories in the request
+     * @param opened signals opened; a memory whose content is already a signal opens none
+     * @param truncated memories longer than {@link #TEXT_LIMIT} after masking, stored cut
      */
-    public int importAll(List<Memory> memories) {
+    public record Imported(int received, int opened, int truncated) {}
+
+    public Imported importAll(List<Memory> memories) {
         Instant at = Instant.now();
         int opened = 0;
+        int truncated = 0;
         for (Memory memory : memories) {
             if (memory.text().isBlank()) {
                 continue;
             }
             String text = masked(stored.mask(memory.text()));
+            // Masked first, then cut: a secret split by the cut is still found whole.
+            String kept = text;
+            if (text.length() > TEXT_LIMIT) {
+                kept = CaptureService.capped(text, TEXT_LIMIT - CUT_MARKER.length()) + CUT_MARKER;
+                truncated++;
+            }
             String payload =
-                    memory.source() + " " + CaptureService.mask(memory.path()) + "\n" + text;
+                    memory.source() + " " + CaptureService.mask(memory.path()) + "\n" + kept;
             if (writes.raiseSignal(KIND, sha256(text), payload, at)) {
                 opened++;
             }
         }
-        return opened;
+        return new Imported(memories.size(), opened, truncated);
     }
 
     /** Each line as CaptureService masks it; every line of a private key block as a whole. */

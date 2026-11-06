@@ -154,7 +154,8 @@ public class CaptureService {
         return capped(mask(line), TEXT_LIMIT);
     }
 
-    private static String capped(String text, int limit) {
+    /** At most {@code limit} characters of {@code text}, a surrogate pair never split. */
+    static String capped(String text, int limit) {
         if (text.length() <= limit) {
             return text;
         }

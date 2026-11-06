@@ -1,14 +1,17 @@
 package io.github.ismetdyn.agentkb.server.hooks;
 
+import io.github.ismetdyn.agentkb.server.scan.SessionScan;
 import io.github.ismetdyn.agentkb.server.signals.PromptRing;
 import io.github.ismetdyn.agentkb.server.write.EpisodeWrite;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,13 +28,13 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * {@code POST /hooks/<event>?client=<claude|codex>}, what integrations/kb-hook.sh carries
  * (ARCHITECTURE §11): session-start opens the session's Episode and gives the brief with its id,
- * user-prompt-submit records the prompt with its session and gives the recall, post-tool-use
- * captures an answered question and gives nothing. The answer is empty or only {@code
- * hookSpecificOutput {hookEventName, additionalContext}}: Codex refuses any other key
- * (additionalProperties false), and Claude Code takes the same shape. Both clients' payloads are
- * read the same way, so the client is only checked. An unknown event or client is an empty 404; a
- * payload that is no JSON object an empty 200, so a session is never blocked. Behind OriginGuard
- * like every path (ADR-0020).
+ * starting a background scan of the working copy when SPEC S1 calls for one, user-prompt-submit
+ * records the prompt with its session and gives the recall, post-tool-use captures an answered
+ * question and gives nothing. The answer is empty or only {@code hookSpecificOutput {hookEventName,
+ * additionalContext}}: Codex refuses any other key (additionalProperties false), and Claude Code
+ * takes the same shape. Both clients' payloads are read the same way, so the client is only
+ * checked. An unknown event or client is an empty 404; a payload that is no JSON object an empty
+ * 200, so a session is never blocked. Behind OriginGuard like every path (ADR-0020).
  */
 @RestController
 class HookController {
@@ -53,7 +56,24 @@ class HookController {
     private final RecallService recall;
     private final CaptureService capture;
     private final WriteService writes;
+    // SessionScan::afterSessionStart; returns at once (SPEC S1).
+    private final Consumer<String> scanAfterSessionStart;
 
+    @Autowired
+    HookController(
+            BriefService briefs,
+            RecallService recall,
+            CaptureService capture,
+            WriteService writes,
+            SessionScan scans) {
+        this.briefs = briefs;
+        this.recall = recall;
+        this.capture = capture;
+        this.writes = writes;
+        this.scanAfterSessionStart = scans::afterSessionStart;
+    }
+
+    /** Without background scans: the hook alone, as SessionStartFailOpenTest builds it. */
     HookController(
             BriefService briefs,
             RecallService recall,
@@ -63,6 +83,7 @@ class HookController {
         this.recall = recall;
         this.capture = capture;
         this.writes = writes;
+        this.scanAfterSessionStart = cwd -> {};
     }
 
     @PostMapping("/hooks/{event}")
@@ -102,10 +123,13 @@ class HookController {
 
     /**
      * The brief, then the line naming the session's Episode, which SessionStart opens or refreshes
-     * (ADR-0023 decision 3); without a usable session_id the brief alone.
+     * (ADR-0023 decision 3); without a usable session_id the brief alone. The scan of SPEC S1, if
+     * one is due, starts apart after the brief, so the brief does not wait for it.
      */
     private String sessionStart(String client, JsonNode payload) {
-        String brief = briefs.forCwd(text(payload.path("cwd"))).orElse("");
+        String cwd = text(payload.path("cwd"));
+        String brief = briefs.forCwd(cwd).orElse("");
+        scanAfterSessionStart.accept(cwd);
         return openSession(client, payload)
                 .map(
                         episode ->

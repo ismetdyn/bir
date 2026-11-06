@@ -42,8 +42,6 @@ class MaintenanceController {
 
     record ImportedMemory(@Nullable String source, @Nullable String path, @Nullable String text) {}
 
-    record ImportAnswer(int received, int opened) {}
-
     private static final Set<String> MEMORY_SOURCES = Set.of("claude-code", "codex");
     // PATH_MAX on Linux; a memory path under HOME is far shorter.
     private static final int PATH_LIMIT = 4_096;
@@ -114,7 +112,7 @@ class MaintenanceController {
      * refusal never repeats a memory's text.
      */
     @PostMapping("/api/v1/signals/imported-memories")
-    ImportAnswer importMemories(@RequestBody ImportRequest request) {
+    MemoryImport.Imported importMemories(@RequestBody ImportRequest request) {
         List<@Nullable ImportedMemory> memories = request.memories();
         if (memories == null) {
             throw new WriteRejectedException("the body has no memories list", IMPORT_HINT);
@@ -136,7 +134,7 @@ class MaintenanceController {
                                                             + " character",
                                                     IMPORT_HINT)));
         }
-        return new ImportAnswer(checked.size(), memoryImport.importAll(checked));
+        return memoryImport.importAll(checked);
     }
 
     private static Optional<MemoryImport.Memory> checked(@Nullable ImportedMemory memory) {

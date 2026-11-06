@@ -1,6 +1,8 @@
 package io.github.ismetdyn.agentkb.server.scan;
 
 import io.github.ismetdyn.agentkb.core.Ids;
+import java.nio.file.Path;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,6 +18,18 @@ public final class RemoteUrl {
     private static final Pattern SCP_LIKE = Pattern.compile("^(?:[^@/]+@)?([^:/]+):(.+)$");
 
     private RemoteUrl() {}
+
+    /**
+     * The Repo id: {@code <group>/<name>} of the normalized remote, else {@code local/<folder>}.
+     */
+    static String repoId(Optional<String> remote, String folder) {
+        return remote.map(url -> url.substring(url.indexOf('/') + 1)).orElse("local/" + folder);
+    }
+
+    /** The name the folder {@code dir} gives a project or a Repo without a remote, normalized. */
+    static String folder(Path dir) {
+        return Ids.normalize(dir.getFileName() == null ? "root" : dir.getFileName().toString());
+    }
 
     /** Both spellings of a remote, git@host:group/name.git and https://host/group/name, match. */
     public static String normalize(String url) {

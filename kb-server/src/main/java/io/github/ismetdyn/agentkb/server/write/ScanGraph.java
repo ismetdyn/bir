@@ -41,7 +41,8 @@ final class ScanGraph {
     private static final Label SOURCE_FILE = Label.label("SourceFile");
     private static final String FROM = "FROM";
     private static final String LINE = "line";
-    private static final String COMMIT = "commit";
+    // FROM.commit, and Repo.commit: the HEAD the last scan of the repository read (SPEC S1).
+    static final String COMMIT = "commit";
     private static final String VALID_TO = "valid_to";
     private static final String PROJECT_TYPE = "project";
     static final String HAS_REPO = "HAS_REPO";
