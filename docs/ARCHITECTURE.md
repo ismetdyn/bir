@@ -84,7 +84,9 @@ Düğüm ve kenarlar: SPEC §6. Fiziksel ayrıntılar:
   (`ornek-app-01`); fact, kenar, öneri ve sinyalde ULID; secret `<varlık>/<ortam>/<ad>`; Repo `<grup>/<ad>`;
   SourceFile `<repo>:<yol>`; Stack ve Topic `stack:<ad>`, `topic:<ad>`; Document `doc:<sha256'nın ilk 12 hanesi>`;
   Episode ULID (ADR-0023; anlık görüntüye girer).
-- Kısıtlar: her etikette `id` unique. İndeksler: `Fact.key`, `Fact.value`, `Entity.aliases`.
+- Kısıtlar: her etikette `id` unique. İndeks: `Fact.key` ve `batch`. `Fact.value` ve `Entity.aliases` için aralık indeksi
+  yok: Neo4j 2026.10.1'de bu indeks yaklaşık 8 kB'tan uzun değerli yazmayı reddediyor, bu da kayıpsız içeri almayı
+  (değişmez 11) bozar; değer ve takma ad araması tam metin indeksinden yapılır.
 - Tam metin indeksi: varlık `id`/`aliases`/`summary`, fact değerleri (güncel ve kapanmış), `Decision.rule`/`body`,
   `Lesson.title`/`body`, `Document.name` ve bilgi taşıyan sinyallerin `payload`'u. Türkçe analizör seçimi F1
   spike'ında değerlendirme setiyle yapılır ("İzmir" testi).

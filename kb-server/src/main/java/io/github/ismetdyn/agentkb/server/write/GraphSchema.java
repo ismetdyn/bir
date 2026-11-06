@@ -27,6 +27,12 @@ final class GraphSchema {
     // a constraint from the rows that carry them.
     private static final List<String> EDGE_TYPES = Schema.FIXED_EDGE_TYPES;
 
+    // RequestWrite's BY_ADDRESS reads every Fact without it. No range index on Fact.value or
+    // Entity.aliases: Neo4j refuses a write whose value exceeds the index key limit (~8 kB), and
+    // import and the scanner do not cap values (invariant 11; EnsureSchemaTest).
+    private static final String FACT_KEY_INDEX =
+            "CREATE INDEX IF NOT EXISTS FOR (n:Fact) ON (n.key)";
+
     private static final String FULLTEXT_NAME = "kb_fulltext";
     // ARCHITECTURE §4 fields; the analyzer is ADR-0018 decision 6.
     private static final List<String> FULLTEXT_LABELS =
@@ -53,6 +59,7 @@ final class GraphSchema {
                 tx -> {
                     union(LABELS, labels).forEach(label -> constrainNodes(tx, label));
                     union(EDGE_TYPES, types).forEach(type -> constrainEdges(tx, type));
+                    tx.execute(FACT_KEY_INDEX);
                     ensureFulltext(tx);
                     return null;
                 });
