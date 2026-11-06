@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
@@ -99,7 +100,9 @@ class KbRunTest {
         Path childPid = workDir.resolve("childpid");
         Process kb =
                 KbProcess.start(
+                        KbProcess.jvm(Map.of()),
                         server.url(),
+                        Map.of(),
                         workDir,
                         KbProcess.runArgs(
                                 List.of("--file", "KEY=kb:secret/" + OTHER_ID),

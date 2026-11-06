@@ -1,0 +1,11 @@
+[
+  {
+    "name": "dev.tamboui.picocli.TuiCommand",
+    "allDeclaredFields": true
+  },
+  {
+    "name": "dev.tamboui.picocli.TuiMixin",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true
+  }
+]

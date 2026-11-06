@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.client;
 
+import io.github.ismetdyn.agentkb.client.tui.KbTuiCommand;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -23,7 +24,8 @@ import picocli.CommandLine.Command;
             MaintenanceCommands.Restore.class,
             MaintenanceCommands.Sync.class,
             MaintenanceCommands.Check.class,
-            ImportMemoriesCommand.class
+            ImportMemoriesCommand.class,
+            KbTuiCommand.class
         })
 public final class Kb {
 

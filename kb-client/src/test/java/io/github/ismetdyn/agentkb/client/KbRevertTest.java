@@ -10,6 +10,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * docs/CLIENTS.md §2, ADR-0022 decision 3: {@code kb revert --batch <id>} sends {@code POST
@@ -107,5 +109,48 @@ class KbRevertTest {
                 .contains("a later batch built on this one")
                 .contains("Revert batch 01KBTESTLATER first.")
                 .doesNotContain("Exception");
+    }
+
+    /** A newer server may add answer fields; kb reports what it knows and still succeeds. */
+    @Test
+    void revert_ignores_an_answer_field_it_does_not_know() {
+        server.answer(
+                "POST",
+                REVERT,
+                200,
+                "{\"batch\":\""
+                        + BATCH
+                        + "\",\"deleted\":17,\"reopened\":4,\"deletedSecretValues\":2,"
+                        + "\"later\":{\"nested\":[1,\"x\"]}}");
+
+        Result result = server.kb(workDir, "revert", "--batch", BATCH);
+
+        assertThat(result.exitCode()).as(result.stderr()).isZero();
+        assertThat(result.stdout()).contains(BATCH).contains("17").doesNotContain("nested");
+    }
+
+    @Test
+    void a_refusal_without_a_hint_shows_the_error_alone() {
+        server.answer("POST", REVERT, 400, "{\"error\":\"zz-only-error\"}");
+
+        Result result = server.kb(workDir, "revert", "--batch", BATCH);
+
+        assertThat(result.exitCode()).isEqualTo(1);
+        assertThat(result.stderr())
+                .contains("zz-only-error")
+                .doesNotContain("null")
+                .doesNotContain("zz-only-error;");
+    }
+
+    /** JSON that is not a refusal (no string {@code error}) is shown as it came. */
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"status\":500,\"path\":\"/zz\"}", "[\"zz-array\"]", "{\"error\":7}"})
+    void an_error_body_that_is_not_a_refusal_is_shown_as_it_came(String body) {
+        server.answer("POST", REVERT, 500, body);
+
+        Result result = server.kb(workDir, "revert", "--batch", BATCH);
+
+        assertThat(result.exitCode()).isEqualTo(1);
+        assertThat(result.stderr()).contains(body).doesNotContain("Exception");
     }
 }

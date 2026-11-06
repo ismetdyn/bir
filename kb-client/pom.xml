@@ -13,12 +13,43 @@
   <!-- The kb command (docs/CLIENTS.md). F2: a JVM jar; native-image and TUI come in F3 (ADR-0022 decision 1). -->
   <artifactId>kb-client</artifactId>
 
+  <properties>
+    <!-- plan.md H1, ADR-0025 decision 8: one version for the BOM and the test-fixtures jars, which the BOM does
+         not manage (they carry a classifier). 0.6.0 is the latest release on Maven Central (2026-11-06). -->
+    <tamboui.version>0.6.0</tamboui.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>dev.tamboui</groupId>
+        <artifactId>tamboui-bom</artifactId>
+        <version>${tamboui.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <!-- plan.md "Yeni bağımlılıklar": approved for G8; 4.7.7 is the latest release on Maven Central (2026-11-05). -->
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <version>4.7.7</version>
+    </dependency>
+    <!-- kb tui (plan.md H1): TamboUI only inside client.tui; jline3 because the Panama backend needs Java 22. -->
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-toolkit</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-jline3-backend</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-picocli</artifactId>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -28,6 +59,28 @@
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- TamboUI's Pilot (HelloScreenTest): ToolkitTestRunner, the Pilot interface and TestBackend. -->
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-toolkit</artifactId>
+      <version>${tamboui.version}</version>
+      <classifier>test-fixtures</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-tui</artifactId>
+      <version>${tamboui.version}</version>
+      <classifier>test-fixtures</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>dev.tamboui</groupId>
+      <artifactId>tamboui-core</artifactId>
+      <version>${tamboui.version}</version>
+      <classifier>test-fixtures</classifier>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -48,6 +101,83 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
       </plugin>
+      <!-- picocli-codegen writes the reflection config native-image needs into
+           META-INF/native-image/picocli-generated. It runs in every build, not only under -Pnative: a profile-only
+           processor would leave classes compiled without -Pnative lacking that config, and the compiler does not
+           recompile for a changed processor path. Setting annotationProcessorPaths turns off processor discovery:
+           any other processor must be listed here too. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>info.picocli</groupId>
+              <artifactId>picocli-codegen</artifactId>
+              <version>4.7.7</version>
+            </path>
+          </annotationProcessorPaths>
+          <compilerArgs>
+            <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Native kb (ADR-0025 decision 7): "./mvnw -pl kb-client -Pnative package" under Mandrel 23.1.13 (the command
+         is in KbNativeIT and docs) writes target/kb. Always with -pl kb-client: -Pnative at the root starts Boot AOT
+         in kb-server. The plugin version (1.1.14) comes from the Boot 4.1.2 parent. -->
+    <profile>
+      <id>native</id>
+      <properties>
+        <!-- kb is not a Spring application; the parent's native profile would otherwise run process-aot. -->
+        <spring-boot.aot.skip>true</spring-boot.aot.skip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>build-native</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>compile-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <mainClass>io.github.ismetdyn.agentkb.client.Kb</mainClass>
+              <imageName>kb</imageName>
+              <!-- No fallback image: the plugin passes no-fallback to native-image by default (its fallback parameter,
+                   deprecated, defaults to false), so a build arg would only repeat it. The build log shows the flag. -->
+              <buildArgs>
+                <!-- Without it SIGINT/SIGTERM end the image without shutdown hooks: kb run leaves its temp files. -->
+                <buildArg>--install-exit-handlers</buildArg>
+              </buildArgs>
+              <!-- The metadata repository the plugin ships (1.0.15) only has the single-file reachability-metadata.json
+                   format, which native-image for JDK 21 (Mandrel 23.1) cannot read, and the plugin refuses to build
+                   with it. kb relies on picocli-codegen and the metadata inside the jars (jline). -->
+              <metadataRepository>
+                <enabled>false</enabled>
+              </metadataRepository>
+            </configuration>
+          </plugin>
+          <!-- KbNativeIT: with kb.native set, a missing or stale binary fails the build instead of skipping. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <kb.native>${project.build.directory}/kb</kb.native>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
