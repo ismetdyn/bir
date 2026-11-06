@@ -6,7 +6,7 @@ senin yazdıkların `user` kaynaklıdır (en yüksek güven).
 ## 1. REST API v1 (`/api/v1`)
 
 F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /revert`, `POST /sync`, `POST /restore`,
-`GET /check`, `POST /signals/imported-memories` (yeni; tabloda yok). Kalanı F3'tedir; DTO'lar F3'te `kb-api` modülüne girer.
+`GET /check`, `POST /signals/imported-memories` (yeni; tabloda yok). Kalanı F3'tedir (`/signals*` ve `/curator/*` F4'e kalır: ADR-0025 karar 14); DTO'lar F3'te `kb-api` modülüne girer.
 
 | Metot | Yol | Ne |
 |---|---|---|
@@ -25,7 +25,9 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | GET | `/secrets?prefix=` | Secret listesi (ad, ortam, placeholder, bu bilgisayarda değeri var mı; değer yok) |
 | PUT | `/secrets/{id}` | Değeri yaz (`kb secret set`); değer bu bilgisayardan çıkmaz |
 | GET | `/secrets/{id}` | Değer; sadece `kb run` ve `kb secret show` kullanır |
-| POST | `/documents` · GET `/documents/{id}` | Doküman ekle (secret taraması; `blobs/`'a yazar) · üst bilgi ve yol |
+| PUT · PATCH · DELETE | `/uploads/{sha}` | Sürdürülebilir yükleme (ADR-0025 karar 1): `PUT` + `Upload-Length` başlatır/offset verir, `PATCH` (`application/offset+octet-stream`, ≤ 1 MiB) `Upload-Offset`'ten devam eder, `DELETE` iptal eder |
+| POST | `/documents` `{sha256,name,about?,origin?,replaces?}` | Yüklemeyi tamamla: hash ve secret taraması, `blobs/`'a yazar, `Document` düğümü |
+| GET | `/documents` · `/documents/{id}` | Doküman listesi · üst bilgi ve yol |
 | POST | `/scan` | `{path}` tarama |
 | GET | `/stale?days=` | Bayat liste |
 | POST | `/sync` · POST `/restore` · GET `/doctor` · GET `/eval` · GET `/check` | Bakım |
@@ -45,13 +47,13 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | `kb proposals` · `kb accept <id>` · `kb reject <id> -m "..."` | Öneriler |
 | `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı ve hâlâ ona ait Secret değeriyle silinir, çıktı sayısını verir. `kb secret set` ile değer yazılan Secret kullanıcıya geçer ve geri almada kalır (ADR-0022 karar 39) |
 | `kb scan <yol>` | Tarama |
-| `kb doc add <dosya> [--about <id>] [--origin <url>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB içinde, son alınan parçadan devam; diske akıtılır. Ayrıntı F3 başında tasarlanır (ADR-0022 karar 21) |
+| `kb doc add <dosya> [--about <id>] [--origin <url>] [--replaces <docId>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme byte offset'li ve sürdürülebilir; yeniden çalıştırma kaldığı yerden devam eder, istemci durum tutmaz. Protokol: ADR-0025 karar 1. `--replaces` yeni dokümanı eskisine `SUPERSEDES` ile bağlar. Sıkıştırılmış dosyada secret taraması yapılamaz, komut uyarır |
 | `kb secret set <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için). F2'de yalnız bu ikisi çıkar (`GET/PUT /secrets/{id}`). `kb secret list` `GET /secrets?prefix=` ister, F3'tedir. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |
 | `kb run --env AD=kb:secret/<id> [--file AD=…] -- <komut>` | Placeholder'ı ortam değişkenine çözüp komutu çalıştırır (bkz. SECRETS.md) |
 | `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme. Anlık görüntü satırındaki `secret_value` ve `props.id` yüklenmez (değişmez 2); çıktı yok sayılan değer sayısını verir |
-| `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir (F2: yalnız tutarlılık + `git fsck`) |
+| `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir (F2: yalnız tutarlılık + `git fsck`; F3: `missing-blob`, `blob-hash-mismatch`). `kb doctor` (`GET /doctor`): git, git-lfs, repo ve LFS `--local` filtresi, veri dizini 0700 |
 | `kb curator run [--if-needed]` · `kb import-memories` | Küratör |
-| `kb tui` · `kb gui` | Arayüzler |
+| `kb tui` · `kb gui` | Arayüzler. `kb tui` TamboUI 0.6.0 (F3; `--no-alt-screen` destekler); `kb gui` F5 |
 
 Çıkış kodları: 0 başarı, 1 hata/bulgu, 3 sunucuya ulaşılamıyor.
 

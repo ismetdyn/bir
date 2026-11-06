@@ -27,12 +27,12 @@
 ```
 agentkb/
 ├── pom.xml            (parent, Java 21)
-├── kb-api/            JSON sözleşmeleri (record DTO'lar) — F3'te açılır; F2'de yok (ADR-0022)
+├── kb-api/            JSON sözleşmeleri (yalnız record DTO'lar; JDK + JSpecify) — F3'te açılır (ADR-0022, ADR-0025)
 ├── kb-core/           Saf Java: alan modeli, WritePolicy, Markdown görünümü, secret desenleri, şema doğrulama.
 │                      Spring/Neo4j bağımlılığı YOK → hızlı birim testleri
 ├── kb-server/         Spring Boot: graf deposu, yazma servisi, tarayıcı, anlık görüntü/senkron, MCP, REST, hook
 ├── kb-client/         picocli CLI + TamboUI TUI + `kb run` + `kb secret`; REST istemcisi; GraalVM native-image
-│                      (F2'de yalnız JVM jar: CLI, `kb run`, `kb secret`; TUI ve native F3)
+│                      (F2'de yalnız JVM jar: CLI, `kb run`, `kb secret`; TUI ve native F3; Mandrel 23.1.13, ADR-0025)
 ├── kb-gui/            Dear ImGui (`imgui-java`) masaüstü GUI; `/api/v1` istemcisi; JVM ile çalışır, `kb gui` başlatır (ADR-0021)
 ├── curator/           PROMPT.md, mcp.json, run-curator.sh
 └── seed/ fixtures/ eval/ integrations/ docs/
@@ -46,7 +46,7 @@ agentkb/
 | Taşıma | Streamable HTTP | `spring.ai.mcp.server.protocol=STREAMABLE` açıkça ayarlanmalı |
 | Depo | Neo4j Community embedded | `EmbeddedNeo4jStore` (arayüz yok, ADR-0022); LadybugDB alternatif (ADR-0002) |
 | Git | Sistem `git` (+ büyük dokümanlar için `git-lfs`) | Anlık görüntü ve doküman commit'i, senkron |
-| TUI | TamboUI + GraalVM native | B planı: Go/Bubble Tea |
+| TUI | TamboUI 0.6.0 (BOM) + GraalVM native; yalnız `client.tui` içinde | B planı: Go/Bubble Tea (ADR-0025) |
 | GUI | Dear ImGui (`imgui-java`) + ImNodes (graf) | Ayrı `kb-gui` modülü, JVM; Node araç zinciri yok (ADR-0021) |
 | CLI | picocli | Native-image uyumlu |
 | Test | JUnit 5, AssertJ, ArchUnit, Neo4j test harness, MCP Java SDK client | |
@@ -60,11 +60,11 @@ agentkb/
 ├── write/      WriteService (tek yazıcı kilidi), EntityResolver, BatchRevert, SnapshotImporter   — WritePolicy kb-core'da
 ├── scan/       ScannerService, extract/ (SpringConfig, DotEnv, Compose, K8s, Ansible, BuildFile)
 ├── secrets/    SecretService (değer sadece secret ucundan çıkar)
-├── docs/       DocumentService (kb doc add: secret taraması, blobs/, Document düğümü)
+├── docs/       UploadStore (staging, `<data-dir>/uploads`), DocumentService (tamamlama: secret taraması, blobs/, Document düğümü); ADR-0025
 ├── snapshot/   SnapshotFormat, SnapshotExporter, SyncService (sistem git); `write` → `snapshot` tek yön, grafa yazan içeri alma `write`'ta (ArchUnit döngü kuralı)
 ├── signals/    PromptRing (RAM); `Signal` düğümleri: silinmez, aynı `kind`+`key` tek düğüm (`count`); `PRODUCED`, `ABOUT` (F2'de en küçük hal, `PRODUCED` F4: ADR-0022)
 ├── mcp/        worker/ (KbTools), curator/ (CuratorTools), SchemaResource
-├── api/        REST kontrolcüleri (/api/v1)
+├── api/        REST kontrolcüleri (/api/v1); domain sonucunu `kb-api` DTO'suna eşleyen tek paket (ADR-0025)
 ├── hooks/      HookController (/hooks/*), BriefService, RecallService, CaptureService
 ├── eval/       EvalRunner (eval/questions.yaml); `-Peval` yalnız ince JUnit sarmalayıcı açar (ADR-0022)
 ├── security/   OriginGuard

@@ -77,15 +77,17 @@ eski IP ile arama sunucuyu buluyor; anlık görüntüden restore aynı grafı ve
 
 ## F3 — kb istemcisi: CLI + TUI
 
-- [ ] `kb-api` modülü (paylaşılan DTO'lar); REST API v1'in kalanı (bkz. CLIENTS.md; F2 alt kümesi hariç)
+F3'ün kapsam kararları: ADR-0025 (plan: `.engineering/tasks/plan.md`).
+
+- [ ] `kb-api` modülü (yalnız record DTO'lar); REST API v1'in kalanı (bkz. CLIENTS.md; F2 alt kümesi ve F4/F5 uçları hariç)
 - [ ] `kb-client`: kalan picocli komutları (`kb run` ve `kb secret` F2'de geldi)
 - [ ] `kb check` doküman bütünlüğü (dosya var mı, sha256 tutuyor mu); `kb doctor` git-lfs kontrolü
 - [ ] Doküman deposu: `POST /api/v1/documents`, `kb doc add` (secret taraması, içerik adresli `blobs/`, 20 MB üstü
       `git lfs track`), `Document` düğümü, `kb_read doc:…`, `kb_remember(document=…)` (SPEC §6.7)
-      Yükleme sıra numaralı ve sürdürülebilir: toplam boyut başlıkta, her parça sıra numaralı ve 1 MiB sınırı içinde,
-      kaldığı yerden devam; diske akıtılır, heap'e değil. Protokol F3 başında tasarlanır (ADR-0022 karar 17, 21)
-- [ ] TamboUI TUI: arama, detay, fact/ilişki düzenleme, arşiv, çelişkiler, öneriler, aktivite + geri alma, bayat liste
-- [ ] GraalVM native-image (`kb` < 50 MB, anında açılış)
+      Yükleme byte offset'li ve sürdürülebilir: `PUT/PATCH/DELETE /api/v1/uploads/{sha}`, parça ≤ 1 MiB, diske akıtılır,
+      heap'e değil; tamamlama `POST /documents`. Protokol: ADR-0025 karar 1 (ADR-0022 karar 17, 21)
+- [ ] TamboUI 0.6.0 TUI (`kb tui`): arama, detay, fact/ilişki düzenleme, arşiv, çelişkiler, öneriler, aktivite + geri alma, bayat liste
+- [ ] GraalVM native-image, Mandrel 23.1.13 (`kb` < 50 MB, anında açılış; ADR-0025 karar 7)
 
 **Bitti tanımı:** Bilgi bankasındaki her işlemi TUI'den yapabiliyorsun.
 

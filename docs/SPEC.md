@@ -194,11 +194,12 @@ rütbeleri gibidir: güncel ve doğrulanmış önce, doğrulanmamış işaretli,
 Başka yerde silinebilecek ya da değişebilecek dosyaların (PDF, runbook, toplantı notu) kopyası bilgi bankasında durur:
 - Dosya `~/kb/blobs/<sha256'nın ilk 2 hanesi>/<sha256>` altında ve değişmez. Grafa dosyanın kendisi değil, onu
   temsil eden `Document` düğümü girer.
-- `kb doc add <dosya> [--about <id>] [--origin <url>]`: secret taraması yapılır, bulunursa dosya reddedilir; aynı içerik
-  ikinci kez eklenmez; 20 MB üstü dosyalar `git lfs track` ile eklenir (git-lfs gerekir).
+- `kb doc add <dosya> [--about <id>] [--origin <url>] [--replaces <docId>]`: secret taraması yapılır, bulunursa dosya
+  reddedilir; aynı içerik ikinci kez eklenmez (yeni `--about` ek `ABOUT` kenarı açar); 20 MB üstü dosyalar `git lfs track`
+  ile eklenir (git-lfs gerekir). Sıkıştırılmış dosyalar (PDF, zip, docx) taranamaz; kabul edilen risk (ADR-0025 karar 3).
 - Ajan dosyayı `kb_read doc:…` çıktısındaki yoldan kendisi okur; çıkardığı bilgileri `kb_remember(…, document=…)` ile
   yazar, bunlar `FROM` ile dokümana bağlanır.
-- Yeni sürüm yeni dosyadır ve `SUPERSEDES` ile eskisine bağlanır.
+- Yeni sürüm yeni dosyadır ve `--replaces` ile `SUPERSEDES` kenarı kurulur.
 
 ## 7. Yazma politikası (ADR-0006)
 

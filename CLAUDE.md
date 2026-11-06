@@ -17,10 +17,10 @@ yazıp sor. Var olan aracı yeniden yazma (sürümleme ve senkron için git, sor
 Grafa damıtılmış bilgi girer; ham dosyalar doküman deposunda, uzun metin grafta değil (ADR-0017).
 
 ## Teknoloji
-- Java 21, Maven çoklu modül (`kb-core`, `kb-server`, `kb-client`, `kb-gui`; `kb-api` F3'te, ADR-0022), wrapper `./mvnw`
+- Java 21, Maven çoklu modül (`kb-core`, `kb-server`, `kb-client`, `kb-gui`; `kb-api` F3'te aktif, ADR-0022/0025), wrapper `./mvnw`
 - Spring Boot 4.x, Spring AI 2.0.x (`spring-ai-starter-mcp-server-webmvc`, `@McpTool`), MCP Java SDK (`/mcp/curator`)
 - Neo4j Community embedded (`EmbeddedNeo4jStore`, arayüz yok; ADR-0022), Jackson (JSON/YAML), sistem `git` (+ `git-lfs`)
-- `kb-client`: picocli + TamboUI, GraalVM native-image
+- `kb-client`: picocli + TamboUI 0.6.0 (yalnız `client.tui`), GraalVM native-image (Mandrel 23.1.13; ADR-0025)
 - GUI: Dear ImGui (`imgui-java`), ayrı `kb-gui` modülü (ADR-0021)
 - Paket kökü: `io.github.ismetdyn.agentkb`
 
