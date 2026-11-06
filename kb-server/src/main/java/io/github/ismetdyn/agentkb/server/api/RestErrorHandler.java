@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,10 +15,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * The one top-level REST error handler (ADR-0022 decision 19). The dispatcherServlet logger is
- * masked, so this logs an unexpected failure itself: its class and a {@code trace_id}, never its
- * message, which may carry a request value (invariants 2 and 10). The reply carries the trace id
- * and no internal detail. Limited to the REST and hook controllers, so the MCP transports keep
- * their own handling; kb-hook.sh turns any non-2xx hook answer into no output (fail-open).
+ * masked, so this logs an unexpected failure itself: its class, its root cause's class and a {@code
+ * trace_id}, never a message, which may carry a request value (invariants 2 and 10). The reply
+ * carries the trace id and no internal detail. Limited to the REST and hook controllers, so the MCP
+ * transports keep their own handling; kb-hook.sh turns any non-2xx hook answer into no output
+ * (fail-open).
  */
 @RestControllerAdvice(
         basePackages = {
@@ -60,7 +62,11 @@ class RestErrorHandler {
             return ResponseEntity.status(error.getStatusCode()).build();
         }
         String traceId = UUID.randomUUID().toString();
-        LOG.error("event=rest_failed error={} trace_id={}", e.getClass().getName(), traceId);
+        LOG.error(
+                "event=rest_failed error={} root={} trace_id={}",
+                e.getClass().getName(),
+                NestedExceptionUtils.getMostSpecificCause(e).getClass().getName(),
+                traceId);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "internal error", "trace_id", traceId));
     }
