@@ -73,10 +73,12 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Kanıt: 20 RED test → yeşil; sıra taraması 7 sıra (6 rastgele + ters alfabetik), tek sıraya bağlı test `CypherToolTest` → `restoreSeed()` kuralı; temiz worktree: varsayılan `clean verify` exit 0 (kb-core 3168, kb-server 1067, `SecretLeakIT` 1, kb-client 58), 3 rastgele + ters alfabetik exit 0; yükte düşen saat ölçümlü test varsayılan build'den çıkarıldı (süre CP6'da). `-Peval` 18/18; `quality_gate.py` → exit 0.
   Scope: kb-server/**, kb-client/**
   Depends: G12
-- [ ] G12b Kayıt kaynağı (ADR-0023, `Episode`) + genel bilgi (ADR-0024, Wikidata modeli: `topic` türü, `note`, yönetilen sözlük, okumada güven işareti)
+- [x] G12b Kayıt kaynağı (ADR-0023, `Episode`) + genel bilgi (ADR-0024, Wikidata modeli: `topic` türü, `note`, yönetilen sözlük, okumada güven işareti)
   Scope: kb-core/**, kb-server/**, seed/schema/**, integrations/**
   Depends: G12f, ADR-0023/0024 dokümanları
   Doğrula: Claude Code/Codex MCP isteklerinde oturum kimliği gidiyor mu. Eval'e genel bilgi soruları kullanıcıya önerilir (hakem dosyası).
+  Kanıt: ölçüm (Claude Code 2.1.318, Codex 0.161.0): Codex `_meta.sessionId` gönderiyor, Claude yalnız `toolUseId` → ADR-0023 karar 6. `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1101, `SecretLeakIT` 1, kb-client 58); `-Peval` 18/18; `quality_gate.py` → exit 0, yeni suppress yok. Uçtan uca: brief `Episode:` satırı → `kb_remember` → `kb_read` `episode: claude, …`. İnceleme MEDIUM'ları (eski brief ipucu, sınırsız `session_id`) RED → düzeltildi.
+  Açık (LOW, G14/CP6): SessionStart'ta Episode yazımı düşerse brief de kayboluyor (hook fail-open, oturum bloklanmaz); `transcript_path` secret desen denetimi yok; Claude için PreToolUse ile `toolUseId` → oturum eşlemesi ayrı karar.
 - [ ] G13 Senkron + timer
   Açık (CP2'den): restore ve `SyncService` grafa yazacaksa `write`'ta durur ya da `Snapshot` record'ları taşınır; yoksa döngü kuralı düşer. RSS ≈ 2 × Xmx (1,07 GB): servis dosyasına `MemoryMax` konacaksa buna göre.
   Açık (G4'ten): aynı saniyede eşit `updated_at` için birleştirme kuralı (SPEC §10 eki, kullanıcıya sorulacak); anlık görüntü yazımı geçici dosya + rename ile atomik.

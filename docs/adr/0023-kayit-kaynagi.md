@@ -24,7 +24,8 @@ yazdığı her şey" sorulamıyor.
 3. **Sunucu episode'u nasıl öğrenir:**
    - SessionStart hook'u `(client, session_id)` için Episode'u açar ya da `last_at`'ini tazeler; brief'te episode kimliğini
      taşıyan tek satır olur.
-   - `kb_remember`, `kb_propose` ve `kb_scan` isteğe bağlı `episode` argümanı alır; AGENT-RULES ajana onu geçirmesini söyler.
+   - `kb_remember` isteğe bağlı `source.episode`, `kb_propose` ve `kb_scan` isteğe bağlı `episode` argümanı alır (kayıt
+     kaynağı `source`'un parçasıdır); AGENT-RULES ajana onu geçirmesini söyler.
    - `user_stated` yazmanın kanıtı, UserPromptSubmit'in `session_id` ile PromptRing'e yazdığı bir mesajla eşleşirse kayıt o
      oturumun episode'una **otomatik** bağlanır; bu argümandan önce gelir.
    - Oturumsuz `kb_scan` kendi `kind=scan` Episode'unu açar; kullanıcının REST yazmaları `kind=user` alır.
@@ -35,6 +36,16 @@ yazdığı her şey" sorulamıyor.
    transcript yolu).
 6. **Doğrula (uygulama diliminde):** Claude Code ve Codex MCP isteklerinde oturum kimliği gönderiyor mu? Gönderiyorsa
    argümansız bağlanır. Sonuç bu ADR'ye not düşülür; ölçülene kadar varsayım yok.
+   **Ölçüldü (2026-11-06, Claude Code 2.1.318, Codex 0.161.0):** İki istemci de HTTP başlığında oturum kimliği
+   göndermiyor (`mcp-session-id` sunucunun verdiği taşıma kimliğidir). Codex `tools/call` isteğinin `params._meta`
+   alanında `sessionId` gönderiyor; hook'ların aldığı `session_id` ile aynı, bu yüzden Codex yazmaları argümansız
+   bağlanır. Claude Code `_meta`'da yalnız `claudecode/toolUseId` gönderiyor; bu değer PreToolUse hook'unun
+   `tool_use_id`'si ile aynı. Claude yazmaları bugün `episode` argümanı ve kanıt eşleşmesiyle bağlanır; PreToolUse
+   üzerinden `toolUseId` → oturum eşlemesi yeni bir hook olayı gerektirdiği için ayrı karar olarak bekler.
+
+7. **Bilinen sınır (ADR-0020 güven modeli):** ajan yazısını var olan herhangi bir Episode ile damgalayabilir (başka
+   oturumun, kullanıcının ya da taramanın). Bu yalnız gösterilen kaynağı etkiler; güveni ve `source`'u değiştirmez
+   (WritePolicy kaynağa bakar). Kanıt eşleşmesi ve Codex `_meta` bağlantısı argümandan önce gelir.
 
 ## Sonuçlar
 - (+) "Kim, hangi oturumda söyledi" ve "bu oturum ne yazdı" sorgulanır; çelişki çözerken kaynak oturuma dönülür.

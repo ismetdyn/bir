@@ -13,7 +13,7 @@ konudaki bilgisi. Kalıcı bilginin tek yeri burası.
 ## Bilgi gerektiğinde
 - Herhangi bir konuda bilgi gerekince (altyapı, config, proje, geçmiş sorun, kişi, tercih…) **kullanıcıya sormadan önce
   bilgi bankasına bak** (`kb_search`, sonra `kb_read`).
-- Oturum özetinde bir episode kimliği varsa `kb_remember`, `kb_propose` ve `kb_scan` çağrılarında `episode` olarak ver;
+- Oturum özetinde bir episode kimliği varsa `kb_remember`'da `source.episode`, `kb_propose` ve `kb_scan`'de `episode` olarak ver;
   bilginin hangi oturumdan geldiği böyle kaydedilir. Oturum başındaki özet ve mesajlara eklenen `kb` sonuçları da bilgi bankasındandır.
 - `kb` sunucusuna ulaşamazsan `~/kb/snapshot/*.jsonl` dosyalarında salt okunur arayabilirsin: en fazla 10 dakika
   eskidir, `valid_to`'su dolu satır eski bilgidir. Bu dosyalara yazma; durumu kullanıcıya söyle.

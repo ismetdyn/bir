@@ -7,10 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G12 bitti ve commit edildi (`1300230`). Çalışan iki workflow:
-  - `f2-g12-followups-isolation` (run `wf_b31a6d07-05b`): kullanıcıya ait secret, git takılması, sınırlar, terminal kaçışı, sıraya bağlı test taraması, temiz worktree doğrulaması. Bitince commit.
-  - `adr-0023-0024-provenance-general-knowledge` (run `wf_21f81af1-e39`): ADR-0023 kayıt kaynağı, ADR-0024 Wikidata modeli, doküman hizalama. Bitince docs commit.
-  Sonra G12b (kod), G13, G14, CP6.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G12, G12f ve ADR-0023/0024 dokümanları commit edildi (son: `68ac3cc`). G12b kodu yazıldı (19 yeni test yeşil; ölçüm: Codex `_meta.sessionId` gönderiyor, Claude yalnız `toolUseId`). Brief testi, PMD suppress'i ve `kb_schema` düzeldi. Workflow `f2-g12b-finish` (run `wf_c8dd7dc1-830`): `kb_remember` episode'u `source` içine (lizard suppress'i kalksın), inceleme. Bitince commit; sonra G13, G14, CP6.
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-g12b-finish-wf_c8dd7dc1-830.js, resumeFromRunId: "wf_c8dd7dc1-830"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).

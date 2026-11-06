@@ -26,7 +26,7 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 > stack or to this project, open conflicts and stale facts. It shows the present state; history is in `kb_read`.
 > Normally injected by the SessionStart hook; call it yourself only if no briefing is in context.
 > Input: `cwd` (absolute path) or `project` (id). Output < 1,500 tokens, Markdown. It carries one line with the current
-> episode id (ADR-0023); pass that id as `episode` to `kb_remember`, `kb_propose` and `kb_scan`.
+> episode id (ADR-0023); pass that id as `source.episode` to `kb_remember` and as `episode` to `kb_propose` and `kb_scan`.
 
 ### kb_search
 > Full-text search over the user's knowledge base: servers, databases, services, projects, any other topic, decisions,
@@ -74,8 +74,8 @@ Aşağıdaki İngilizce metinler `@McpTool(description = ...)` içine girecek il
 > Store knowledge you just learned, AT THE MOMENT you learn it — right after the user answers your question, or when you
 > understand something from code or docs that is not in the knowledge base. Input: `entity` (id or alias; created if
 > missing), `type` (for new entities), `facts` [{key, value, env?, target?}], `relations` [{type, target, env?}],
-> `source` {kind: `user_stated` | `code` | `doc` | `command`, ref?, evidence?}, `document?` (a `doc:…` id you extracted
-> this from), `episode?` (the episode id from the briefing; an unknown or missing id is not an error). Free-text
+> `source` {kind: `user_stated` | `code` | `doc` | `command`, ref?, evidence?, episode? (the episode id from the
+> briefing; an unknown or missing id is not an error)}, `document?` (a `doc:…` id you extracted this from). Free-text
 > knowledge goes into facts with text keys such as `role`, `constraint`, `access`, `convention`, or `note` for any short
 > statement that has no key; keep each to one short statement (max 500 characters). An unknown key is rejected with a
 > hint: write it as `note` or propose the key with `kb_propose(kind=schema)`. Store knowledge, not transcripts. For `user_stated`, put the
