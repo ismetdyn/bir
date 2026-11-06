@@ -187,6 +187,19 @@ public class WriteService {
     }
 
     /**
+     * Opens the Document of a stored blob of {@code size} bytes, or links the known one
+     * (DocumentWrite), as a batch of its own (ADR-0025 decision 9).
+     *
+     * @return true if it opened the Document, false if the content was already one
+     * @throws WriteRejectedException if the request breaks a rule; nothing was written
+     */
+    public boolean addDocument(DocumentWrite document, long size) {
+        document.checkFields();
+        return store.write(
+                tx -> document.add(new GraphWrite(tx, Ulid.next(), Instant.now()), size));
+    }
+
+    /**
      * Raises a local Signal (ADR-0022 decision 7) such as a hook's {@code qa-capture}: a new one
      * opens with count 1, the same kind and key again raises its count. A value stored on a Secret
      * is masked as {@link #MASK} in key and payload first (docs/SECRETS.md); the caller masks what

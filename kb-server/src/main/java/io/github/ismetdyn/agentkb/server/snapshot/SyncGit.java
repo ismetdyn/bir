@@ -2,7 +2,10 @@ package io.github.ismetdyn.agentkb.server.snapshot;
 
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Snapshot;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
@@ -18,6 +21,9 @@ public final class SyncGit {
     private static final String ORIGIN = "origin";
     private static final String NODES = "snapshot/" + SnapshotFormat.NODES_FILE;
     private static final String EDGES = "snapshot/" + SnapshotFormat.EDGES_FILE;
+    // ADR-0025 decision 5: the blobs and their git-lfs rules travel with the snapshot.
+    private static final List<String> DOCUMENT_STORE = List.of("blobs", ".gitattributes");
+    private static final String NOT_TMP = ":(exclude)*.tmp";
     private final Path repo;
     private @Nullable String branch;
 
@@ -80,33 +86,59 @@ public final class SyncGit {
         return Optional.of(theirs);
     }
 
-    /** Writes {@code snapshot} into the working tree and stages both files. */
+    /**
+     * Writes {@code snapshot} into the working tree and stages both files, and the document store:
+     * {@code blobs/} and {@code .gitattributes} (ADR-0025 decision 5). A {@code .tmp} under blobs/
+     * is a copy still being written and stays out.
+     */
     public Staged stage(Snapshot snapshot) throws IOException {
         SnapshotFormat.write(repo.resolve("snapshot"), snapshot);
         require(git("add", "--", NODES, EDGES), "git add of the snapshot failed");
+        // git refuses a path that matches nothing, so only those that exist.
+        List<String> present =
+                DOCUMENT_STORE.stream().filter(path -> Files.exists(repo.resolve(path))).toList();
+        if (!present.isEmpty()) {
+            List<String> add = new ArrayList<>(List.of("add", "--all", "--"));
+            add.addAll(present);
+            add.add(NOT_TMP);
+            require(git(add.toArray(String[]::new)), "git add of the document store failed");
+        }
         return new Staged(stagedRows(NODES), stagedRows(EDGES));
     }
 
     /**
      * Commits what {@link #stage} staged, and the merge {@link #mergeRemote} left open. Outside a
-     * merge only the two snapshot files are committed: other files the user staged stay staged.
+     * merge only the snapshot files and the document store are committed: other files the user
+     * staged stay staged.
      *
-     * @return the new commit; null if the snapshot did not change and no merge was open
+     * @return the new commit; null if nothing of it changed and no merge was open
      */
     public @Nullable String commit() throws IOException {
         boolean merging = git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").ok();
-        if (!merging && git("diff", "--cached", "--quiet", "--", NODES, EDGES).ok()) {
+        // A commit of paths refuses one git does not know, so only the store paths with changes.
+        List<String> store = new ArrayList<>();
+        for (String path : DOCUMENT_STORE) {
+            if (!git("diff", "--cached", "--quiet", "--", path).ok()) {
+                store.add(path);
+            }
+        }
+        if (!merging
+                && store.isEmpty()
+                && git("diff", "--cached", "--quiet", "--", NODES, EDGES).ok()) {
             return null;
         }
         // git refuses a commit of only some paths during a merge; a merge starts from a clean
-        // index, so then the index holds only the merge and the snapshot.
-        String[] commit =
-                merging
-                        ? new String[] {"commit", "--quiet", "-m", "kb sync: snapshot"}
-                        : new String[] {
-                            "commit", "--quiet", "-m", "kb sync: snapshot", "--", NODES, EDGES
-                        };
-        require(git(SystemGit.asServer(commit)), "git commit of the snapshot failed");
+        // index, so then the index holds only the merge, the snapshot and the document store.
+        List<String> commit =
+                new ArrayList<>(List.of("commit", "--quiet", "-m", "kb sync: snapshot"));
+        if (!merging) {
+            commit.addAll(List.of("--", NODES, EDGES));
+            commit.addAll(store);
+            commit.add(NOT_TMP);
+        }
+        require(
+                git(SystemGit.asServer(commit.toArray(String[]::new))),
+                "git commit of the snapshot failed");
         return git("rev-parse", "HEAD").output().strip();
     }
 

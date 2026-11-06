@@ -2,6 +2,7 @@ package io.github.ismetdyn.agentkb.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.ismetdyn.agentkb.server.api.DocumentHttp;
 import io.github.ismetdyn.agentkb.server.api.MaintenanceHttp;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.hooks.HookHttp;
@@ -12,6 +13,7 @@ import io.github.ismetdyn.agentkb.server.signals.PromptRing;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotExporter;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat;
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +44,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
  * <p>The scanner (G10) is a second way in: fixtures/scanner/ornek-proje is copied under the allowed
  * root and scanned twice, so its two fake passwords are stored by kb_scan, not by PUT, and are
  * searched for in the same ways out, kb_scan's own report included.
+ *
+ * <p>H4 (ADR-0025 decisions 3 and 4) adds documents: one holding a fake secret is uploaded and
+ * refused at completion, a clean one is refused for a secret name or origin and then added. The
+ * refusal bodies, the staging directory, blobs/ and .gitattributes join the ways out.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class SecretLeakIT extends RunningServerTestBase {
@@ -56,11 +62,24 @@ class SecretLeakIT extends RunningServerTestBase {
     private static final String ENTITY = "zz-g8-leak";
     private static final String ORPHANED_ID = ENTITY + "/prod/kbtest-orphaned";
     private static final Path STORE = Path.of("graph", "data");
+    private static final Map<String, String> DOC_SOURCE =
+            Map.of("kind", "doc", "ref", "docs/runbook.md");
     private static final String QUESTION = "zz-g9-leak-q";
     private static final String SCANNED_PROD_ID = "ornek-proje/prod/spring.datasource.password";
     private static final String SCANNED_LOCAL_ID = "ornek-proje/local/ORACLE_PASSWORD";
+    // H4 (ADR-0025 decisions 3 and 4): a fake secret in an uploaded document, its name and origin.
+    private static final String DOC_MARKER = "5e6f7a8b9c0d1e2f";
+    private static final String DOC_SECRET_LINE = "DB_PASSWORD=kbtestdoc" + DOC_MARKER;
+    private static final String CLEAN_DOC_NAME = "zz-h4-clean.md";
+    private static final byte[] CLEAN_DOC =
+            "zz-h4 clean document\n".getBytes(StandardCharsets.UTF_8);
     private static final List<String> FORBIDDEN =
-            List.of(MARKER, NEW_MARKER, ScanProjects.PROD_PASSWORD, ScanProjects.LOCAL_PASSWORD);
+            List.of(
+                    MARKER,
+                    NEW_MARKER,
+                    DOC_MARKER,
+                    ScanProjects.PROD_PASSWORD,
+                    ScanProjects.LOCAL_PASSWORD);
 
     @Autowired private EmbeddedNeo4jStore store;
     @Autowired private PromptRing promptRing;
@@ -84,6 +103,7 @@ class SecretLeakIT extends RunningServerTestBase {
         paths.putAll(mcpAnswers());
         paths.putAll(hookAnswers());
         paths.putAll(restErrorBodies(secrets));
+        paths.putAll(documentAnswers());
         paths.putAll(snapshotAndGitHistory());
         // G12 (ADR-0022 decision 38): the Secret under the agent's entity is not in HEAD, so the
         // restore keeps it without its entity and check lists it as a local record. The unknown
@@ -103,7 +123,8 @@ class SecretLeakIT extends RunningServerTestBase {
         assertThat(secrets.get(NEW_ID).body()).as("kept by sync").isEqualTo(NEW_VALUE);
         assertThat(signals()).as("signals kept by sync").isEqualTo(signalsBefore);
         paths.put("signal payloads", signals());
-        paths.putAll(filesUnderDataDir());
+        paths.putAll(filesUnder(dataDir, "file ", STORE));
+        paths.putAll(filesUnder(committedRepo(), "repo ", Path.of(".git")));
         paths.put("application log", output.getAll());
 
         // Each path was really taken; an empty answer would pass the search below.
@@ -117,6 +138,10 @@ class SecretLeakIT extends RunningServerTestBase {
         assertThat(paths.get("hook session-start claude")).contains("ornek-proje");
         assertThat(paths.get("kb_brief ornek-proje")).contains("ornek-proje");
         assertThat(paths).containsKey("file graph/logs/debug.log");
+        String cleanBlob = DocumentHttp.blobPath(DocumentHttp.sha256(CLEAN_DOC));
+        assertThat(paths.get("snapshot")).contains(CLEAN_DOC_NAME);
+        assertThat(paths.get("remote git history")).contains(cleanBlob);
+        assertThat(paths).containsKey("repo " + cleanBlob);
         assertThat(
                         paths.entrySet().stream()
                                 .filter(
@@ -144,7 +169,7 @@ class SecretLeakIT extends RunningServerTestBase {
                 .isEqualTo(ScanProjects.PROD_PASSWORD);
         assertThat(secrets.get(SCANNED_LOCAL_ID).body()).isEqualTo(ScanProjects.LOCAL_PASSWORD);
         for (String value : List.of(ScanProjects.PROD_PASSWORD, ScanProjects.LOCAL_PASSWORD)) {
-            answers.put("kb_remember scanned " + value, remember(mcp, value, doc()));
+            answers.put("kb_remember scanned " + value, remember(mcp, value, DOC_SOURCE));
             answers.put(
                     "kb_search scanned " + value, mcp.text("kb_search", Map.of("query", value)));
             answers.put(
@@ -169,9 +194,9 @@ class SecretLeakIT extends RunningServerTestBase {
         String words = ENTITY + " adı " + ENTITY + ".ornek.example";
         promptRing.record(words, Instant.now());
         remember(mcp, ENTITY + ".ornek.example", Map.of("kind", "user_stated", "evidence", words));
-        answers.put("kb_remember raw value", remember(mcp, VALUE, doc()));
-        answers.put("kb_remember password=", remember(mcp, "password=" + VALUE, doc()));
-        remember(mcp, ENTITY + "-elsewhere.ornek.example", doc());
+        answers.put("kb_remember raw value", remember(mcp, VALUE, DOC_SOURCE));
+        answers.put("kb_remember password=", remember(mcp, "password=" + VALUE, DOC_SOURCE));
+        remember(mcp, ENTITY + "-elsewhere.ornek.example", DOC_SOURCE);
         for (String query : List.of(VALUE, MARKER, NEW_VALUE, "panel-admin", "kbtest", ENTITY)) {
             answers.put("kb_search " + query, mcp.text("kb_search", Map.of("query", query)));
         }
@@ -248,8 +273,40 @@ class SecretLeakIT extends RunningServerTestBase {
         return answers;
     }
 
-    private static Map<String, String> doc() {
-        return Map.of("kind", "doc", "ref", "docs/runbook.md");
+    /**
+     * H4: a document holding a fake secret is uploaded completely and refused at completion; a
+     * clean document whose name or origin holds it is refused too. A clean document is added, so
+     * the sync below really carries blobs/ to the remote. The refused bytes must not reach staging,
+     * blobs/, the graph, the log or any answer.
+     */
+    private Map<String, String> documentAnswers() throws IOException, InterruptedException {
+        DocumentHttp documents = new DocumentHttp(port);
+        Map<String, String> answers = new LinkedHashMap<>();
+        byte[] secretText =
+                ("zz-h4 leak\n" + ENTITY + "\n" + DOC_SECRET_LINE + "\n")
+                        .getBytes(StandardCharsets.UTF_8);
+        String secretSha = documents.upload(secretText);
+        HttpResponse<String> refused = documents.complete(secretSha, "zz-h4-leak.md");
+        assertThat(refused.statusCode()).as(refused.body()).isEqualTo(422);
+        answers.put("POST /documents with a secret", refused.body());
+        String cleanSha = documents.upload(CLEAN_DOC);
+        HttpResponse<String> secretName =
+                documents.complete(cleanSha, "password=kbtestdoc" + DOC_MARKER);
+        assertThat(secretName.statusCode()).as(secretName.body()).isEqualTo(400);
+        answers.put("POST /documents with a secret name", secretName.body());
+        HttpResponse<String> secretOrigin =
+                documents.complete(
+                        cleanSha,
+                        CLEAN_DOC_NAME,
+                        null,
+                        "https://kbuser:kbtestdoc" + DOC_MARKER + "@wiki.ornek.example/x",
+                        null);
+        assertThat(secretOrigin.statusCode()).as(secretOrigin.body()).isEqualTo(400);
+        answers.put("POST /documents with a secret origin", secretOrigin.body());
+        HttpResponse<String> added = documents.complete(cleanSha, CLEAN_DOC_NAME);
+        assertThat(added.statusCode()).as(added.body()).isEqualTo(201);
+        answers.put("POST /documents clean", added.body());
+        return answers;
     }
 
     private static String remember(McpClient mcp, String hostname, Map<String, String> source)
@@ -318,16 +375,21 @@ class SecretLeakIT extends RunningServerTestBase {
                                 .toString());
     }
 
-    /** The store itself holds the value by design; everything else under the data dir must not. */
-    private Map<String, String> filesUnderDataDir() throws IOException {
+    /**
+     * Every file under {@code root} but {@code excluded}, keyed {@code label + relative path}. The
+     * store holds the value by design, so the data dir is searched without it; the repo working
+     * tree (blobs/, .gitattributes, H4) without .git, whose history is searched as git log.
+     */
+    private static Map<String, String> filesUnder(Path root, String label, Path excluded)
+            throws IOException {
         Map<String, String> files = new LinkedHashMap<>();
-        try (Stream<Path> all = Files.walk(dataDir)) {
+        try (Stream<Path> all = Files.walk(root)) {
             for (Path file : all.filter(Files::isRegularFile).toList()) {
-                Path relative = dataDir.relativize(file);
-                if (!relative.startsWith(STORE)) {
+                Path relative = root.relativize(file);
+                if (!relative.startsWith(excluded)) {
                     // ISO-8859-1 maps each byte to one char, so binary files are searched too.
                     files.put(
-                            "file " + relative,
+                            label + relative,
                             new String(Files.readAllBytes(file), StandardCharsets.ISO_8859_1));
                 }
             }

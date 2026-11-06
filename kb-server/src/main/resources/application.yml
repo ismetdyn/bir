@@ -25,3 +25,7 @@ agentkb:
     # kb_scan reads only under these folders (invariant 9, docs/ARCHITECTURE.md §14); a missing
     # one allows nothing. AGENTKB_SCAN_ALLOWED_ROOTS overrides the list (comma separated).
     allowed-roots: ${user.home}/projects,${user.home}/git
+  documents:
+    # A document over this size (SI megabytes) needs git-lfs; without it PUT /uploads answers 422
+    # (ADR-0025 decision 5).
+    lfs-threshold-mb: 20
