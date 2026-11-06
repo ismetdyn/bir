@@ -70,12 +70,23 @@ public class KnowledgeQueries {
             MATCH (:Entity {id: $id})-[:HAS_FACT]->(f:Fact)
             OPTIONAL MATCH (f)-[from:FROM]->(src)
             WITH f, head(collect({id: src.id, path: src.path, repo: src.repo, line: from.line})) AS src
+            OPTIONAL MATCH (ep:Episode {id: f.episode})
             RETURN f {.id, .key, .value, .env, .source, .valid_from, .observed_at, .valid_to, .status}
                      AS fact,
                    [(f)-[:TARGET]->(t) | t.id][0] AS target,
                    src.id AS originId, src.path AS originPath, src.repo AS originRepo,
-                   src.line AS originLine
-            ORDER BY f.key, f.env, f.valid_from, f.id
+                   src.line AS originLine,
+                   ep.client AS episodeClient, ep.started_at AS episodeAt,
+                   ep.transcript_path AS episodeTranscript
+            ORDER BY f.key, f.env,
+                     CASE WHEN f.valid_to IS NOT NULL OR f.status = 'ok' THEN 0
+                          WHEN f.status = 'unverified' THEN 1 ELSE 2 END,
+                     f.valid_from, f.id
+            """;
+    private static final String EPISODE_OF =
+            """
+            MATCH (e:Episode {client: $client, session_id: $session})
+            RETURN e.id AS id ORDER BY e.id LIMIT 1
             """;
     private static final String RELATIONS =
             """
@@ -154,6 +165,15 @@ public class KnowledgeQueries {
 
     public KnowledgeQueries(EmbeddedNeo4jStore store) {
         this.store = store;
+    }
+
+    /** The id of the Episode SessionStart opened for {@code (client, sessionId)} (ADR-0023). */
+    public Optional<String> episode(String client, String sessionId) {
+        Map<String, Object> params = Map.of("client", client, "session", sessionId);
+        return store.read(
+                tx ->
+                        rows(tx, EPISODE_OF, params, row -> (String) row.get("id")).stream()
+                                .findFirst());
     }
 
     /** The entity with this id or alias, in any case (Ids.normalize). */

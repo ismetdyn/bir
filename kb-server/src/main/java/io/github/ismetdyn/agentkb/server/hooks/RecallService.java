@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
@@ -44,12 +45,15 @@ public class RecallService {
         this.promptRing = promptRing;
     }
 
-    /** The context to add for {@code prompt}; empty when nothing passes the threshold. */
-    public String recall(String prompt) {
+    /**
+     * The context to add for {@code prompt}, sent in {@code session} if the client named one; empty
+     * when nothing passes the threshold.
+     */
+    public String recall(String prompt, PromptRing.@Nullable Session session) {
         if (prompt.isBlank()) {
             return "";
         }
-        promptRing.record(prompt, Instant.now());
+        promptRing.record(prompt, Instant.now(), session);
         String query = start(prompt);
         Set<String> words = words(query);
         if (words.isEmpty()) {

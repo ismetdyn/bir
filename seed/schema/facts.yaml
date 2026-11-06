@@ -27,6 +27,7 @@ facts:
   convention:        {kind: text}
   build:             {kind: text}
   finding:           {kind: text, multi: true}  # tarayıcı bulguları (ör. repoda düz metin secret)
+  note:              {kind: text, multi: true}  # sözlükte anahtarı olmayan kısa ifade (ADR-0024)
 
 # Ortam adları ve eşanlamlıları (tarayıcı profil/namespace adlarını bunlara çevirir)
 environments:

@@ -100,7 +100,8 @@ f_pom = node("ornek-grup/ornek-proje:pom.xml", ["SourceFile"], repo=repo, path="
 for f in (f_prod, f_pom):
     edge("IN", f, repo, SC)
 stack = node("stack:java-spring", ["Stack"], updated_at=D3)
-tls = node("topic:tls", ["Topic"], updated_at=D2)
+# topic is an entity type (ADR-0024); an entity draws no ULID, so the ids generated below stay the same.
+tls = entity("topic:tls", "Topic", "current", "TLS ve sertifika zinciri konusu.", D2)
 
 # --- entities
 entity("ornek-prod-ortami", "Environment", "current", "Örnek prod ortamı.", U3)

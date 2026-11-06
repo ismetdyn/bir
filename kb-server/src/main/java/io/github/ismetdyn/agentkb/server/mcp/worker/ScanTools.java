@@ -1,11 +1,13 @@
 package io.github.ismetdyn.agentkb.server.mcp.worker;
 
+import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
 import io.github.ismetdyn.agentkb.server.scan.ScannerService;
 import io.github.ismetdyn.agentkb.server.write.ScanResult;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
+import org.springframework.ai.mcp.annotation.McpMeta;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -27,15 +29,18 @@ public class ScanTools {
             .env, docker-compose, Kubernetes, Ansible, build files). Secret values found stay on \
             this machine; you get placeholders to use with `kb run`. Call it when you start \
             working in a repository the briefing says was never scanned or has changed, instead \
-            of grepping config files for hosts and passwords. Input: `path` (absolute). Returns a \
-            summary of new entities, facts, conflicts and findings.""";
+            of grepping config files for hosts and passwords. Input: `path` (absolute), \
+            `episode?` (from the briefing; without it the scan opens its own `scan` episode). \
+            Returns a summary of new entities, facts, conflicts and findings.""";
     private static final String PATH_HINT =
             "Pass path: the absolute path of a git working copy under agentkb.scan.allowed-roots.";
 
     private final ScannerService scanner;
+    private final KnowledgeQueries queries;
 
-    public ScanTools(ScannerService scanner) {
+    public ScanTools(ScannerService scanner, KnowledgeQueries queries) {
         this.scanner = scanner;
+        this.queries = queries;
     }
 
     @McpTool(
@@ -52,7 +57,14 @@ public class ScanTools {
             @McpToolParam(
                             required = false,
                             description = "Absolute path of the repository to scan.")
-                    @Nullable String path) {
+                    @Nullable String path,
+            @McpToolParam(
+                            required = false,
+                            description =
+                                    "The episode id from the briefing; without it the scan opens"
+                                            + " its own.")
+                    @Nullable String episode,
+            McpMeta meta) {
         return WriteTools.attempt(
                 "kb_scan",
                 () -> {
@@ -65,7 +77,8 @@ public class ScanTools {
                     } catch (InvalidPathException e) {
                         return Answers.error("path is not a valid path", PATH_HINT);
                     }
-                    return Answers.content(report(scanner.scan(dir)));
+                    return Answers.content(
+                            report(scanner.scan(dir, WriteTools.episode(queries, meta, episode))));
                 });
     }
 

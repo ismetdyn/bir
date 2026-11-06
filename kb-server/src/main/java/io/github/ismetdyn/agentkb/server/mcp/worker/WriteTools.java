@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.mcp.worker;
 
 import io.github.ismetdyn.agentkb.core.model.Source;
+import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
 import io.github.ismetdyn.agentkb.server.signals.PromptRing;
 import io.github.ismetdyn.agentkb.server.write.ProposalRequest;
 import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
@@ -11,11 +12,13 @@ import io.github.ismetdyn.agentkb.server.write.WriteResult;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.mcp.annotation.McpMeta;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -42,9 +45,12 @@ public class WriteTools {
             not in the knowledge base. Input: `entity` (id or alias; created if missing), `type` \
             (for new entities), `facts` [{key, value, env?, target?}], `relations` [{type, \
             target, env?}], `source` {kind: `user_stated` | `code` | `doc` | `command`, ref?, \
-            evidence?}. Free-text knowledge goes into facts with text keys such as `role`, \
-            `constraint`, `access`, `convention`; keep each to one short statement (max 500 \
-            characters). Store knowledge, not transcripts. For `user_stated`, put the user's \
+            evidence?, episode? (the episode id from the briefing; an unknown or missing id is \
+            not an error)}. Free-text knowledge goes into facts with text keys such as `role`, \
+            `constraint`, `access`, `convention`, or `note` for any short statement that has no \
+            key; keep each to one short statement (max 500 characters). An unknown key is \
+            rejected with a hint: write it as `note` or propose the key with \
+            `kb_propose(kind=schema)`. Store knowledge, not transcripts. For `user_stated`, put the user's \
             exact words, including the value, in `evidence`; if they cannot be matched to one \
             recent user message or lack a fact's value, that fact is stored as unverified. NEVER put secret values here (passwords, tokens, keys): \
             they are rejected. Ask the user to run `kb secret set <entity>/<env>/<name>` instead. \
@@ -58,7 +64,15 @@ public class WriteTools {
             record. Nothing changes until the user accepts it in the TUI or GUI. Use at the end \
             of a task. Input: `kind` (`decision` | `rule-change` | `archive` | `schema`), \
             `target?` (id of the record it changes; linked with an `ABOUT` edge), `content` \
-            (Markdown), `evidence?` (why, and what it is based on).""";
+            (Markdown), `evidence?` (why, and what it is based on), `episode?` (from the \
+            briefing). For `kind=schema`, `content` is the new fact key (name, kind, validator); \
+            once the user approves it, it enters `schema/facts.yaml`.""";
+    private static final String EPISODE =
+            "The episode id from the briefing; an unknown or missing id is not an error.";
+    // Codex 0.161.0 sends its session id here in tools/call; Claude Code 2.1.318 sends none
+    // (ADR-0023 decision 6, measured 2026-11-06).
+    private static final String CODEX = "codex";
+    private static final String CODEX_SESSION = "sessionId";
 
     private static final String FAILED = "the write failed; nothing was stored";
     private static final String FAILED_HINT =
@@ -66,10 +80,12 @@ public class WriteTools {
 
     private final WriteService writes;
     private final PromptRing prompts;
+    private final KnowledgeQueries queries;
 
-    public WriteTools(WriteService writes, PromptRing prompts) {
+    public WriteTools(WriteService writes, PromptRing prompts, KnowledgeQueries queries) {
         this.writes = writes;
         this.prompts = prompts;
+        this.queries = queries;
     }
 
     public record FactArg(
@@ -93,7 +109,8 @@ public class WriteTools {
             @McpToolParam(required = false, description = "File, document or command.")
                     @Nullable String ref,
             @McpToolParam(required = false, description = "The user's exact words.")
-                    @Nullable String evidence) {}
+                    @Nullable String evidence,
+            @McpToolParam(required = false, description = EPISODE) @Nullable String episode) {}
 
     @McpTool(
             name = "kb_remember",
@@ -114,7 +131,8 @@ public class WriteTools {
             @McpToolParam(required = false, description = "Relations to other entities.")
                     @Nullable List<RelationArg> relations,
             @McpToolParam(description = "Where the knowledge comes from.")
-                    @Nullable SourceArg source) {
+                    @Nullable SourceArg source,
+            McpMeta meta) {
         return attempt(
                 "kb_remember",
                 () -> {
@@ -129,16 +147,8 @@ public class WriteTools {
                     Source trusted = trust(source, now);
                     // Only a heard user_stated evidence can leave a value out (SPEC §7 rule 7).
                     String heard = trusted == Source.USER_STATED ? source.evidence() : null;
-                    List<FactInput> factInputs =
-                            facts == null
-                                    ? List.of()
-                                    : facts.stream().map(fact -> fact(fact, heard)).toList();
-                    List<RelationInput> relationInputs =
-                            relations == null
-                                    ? List.of()
-                                    : relations.stream()
-                                            .map(relation -> relation(relation, heard))
-                                            .toList();
+                    List<FactInput> factInputs = RememberInputs.facts(facts, heard);
+                    List<RelationInput> relationInputs = RememberInputs.relations(relations, heard);
                     WriteResult result =
                             writes.write(
                                     new WriteRequest(
@@ -147,17 +157,36 @@ public class WriteTools {
                                             type,
                                             factInputs,
                                             relationInputs,
-                                            evidence(source),
+                                            RememberInputs.evidence(source),
                                             null,
+                                            episode(heard, now, meta, source.episode()),
                                             now));
-                    boolean downgraded =
-                            USER_STATED.equals(source.kind().strip())
-                                    && (trusted == Source.AGENT
-                                            || factInputs.stream().anyMatch(FactInput::unverified)
-                                            || relationInputs.stream()
-                                                    .anyMatch(RelationInput::unverified));
-                    return stored(result, downgraded);
+                    return stored(result, downgraded(source, trusted, factInputs, relationInputs));
                 });
+    }
+
+    /** ADR-0023 decision 3: the session the user said it in comes first. */
+    private @Nullable String episode(
+            @Nullable String heard, Instant now, McpMeta meta, @Nullable String argument) {
+        Optional<String> heardIn =
+                heard == null
+                        ? Optional.empty()
+                        : prompts.session(heard, now)
+                                .flatMap(
+                                        session -> queries.episode(session.client(), session.id()));
+        return heardIn.orElseGet(() -> episode(queries, meta, argument));
+    }
+
+    /** A user_stated source that was not heard, or holds a value the user did not say. */
+    private static boolean downgraded(
+            SourceArg source,
+            Source trusted,
+            List<FactInput> factInputs,
+            List<RelationInput> relationInputs) {
+        return USER_STATED.equals(source.kind().strip())
+                && (trusted == Source.AGENT
+                        || factInputs.stream().anyMatch(FactInput::unverified)
+                        || relationInputs.stream().anyMatch(RelationInput::unverified));
     }
 
     @McpTool(
@@ -177,19 +206,40 @@ public class WriteTools {
             @McpToolParam(description = "The proposed change as Markdown.")
                     @Nullable String content,
             @McpToolParam(required = false, description = "Why, and what it is based on.")
-                    @Nullable String evidence) {
+                    @Nullable String evidence,
+            @McpToolParam(required = false, description = EPISODE) @Nullable String episode,
+            McpMeta meta) {
         return attempt(
                 "kb_propose",
                 () -> {
                     String id =
                             writes.propose(
                                     new ProposalRequest(
-                                            Source.AGENT, kind, target, content, evidence));
+                                            Source.AGENT,
+                                            kind,
+                                            target,
+                                            content,
+                                            evidence,
+                                            episode(queries, meta, episode)));
                     return "Proposal "
                             + id
                             + " is open. Nothing changes until the user accepts it in the TUI or"
                             + " GUI; tell the user it is waiting.";
                 });
+    }
+
+    /**
+     * ADR-0023 decision 3 without a heard prompt: the Episode of the Codex session named in {@code
+     * _meta}, else the argument as given; WriteService ignores one that names no Episode. The
+     * client's own session id comes before the model's argument, which it may have mistyped.
+     */
+    static @Nullable String episode(
+            KnowledgeQueries queries, McpMeta meta, @Nullable String argument) {
+        Optional<String> codex =
+                meta.get(CODEX_SESSION) instanceof String session && !session.isBlank()
+                        ? queries.episode(CODEX, session.strip())
+                        : Optional.empty();
+        return codex.orElse(argument);
     }
 
     /** SPEC §7 rule 7: user_stated only with the user's own recent words; anything else agent. */
@@ -199,39 +249,6 @@ public class WriteTools {
                         && source.evidence() != null
                         && prompts.contains(source.evidence(), now);
         return heard ? Source.USER_STATED : Source.AGENT;
-    }
-
-    private static @Nullable String evidence(SourceArg source) {
-        return source.evidence() == null || source.evidence().isBlank()
-                ? source.ref()
-                : source.evidence();
-    }
-
-    /**
-     * ADR-0022 decision 29: heard evidence makes a value user_stated only if it holds that value
-     * word for word; the message that holds the evidence then holds the value too.
-     */
-    private static boolean lacks(@Nullable String heard, @Nullable String value) {
-        return heard != null && value != null && !PromptRing.holds(heard, value.strip());
-    }
-
-    private static FactInput fact(FactArg fact, @Nullable String heard) {
-        return new FactInput(
-                fact.key(),
-                fact.value(),
-                fact.env(),
-                fact.target(),
-                // Decision 30: the target is part of the value, so the evidence must hold it too.
-                lacks(heard, fact.value()) || lacks(heard, fact.target()));
-    }
-
-    /** A relation has no value; its target is what the user must have said. */
-    private static RelationInput relation(RelationArg relation, @Nullable String heard) {
-        return new RelationInput(
-                relation.type(),
-                relation.target(),
-                relation.env(),
-                lacks(heard, relation.target()));
     }
 
     private static String stored(WriteResult result, boolean downgraded) {

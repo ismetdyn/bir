@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collector;
@@ -55,10 +56,16 @@ final class SchemaView {
                 .append("Entity ve tür etiketi (kb_stale operasyonel türlere bakar): ")
                 .append(schema.entityTypes().stream().map(SchemaView::type).collect(comma()))
                 .append('\n');
+        // Entity and the entity type labels (Topic, ADR-0024) are listed above.
+        Set<String> entityLabels =
+                schema.entityTypes().stream().map(EntityType::label).collect(Collectors.toSet());
         out.append(ITEM)
                 .append("Diğer kayıtlar: ")
-                // LABELS starts with Entity, listed above.
-                .append(String.join(", ", Schema.LABELS.subList(1, Schema.LABELS.size())))
+                .append(
+                        Schema.LABELS.stream()
+                                .skip(1)
+                                .filter(label -> !entityLabels.contains(label))
+                                .collect(comma()))
                 .append('\n');
         out.append(ITEM)
                 .append("Entity status: ")

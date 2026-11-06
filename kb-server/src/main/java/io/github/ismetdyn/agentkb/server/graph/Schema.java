@@ -40,7 +40,8 @@ public record Schema(
                     "Stack",
                     "Topic",
                     "Proposal",
-                    "Signal");
+                    "Signal",
+                    "Episode");
 
     /** SPEC §6.2 fixed edges; they are not in relations.yaml. */
     public static final List<String> FIXED_EDGE_TYPES =

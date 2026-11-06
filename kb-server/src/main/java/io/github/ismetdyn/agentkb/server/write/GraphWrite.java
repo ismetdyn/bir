@@ -13,23 +13,49 @@ import org.neo4j.graphdb.Transaction;
 
 /**
  * The records of one write transaction. Everything the write opens carries its batch, so {@code kb
- * revert --batch} finds it (ARCHITECTURE §5); a change to an existing record never does (ADR-0022
- * decision 10). Every record it touches gets the technical updated_at (SPEC §6.1). Signals and
- * their edges are local and outside any batch (ADR-0022 decision 7).
+ * revert --batch} finds it (ARCHITECTURE §5), and its episode when one is known (ADR-0023 decision
+ * 2); a change to an existing record never does (ADR-0022 decision 10). Every record it touches
+ * gets the technical updated_at (SPEC §6.1). Signals and their edges are local and outside any
+ * batch (ADR-0022 decision 7).
  */
 final class GraphWrite {
 
     static final String ID = "id";
     static final String BATCH = "batch";
+    static final String EPISODE = "episode";
     static final String UPDATED_AT = "updated_at";
 
     final Transaction tx;
     final String batch;
+    private final @Nullable String episode;
+    // The props of an Episode this write opens with its first stamp, if the graph lacks it.
+    private @Nullable Map<String, Object> newEpisode;
     private final String updatedAt;
 
     GraphWrite(Transaction tx, String batch, Instant now) {
+        this(tx, batch, null, null, now);
+    }
+
+    /** {@code episode} is the id of an existing Episode (EpisodeWrite.known), or null. */
+    GraphWrite(Transaction tx, String batch, @Nullable String episode, Instant now) {
+        this(tx, batch, episode, null, now);
+    }
+
+    /**
+     * With {@code newEpisode}, the Episode {@code episode} is opened with these props when the
+     * first record is stamped and the graph does not hold it yet: a write that opens nothing, such
+     * as the rescan of an unchanged repository, leaves no Episode behind.
+     */
+    GraphWrite(
+            Transaction tx,
+            String batch,
+            @Nullable String episode,
+            @Nullable Map<String, Object> newEpisode,
+            Instant now) {
         this.tx = tx;
         this.batch = batch;
+        this.episode = episode;
+        this.newEpisode = newEpisode;
         this.updatedAt = Times.format(now);
     }
 
@@ -57,6 +83,27 @@ final class GraphWrite {
         record.setProperty(UPDATED_AT, updatedAt);
     }
 
+    /** An existing record this write takes over: it gets this batch and episode, as if opened. */
+    void claim(Entity record) {
+        record.setProperty(BATCH, batch);
+        stampEpisode(record);
+    }
+
+    private void stampEpisode(Entity record) {
+        if (episode == null) {
+            return;
+        }
+        if (newEpisode != null) {
+            Map<String, Object> props = newEpisode;
+            // Looked up once per transaction; the Episode itself has no batch, like a Signal.
+            newEpisode = null;
+            if (tx.findNode(Label.label(EpisodeWrite.LABEL), ID, episode) == null) {
+                created(episode, props, null, EpisodeWrite.LABEL);
+            }
+        }
+        record.setProperty(EPISODE, episode);
+    }
+
     private Node created(
             String id, Map<String, Object> props, @Nullable String withBatch, String... labels) {
         Label[] all = new Label[labels.length];
@@ -79,6 +126,7 @@ final class GraphWrite {
         props.forEach(record::setProperty);
         if (withBatch != null) {
             record.setProperty(BATCH, withBatch);
+            stampEpisode(record);
         }
         record.setProperty(UPDATED_AT, updatedAt);
         return record;

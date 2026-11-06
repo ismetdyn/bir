@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -79,6 +80,14 @@ public class ScannerService {
      *     outside the allowed roots, not a git working copy); nothing was read or written
      */
     public ScanResult scan(Path path) {
+        return scan(path, null);
+    }
+
+    /**
+     * {@link #scan(Path)} stamped with {@code episode}, or with an Episode of its own if that names
+     * none (ADR-0023 decision 3).
+     */
+    public ScanResult scan(Path path, @Nullable String episode) {
         long started = System.nanoTime();
         List<Path> roots = roots();
         Path dir = allowed(path, roots);
@@ -134,7 +143,8 @@ public class ScannerService {
                                 git.head().orElse(null),
                                 files,
                                 skipped,
-                                Instant.now()));
+                                Instant.now()),
+                        episode);
         LOG.info(
                 "event=scan_done files={} skipped={} added={} refreshed={} closed={} conflicts={}"
                         + " duration_ms={}",

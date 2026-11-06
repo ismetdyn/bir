@@ -12,7 +12,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One fact as a line (SPEC §6.6), shared by the record view and search snippets so a fact reads the
- * same everywhere: {@code key: value[ → target][ @env] · source, date[ · origin][ · mark]}.
+ * same everywhere: {@code key: value[ → target][ @env] · source, date[ · origin][ · episode][ ·
+ * mark]}.
  */
 public final class FactLine {
 
@@ -56,9 +57,7 @@ public final class FactLine {
                         .append(source(fact.source()))
                         .append(", ")
                         .append(DATE.format(fact.observedAt()));
-        if (view.origin() != null) {
-            line.append(SEP).append(view.origin());
-        }
+        line.append(provenance(view));
         if (fact.status() == FactStatus.CONFLICT) {
             line.append(SEP).append(CONFLICT);
             if (!keptValues.isEmpty()) {
@@ -73,13 +72,18 @@ public final class FactLine {
     /** A history range starts at valid_from, when the value was first seen (SPEC §6.3). */
     static String closed(FactView view) {
         Fact fact = view.fact();
-        String line =
-                head(view)
-                        + SEP
-                        + source(fact.source())
-                        + ", "
-                        + range(fact.validFrom(), fact.validTo());
-        return view.origin() == null ? line : line + SEP + view.origin();
+        return head(view)
+                + SEP
+                + source(fact.source())
+                + ", "
+                + range(fact.validFrom(), fact.validTo())
+                + provenance(view);
+    }
+
+    /** {@code · origin · episode}, each only when known. */
+    private static String provenance(FactView view) {
+        return (view.origin() == null ? "" : SEP + view.origin())
+                + (view.episode() == null ? "" : SEP + view.episode());
     }
 
     static String range(Instant from, Instant to) {

@@ -71,12 +71,21 @@ public final class McpClient {
     /** The raw JSON-RPC reply of tools/call, protocol errors included. */
     public JsonNode call(String tool, Map<String, ?> arguments)
             throws IOException, InterruptedException {
-        return rpc(
-                Map.of(
-                        "method",
-                        "tools/call",
-                        "params",
-                        Map.of("name", tool, "arguments", arguments)));
+        return call(tool, arguments, Map.of());
+    }
+
+    /**
+     * tools/call with {@code params._meta}, as clients send it: Codex 0.161.0 puts its session id
+     * there ({@code sessionId}, {@code threadId}, {@code x-codex-turn-metadata}), Claude Code
+     * 2.1.318 only {@code claudecode/toolUseId} (measured 2026-11-06, ADR-0023 decision 6).
+     */
+    public JsonNode call(String tool, Map<String, ?> arguments, Map<String, ?> meta)
+            throws IOException, InterruptedException {
+        Map<String, Object> params = new HashMap<>(Map.of("name", tool, "arguments", arguments));
+        if (!meta.isEmpty()) {
+            params.put("_meta", meta);
+        }
+        return rpc(Map.of("method", "tools/call", "params", params));
     }
 
     /**
@@ -85,7 +94,13 @@ public final class McpClient {
      */
     public String text(String tool, Map<String, ?> arguments)
             throws IOException, InterruptedException {
-        JsonNode reply = call(tool, arguments);
+        return text(tool, arguments, Map.of());
+    }
+
+    /** {@link #text(String, Map)} with {@code params._meta}. */
+    public String text(String tool, Map<String, ?> arguments, Map<String, ?> meta)
+            throws IOException, InterruptedException {
+        JsonNode reply = call(tool, arguments, meta);
         assertThat(reply.has("error"))
                 .as("protocol error instead of an answer: %s", reply)
                 .isFalse();

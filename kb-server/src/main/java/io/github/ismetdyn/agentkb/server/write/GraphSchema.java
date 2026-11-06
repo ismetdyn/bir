@@ -64,6 +64,20 @@ final class GraphSchema {
                 });
     }
 
+    /**
+     * {@link #ensure} for the relationship types of {@code types} not in {@code done}, which then
+     * holds them. Neo4j refuses schema and data changes in one transaction, so a write calls this
+     * before its own.
+     */
+    static void ensureTypes(EmbeddedNeo4jStore store, Set<String> done, Set<String> types) {
+        Set<String> missing = new TreeSet<>(types);
+        missing.removeAll(done);
+        if (!missing.isEmpty()) {
+            ensure(store, Set.of(), missing);
+            done.addAll(missing);
+        }
+    }
+
     /** {@link #ensure} for the labels and types the rows of {@code snapshot} carry. */
     static void ensureFor(EmbeddedNeo4jStore store, Snapshot snapshot) {
         Set<String> labels = new TreeSet<>();

@@ -38,8 +38,8 @@ final class WriteCheck {
             "Keep a fact to one short statement of at most 500 characters; add long text as a"
                     + " document with kb doc add.";
     private static final String KEY_HINT =
-            "Use a fact key listed by kb_schema; free text goes into a text key such as role,"
-                    + " constraint, access or convention.";
+            "Use a fact key listed by kb_schema, or write the statement as note; to add the key,"
+                    + " propose it with kb_propose(kind=schema).";
     private static final String TYPE_HINT =
             "Use an entity type listed by kb_schema, e.g. server, database, service or project.";
     private static final String RELATION_HINT =

@@ -42,9 +42,9 @@ final class SecretWrite {
     /**
      * Sets the value of the Secret {@code id}, creating it under its entity when it is new. The old
      * value is overwritten, not kept (SPEC §7 rule 9). The Secret becomes user-owned: source user
-     * and the batch of this write, so reverting the scan that opened it keeps it and a rescan never
-     * overwrites the value. The value itself never leaves this machine, so it does not move
-     * updated_at; the changed source does.
+     * and the batch and episode of this write, so reverting the scan that opened it keeps it and a
+     * rescan never overwrites the value. The value itself never leaves this machine, so it does not
+     * move updated_at; the changed source does.
      */
     static @Nullable Void put(GraphWrite graph, String id, String value) {
         Node secret = graph.tx.findNode(SECRET, GraphWrite.ID, id);
@@ -54,7 +54,7 @@ final class SecretWrite {
             if (!USER.equals(secret.getProperty(SOURCE, null))) {
                 graph.set(secret, SOURCE, USER);
             }
-            secret.setProperty(GraphWrite.BATCH, graph.batch);
+            graph.claim(secret);
         }
         secret.setProperty(SECRET_VALUE, value);
         return null;

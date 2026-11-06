@@ -9,6 +9,9 @@ import io.github.ismetdyn.agentkb.core.render.RelationView;
 import io.github.ismetdyn.agentkb.core.render.ResultList.Hit;
 import io.github.ismetdyn.agentkb.core.render.ResultList.Step;
 import io.github.ismetdyn.agentkb.core.render.ResultList.Tier;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -22,12 +25,46 @@ import org.jspecify.annotations.Nullable;
 final class KnowledgeQueriesRows {
 
     private static final String ARCHIVED = "archived";
+    // yyyy-MM-dd of an ISO-8601 time (Times.format).
+    private static final int DATE_CHARS = 10;
 
     private KnowledgeQueriesRows() {}
 
     static FactView factView(Map<?, ?> row) {
         return new FactView(
-                fact((Map<?, ?>) row.get("fact")), (String) row.get("target"), origin(row));
+                fact((Map<?, ?>) row.get("fact")),
+                (String) row.get("target"),
+                origin(row),
+                episode(row));
+    }
+
+    /**
+     * ADR-0023 decision 5: {@code episode: codex, 2026-11-06} for the Episode a fact came from,
+     * with the transcript path when that file is on this machine; null without an Episode.
+     */
+    private static @Nullable String episode(Map<?, ?> row) {
+        if (!(row.get("episodeClient") instanceof String client)) {
+            return null;
+        }
+        StringBuilder episode = new StringBuilder("episode: ").append(client);
+        // Imported rows are taken as they are (invariant 11), so the date is cut, not parsed.
+        if (row.get("episodeAt") instanceof String at && at.length() >= DATE_CHARS) {
+            episode.append(", ").append(at, 0, DATE_CHARS);
+        }
+        if (row.get("episodeTranscript") instanceof String transcript && isLocal(transcript)) {
+            episode.append(", ").append(transcript);
+        }
+        return episode.toString();
+    }
+
+    // ponytail: a stat per read fact with a transcript; a path that came with a snapshot from
+    // another machine is simply not there. Cache it if kb_read of large records gets slow.
+    private static boolean isLocal(String transcript) {
+        try {
+            return Files.isRegularFile(Path.of(transcript));
+        } catch (InvalidPathException e) {
+            return false;
+        }
     }
 
     static RelationView relation(Map<?, ?> row) {

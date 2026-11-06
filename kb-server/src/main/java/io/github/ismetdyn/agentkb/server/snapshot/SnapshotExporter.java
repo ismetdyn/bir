@@ -47,6 +47,9 @@ public class SnapshotExporter {
                 }
             }
         }
+        // In id order like the files (invariant 8): a restore keeps user-set Secrets in place, so
+        // the graph's own order differs from the snapshot it restored.
+        nodes.sort(Comparator.comparing(Node::id));
         return nodes;
     }
 
@@ -65,6 +68,7 @@ public class SnapshotExporter {
                 }
             }
         }
+        edges.sort(Comparator.comparing(Edge::id));
         return edges;
     }
 

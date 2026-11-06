@@ -42,4 +42,4 @@
 {"id": "ornek-proje/prod/spring.datasource.password", "labels": ["Secret"], "props": {"env": "prod", "name": "spring.datasource.password", "observed_at": "2026-10-29T10:00:00Z", "source": "scan", "updated_at": "2026-10-29T10:00:00Z"}}
 {"id": "ornek-yedek-01", "labels": ["Entity", "Server"], "props": {"aliases": [], "status": "current", "summary": "İzmir veri merkezindeki yedek sunucu.", "updated_at": "2026-10-01T09:00:00Z"}}
 {"id": "stack:java-spring", "labels": ["Stack"], "props": {"updated_at": "2026-10-29T09:00:00Z"}}
-{"id": "topic:tls", "labels": ["Topic"], "props": {"updated_at": "2026-09-12T09:00:00Z"}}
+{"id": "topic:tls", "labels": ["Entity", "Topic"], "props": {"aliases": [], "status": "current", "summary": "TLS ve sertifika zinciri konusu.", "updated_at": "2026-09-12T09:00:00Z"}}

@@ -8,10 +8,13 @@ import io.github.ismetdyn.agentkb.server.write.WriteCheck.Checked;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
+import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Component;
 
 /** The only writer of the graph (invariant 1). */
@@ -41,16 +44,45 @@ public class WriteService {
      */
     public WriteResult write(WriteRequest request) {
         Checked checked = WriteCheck.check(request, schema.load());
-        constrain(checked.relationTypes());
+        GraphSchema.ensureTypes(store, constrainedTypes, checked.relationTypes());
         String batch = request.batch() == null ? Ulid.next() : request.batch();
         Instant at = request.at().truncatedTo(ChronoUnit.SECONDS);
         return store.write(
                 tx -> {
                     SecretWrite.refuseStoredValues(tx, SecretWrite.texts(request));
-                    return new RequestWrite(
-                                    new GraphWrite(tx, batch, Instant.now()), request, checked, at)
-                            .apply();
+                    GraphWrite graph =
+                            new GraphWrite(
+                                    tx,
+                                    batch,
+                                    EpisodeWrite.known(tx, request.episode()).orElse(null),
+                                    Instant.now());
+                    return new RequestWrite(graph, request, checked, at).apply();
                 });
+    }
+
+    /**
+     * SessionStart (ADR-0023 decision 3): opens the Episode of {@code (client, sessionId)} or
+     * refreshes its last_at. A session id or transcript path that is no plain short text is not
+     * kept: an id is left without an Episode, a path is left out.
+     *
+     * @return the id of the Episode; empty if {@code sessionId} is no plain id
+     */
+    public Optional<String> openSession(
+            String client, String sessionId, @Nullable String transcriptPath) {
+        @Nullable String path = EpisodeWrite.transcriptPath(transcriptPath);
+        return EpisodeWrite.sessionId(sessionId)
+                .map(
+                        id -> {
+                            String at = Times.format(Instant.now());
+                            return store.write(
+                                    tx ->
+                                            EpisodeWrite.session(
+                                                    new GraphWrite(tx, Ulid.next(), Instant.now()),
+                                                    client,
+                                                    id,
+                                                    path,
+                                                    at));
+                        });
     }
 
     /**
@@ -59,34 +91,39 @@ public class WriteService {
      * revert --batch} undoes the scan. A file the write path refuses as a whole is rolled back and
      * reported in {@link ScanResult#skipped()}; a single refused value is skipped alone.
      *
+     * <p>Every record it opens carries {@code episode} if that names an Episode; otherwise the scan
+     * opens an Episode of its own, kind and client scan (ADR-0023 decision 3).
+     *
      * @throws WriteRejectedException if the project or repo id is refused; nothing was written
      * @throws IllegalStateException if the repo has no readable schema
      */
-    public ScanResult scan(ScanWrite scan) {
+    public ScanResult scan(ScanWrite scan, @Nullable String episode) {
         ScanWrites writes =
                 new ScanWrites(
                         scan,
                         schema.load(),
                         Ulid.next(),
                         scan.at().truncatedTo(ChronoUnit.SECONDS));
-        constrain(writes.relationTypes());
-        writes.merge(
-                store.write(tx -> writes.open(new GraphWrite(tx, writes.batch, Instant.now()))));
+        GraphSchema.ensureTypes(store, constrainedTypes, writes.relationTypes());
+        Optional<String> given = store.read(tx -> EpisodeWrite.known(tx, episode));
+        String stamp = given.orElseGet(Ulid::next);
+        // The scan's own Episode opens with the first record it stamps, in whichever transaction.
+        @Nullable Map<String, Object> own =
+                given.isPresent()
+                        ? null
+                        : EpisodeWrite.event(
+                                EpisodeWrite.SCAN, EpisodeWrite.SCAN, Times.format(writes.at));
+        Function<Transaction, GraphWrite> graph =
+                tx -> new GraphWrite(tx, writes.batch, stamp, own, Instant.now());
+        writes.merge(store.write(tx -> writes.open(graph.apply(tx))));
         for (ScanWrite.ScannedFile file : writes.scan.files()) {
             try {
-                writes.merge(
-                        store.write(
-                                tx ->
-                                        writes.file(
-                                                new GraphWrite(tx, writes.batch, Instant.now()),
-                                                file)));
+                writes.merge(store.write(tx -> writes.file(graph.apply(tx), file)));
             } catch (WriteRejectedException e) {
                 writes.skip(file.path(), e.getMessage());
             }
         }
-        writes.merge(
-                store.write(
-                        tx -> writes.unreported(new GraphWrite(tx, writes.batch, Instant.now()))));
+        writes.merge(store.write(tx -> writes.unreported(graph.apply(tx))));
         return writes.result();
     }
 
@@ -108,13 +145,19 @@ public class WriteService {
                                     request.content(),
                                     request.evidence()));
                     return ProposalWrite.write(
-                            new GraphWrite(tx, Ulid.next(), Instant.now()), request);
+                            new GraphWrite(
+                                    tx,
+                                    Ulid.next(),
+                                    EpisodeWrite.known(tx, request.episode()).orElse(null),
+                                    Instant.now()),
+                            request);
                 });
     }
 
     /**
      * Sets the value of a Secret from {@code PUT /api/v1/secrets/<id>} (docs/SECRETS.md §2),
      * creating the Secret {@code <entity>/<env>/<name>} under its existing entity when it is new.
+     * It is the user's own write, so it opens an Episode of kind user, client kb (ADR-0023).
      *
      * @throws WriteRejectedException if the value is empty or a new id is malformed or names no
      *     entity; nothing was written
@@ -124,8 +167,13 @@ public class WriteService {
             throw new WriteRejectedException(
                     "the secret value is empty", "Send the value as the request body.");
         }
+        Instant now = Instant.now();
+        Map<String, Object> own =
+                EpisodeWrite.event(EpisodeWrite.USER, EpisodeWrite.KB, Times.format(now));
         store.write(
-                tx -> SecretWrite.put(new GraphWrite(tx, Ulid.next(), Instant.now()), id, value));
+                tx ->
+                        SecretWrite.put(
+                                new GraphWrite(tx, Ulid.next(), Ulid.next(), own, now), id, value));
     }
 
     /**
@@ -144,16 +192,6 @@ public class WriteService {
                                 SecretWrite.maskStoredValues(tx, key, MASK),
                                 SecretWrite.maskStoredValues(tx, payload, MASK),
                                 seen));
-    }
-
-    /** Neo4j refuses schema and data changes in one transaction, so this runs before the write. */
-    private void constrain(Set<String> relationTypes) {
-        Set<String> missing = new TreeSet<>(relationTypes);
-        missing.removeAll(constrainedTypes);
-        if (!missing.isEmpty()) {
-            GraphSchema.ensure(store, Set.of(), missing);
-            constrainedTypes.addAll(missing);
-        }
     }
 
     /**

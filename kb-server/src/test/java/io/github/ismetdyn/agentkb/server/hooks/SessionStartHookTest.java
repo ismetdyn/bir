@@ -5,6 +5,7 @@ import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.context;
 import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.gitWorkingCopy;
 import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.sessionStart;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import io.github.ismetdyn.agentkb.server.RunningServerTestBase;
 import io.github.ismetdyn.agentkb.server.mcp.McpClient;
@@ -139,7 +140,21 @@ class SessionStartHookTest extends RunningServerTestBase {
         String byCwd = mcp.text("kb_brief", Map.of("cwd", repo.toString()));
         String byProject = mcp.text("kb_brief", Map.of("project", "ornek-proje"));
 
-        assertThat(byCwd).isEqualTo(brief("claude", repo)).contains(PROJECT_RULE);
+        // ADR-0023 decision 3: the hook adds one last line naming the session's Episode, which
+        // kb_brief over MCP cannot know; everything before it is the same text.
+        String injected = brief("claude", repo);
+        int cut = injected.lastIndexOf("\nEpisode: ");
+        assertThat(cut)
+                .as("the injected brief ends with an Episode line: %s", injected)
+                .isPositive();
+        String episodeLine = injected.substring(cut + 1);
+        assertThat(episodeLine.lines().toList())
+                .as("exactly one line is removed, and it names the Episode")
+                .singleElement(STRING)
+                .matches("Episode: \\S+ .*")
+                // kb_remember takes the id inside its source; a top-level episode is ignored.
+                .contains("source.episode");
+        assertThat(byCwd).isEqualTo(injected.substring(0, cut)).contains(PROJECT_RULE);
         assertThat(byProject).isEqualTo(byCwd);
         assertThat(byCwd.lines().findFirst()).contains(DATA_HEADER);
     }

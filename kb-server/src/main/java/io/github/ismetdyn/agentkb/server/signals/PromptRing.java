@@ -4,6 +4,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Iterator;
+import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,18 +18,26 @@ import org.springframework.stereotype.Component;
 public class PromptRing {
 
     private static final Duration WINDOW = Duration.ofHours(2);
-    // Retained memory is bounded by MAX_PROMPTS x MAX_PROMPT_CHARS; old prompts leave on record.
+    // Retained memory is bounded by MAX_PROMPTS x MAX_PROMPT_CHARS, plus a session id that
+    // HookController checked against the Episode id shape; old prompts leave on record.
     private static final int MAX_PROMPTS = 500;
     private static final int MAX_PROMPT_CHARS = 8 * 1024;
 
-    private record Prompt(String text, Instant at) {}
+    /** The client session a prompt was sent in, as UserPromptSubmit reported it (ADR-0023). */
+    public record Session(String client, String id) {}
+
+    private record Prompt(String text, Instant at, @Nullable Session session) {}
 
     private final Deque<Prompt> prompts = new ArrayDeque<>();
 
-    public synchronized void record(String prompt, Instant at) {
+    public void record(String prompt, Instant at) {
+        record(prompt, at, null);
+    }
+
+    public synchronized void record(String prompt, Instant at, @Nullable Session session) {
         Instant since = at.minus(WINDOW);
         prompts.removeIf(old -> old.at().isBefore(since));
-        prompts.addLast(new Prompt(head(prompt), at));
+        prompts.addLast(new Prompt(head(prompt), at, session));
         while (prompts.size() > MAX_PROMPTS) {
             prompts.removeFirst();
         }
@@ -56,6 +67,27 @@ public class PromptRing {
         Instant since = now.minus(WINDOW);
         return prompts.stream()
                 .anyMatch(prompt -> !prompt.at().isBefore(since) && holds(prompt.text(), words));
+    }
+
+    /**
+     * The session of the newest prompt in the window that holds {@code evidence} as {@link
+     * #contains} finds it; empty if no such prompt came with a session.
+     */
+    public synchronized Optional<Session> session(String evidence, Instant now) {
+        String words = evidence.strip();
+        if (words.isEmpty()) {
+            return Optional.empty();
+        }
+        Instant since = now.minus(WINDOW);
+        for (Iterator<Prompt> newest = prompts.descendingIterator(); newest.hasNext(); ) {
+            Prompt prompt = newest.next();
+            if (prompt.session() != null
+                    && !prompt.at().isBefore(since)
+                    && holds(prompt.text(), words)) {
+                return Optional.of(prompt.session());
+            }
+        }
+        return Optional.empty();
     }
 
     /**
