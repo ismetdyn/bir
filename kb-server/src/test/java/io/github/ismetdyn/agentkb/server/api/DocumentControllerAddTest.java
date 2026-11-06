@@ -47,10 +47,22 @@ class DocumentControllerAddTest extends DocumentControllerTestBase {
                 .containsEntry("origin", ORIGIN)
                 .containsEntry("path", blobPath(sha))
                 .containsEntry("source", "user")
+                .containsEntry("mime", "text/markdown")
                 .containsKey("added_at")
                 .containsKey("batch");
         assertThat(((Number) node.get("size")).longValue()).isEqualTo(content.length);
         assertThat(targets(docId(sha), ABOUT)).containsExactly(ENTITY);
+    }
+
+    /** SPEC §6.2: mime is guessed from the name; an unknown kind is a plain byte stream. */
+    @Test
+    void a_name_of_no_known_type_gets_the_octet_stream_mime() throws Exception {
+        String sha = documents.upload(uniqueText());
+
+        HttpResponse<String> reply = documents.complete(sha, "zz-h4-notes");
+
+        assertThat(reply.statusCode()).as(reply.body()).isEqualTo(201);
+        assertThat(documentNodes(sha).getFirst()).containsEntry("mime", "application/octet-stream");
     }
 
     @Test

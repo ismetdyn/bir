@@ -83,7 +83,7 @@ class DocumentStoreOrderTest extends DocumentControllerTestBase {
         try {
             HttpResponse<String> reply = documents.complete(sha, NAME);
 
-            assertThat(reply.statusCode()).as(reply.body()).isGreaterThanOrEqualTo(400);
+            assertThat(reply.statusCode()).as(reply.body()).isEqualTo(500);
             assertNoLeak(reply.body());
             assertThat(documentNodes(sha)).as("no node without its blob").isEmpty();
             assertThat(blobFiles(sha)).isEmpty();

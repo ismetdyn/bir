@@ -85,6 +85,11 @@ yolunu kapatan bir savunma olduğunu belirtir.
 | Veri dizini | `~/.local/share/agentkb` 0700 |
 | `kb run` | Değer sadece alt süreçte; çıktı maskeleme |
 
+Doküman yükleme (`POST /api/v1/documents`), secret desenlerine uyan ya da bir Secret'ta saklı bir değeri içeren dosyayı
+reddeder; ret yalnız satır numarasını söyler, değeri söylemez. Metin her zaman UTF-8, BOM'u veya NUL sezgisi varsa ek
+olarak UTF-16 çözülerek taranır. Sıkıştırılmış içerik (PDF stream, zip, docx) taranmaz; bu kabul edilen bir risktir
+(ADR-0025 karar 3).
+
 ## 6. Sınırlar
 
 - Değer diskte şifresiz durur, bugün `.env` dosyalarının durduğu gibi. Veri dizini 0700; ama

@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,10 +44,13 @@ class UploadControllerPutTest extends UploadControllerTestBase {
     /** A content already in blobs/ needs no bytes: the client goes straight to POST /documents. */
     @Test
     void content_already_in_the_blob_store_is_complete() throws Exception {
-        String sha = randomSha();
+        // A blob counts only if its bytes hash to its name (CP2 F4, DocumentBlobStoreTest).
+        byte[] content = new byte[BLOB_LENGTH];
+        new SecureRandom().nextBytes(content);
+        String sha = DocumentHttp.sha256(content);
         Path blob = repo.resolve("blobs").resolve(sha.substring(0, 2)).resolve(sha);
         Files.createDirectories(blob.getParent());
-        Files.write(blob, new byte[BLOB_LENGTH]);
+        Files.write(blob, content);
         try {
             HttpResponse<String> reply = uploads.put(sha, BLOB_LENGTH);
 

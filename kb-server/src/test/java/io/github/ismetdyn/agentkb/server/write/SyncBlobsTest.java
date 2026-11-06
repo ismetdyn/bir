@@ -120,6 +120,45 @@ class SyncBlobsTest {
         assertThat(machines.remoteHead()).as("nothing pushed").isEqualTo(remoteHead);
     }
 
+    /**
+     * Each machine tracks its own blob with git-lfs, so each appends its own line to {@code
+     * .gitattributes}; the merge of the second sync must keep both (the merge runs with {@code -X
+     * ours}, which would drop the remote's line of a conflicting hunk).
+     */
+    @Test
+    void lfs_rules_added_on_two_machines_are_both_kept() throws IOException, InterruptedException {
+        Assumptions.assumeTrue(UploadControllerHttp.gitLfsPresent(), "not run: git-lfs missing");
+        machines = SyncMachines.withSeedRemote(dir);
+        Machine a = machines.clone("a");
+        Machine b = machines.clone("b");
+        String pathA = trackedBlob(a, "zz-sync-lfs-a");
+        String pathB = trackedBlob(b, "zz-sync-lfs-b");
+
+        a.sync();
+        b.sync();
+        a.sync();
+
+        for (String attributes :
+                List.of(
+                        Files.readString(a.repo.resolve(ATTRIBUTES)),
+                        Files.readString(b.repo.resolve(ATTRIBUTES)),
+                        ScanProjects.git(machines.remote, "show", "main:" + ATTRIBUTES))) {
+            assertThat(attributes).contains(pathA).contains(pathB).doesNotContain("<<<<<<<");
+        }
+        assertThat(Files.readAllBytes(a.repo.resolve(pathB)))
+                .as("B's blob on A, through git-lfs")
+                .isEqualTo(Files.readAllBytes(b.repo.resolve(pathB)));
+    }
+
+    /** A blob tracked by git-lfs in {@code machine}'s repo and a graph write to sync. */
+    private static String trackedBlob(Machine machine, String entity) throws IOException {
+        String path = putBlob(machine.repo, binaryContent());
+        ScanProjects.git(machine.repo, "lfs", "install", "--local");
+        ScanProjects.git(machine.repo, "lfs", "track", path);
+        machine.graph.write(request(Source.USER, entity, T1, fact("os", "rhel 9", PROD)));
+        return path;
+    }
+
     /** Bytes that are no valid text, so a line-ending or text filter would change them. */
     private static byte[] binaryContent() {
         byte[] marker = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);

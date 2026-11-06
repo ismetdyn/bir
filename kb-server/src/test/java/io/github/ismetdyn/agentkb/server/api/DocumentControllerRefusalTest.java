@@ -144,7 +144,7 @@ class DocumentControllerRefusalTest extends DocumentControllerTestBase {
 
         HttpResponse<String> reply = documents.complete(sha, NAME, null, null, replaces);
 
-        assertThat(reply.statusCode()).as(reply.body()).isIn(400, 404);
+        assertThat(reply.statusCode()).as(reply.body()).isEqualTo(400);
         assertNoLeak(reply.body());
         assertThat(documentNodes(sha)).isEmpty();
         assertThat(rows("MATCH (d {id: $id}) RETURN d", Map.of("id", docId(sha)))).isEmpty();

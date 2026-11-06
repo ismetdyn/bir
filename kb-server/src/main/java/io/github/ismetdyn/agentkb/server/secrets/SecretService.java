@@ -1,7 +1,9 @@
 package io.github.ismetdyn.agentkb.server.secrets;
 
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
+import io.github.ismetdyn.agentkb.server.write.SecretWrite;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,15 @@ public class SecretService {
                         return rows.stream().map(row -> (String) row.get("v")).findFirst();
                     }
                 });
+    }
+
+    /**
+     * The values a document scan refuses (ADR-0025 decision 3).
+     *
+     * @see SecretWrite#storedValues
+     */
+    public List<String> storedValues() {
+        return store.read(SecretWrite::storedValues);
     }
 
     /**

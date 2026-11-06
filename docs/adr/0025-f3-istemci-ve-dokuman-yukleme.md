@@ -22,14 +22,20 @@ araçlar kabul edildi: TamboUI 0.6.0 BOM + `tamboui-toolkit` + `tamboui-jline3-b
 2. **Blob:** `blobs/xx/<sha>.tmp` yazılır, `ATOMIC_MOVE` ile yerine konur. Sıra: önce blob, sonra node
    (`WriteService.addDocument`, tek yazıcı). Blob hiç silinmez; `kb revert --batch` yalnız node'u siler. Hash, tarama ve
    kopya yazıcı kilidi dışında yapılır.
-3. **Doküman secret taraması:** UTF-8 REPLACE ile çözülen metin, örtüşen pencerelerle `SecretPatterns` desenlerine karşı
-   taranır. Ret mesajı yalnız satır/offset verir, değer vermez. **Sıkıştırılmış içerik (PDF stream, zip, docx) denetlenmez;
-   bu kabul edilen bir risktir.** Metin çıkarma bağımlılığı eklenmez; `kb doc add` uyarı basar.
+3. **Doküman secret taraması:** REPLACE ile çözülen metin, örtüşen pencerelerle `SecretPatterns` desenlerine karşı
+   taranır; bir Secret'ta saklı değerler de aynı geçişte aranır ve reddedilir. Metin her zaman UTF-8 çözülür; UTF-16 BOM'u
+   varsa ya da BOM yok ama ilk 4 KiB UTF-16'ya benziyorsa (NUL sezgisi) ek olarak o UTF-16 da çözülür (ilk bulgu
+   kazanır). UTF-8'in kalması, UTF-16 metne eklenmiş ASCII satırı da yakalar (PowerShell `>` sonra `Add-Content`). Ret mesajı yalnız
+   satır/offset verir, değer vermez. **Sıkıştırılmış içerik (PDF stream, zip, docx) denetlenmez; bu kabul edilen bir
+   risktir.** Metin çıkarma bağımlılığı eklenmez; `kb doc add` uyarı basar.
 4. **`name`/`origin`** secret kontrolünden (ör. `user:pw@` URL'si) ve uzunluk sınırından geçer; ikisi de anlık görüntüye ve
    git'e girer (değişmez 2). İhlalde 400.
 5. **git-lfs:** 20 MB üstü dosya git-lfs ister, yoksa `PUT`'ta 422. `git lfs install --local` yalnız bilgi reposunda
    yapılır, kullanıcının global git ayarına yazılmaz. `kb sync` `blobs/` ve `.gitattributes`'i stage'ler; LFS push hatası
    sync hatasıdır (ADR-0017 madde 7).
+   `git lfs track`, blob `blobs/`'a taşınmadan önce çalışır.
+   `kb sync` birleştirmeden önce doküman deposunu ayrı commit'ler; `.gitattributes` git'in union sürücüsüyle birleşir
+   (`.git/info/attributes`'te ayarlı).
 
 ### Modül, istemci, araç zinciri
 6. **`kb-api`:** yalnız record; bağımlılığı JDK + JSpecify. Domain record'ları sunucuda kalır, `server.api` DTO'ya eşler;

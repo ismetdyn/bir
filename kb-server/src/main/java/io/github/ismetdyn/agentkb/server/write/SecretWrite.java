@@ -17,7 +17,7 @@ import org.neo4j.graphdb.Transaction;
  * {@code PUT /api/v1/secrets/<id>}, and refusing a new write that would copy a stored value into
  * the graph where MCP, the snapshot and git can see it. Messages never carry a value.
  */
-final class SecretWrite {
+public final class SecretWrite {
 
     static final String SECRET_VALUE = "secret_value";
     private static final Label SECRET = Label.label("Secret");
@@ -189,7 +189,11 @@ final class SecretWrite {
         return masked;
     }
 
-    static List<String> storedValues(Transaction tx) {
+    /**
+     * Every value stored on this machine, for a check that must refuse or mask them; never for an
+     * answer. An empty value is left out, as it is in every text.
+     */
+    public static List<String> storedValues(Transaction tx) {
         try (Result result = tx.execute(STORED_VALUES)) {
             return result.stream()
                     .map(row -> String.valueOf(row.get("v")))

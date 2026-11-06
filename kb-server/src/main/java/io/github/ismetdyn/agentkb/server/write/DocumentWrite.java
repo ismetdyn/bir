@@ -3,6 +3,7 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.core.Times;
 import io.github.ismetdyn.agentkb.core.secret.SecretPatterns;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
+import java.net.URLConnection;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,6 +39,8 @@ public record DocumentWrite(
     private static final String ABOUT = "ABOUT";
     private static final String SUPERSEDES = "SUPERSEDES";
     private static final String SHA256 = "sha256";
+    // SPEC §6.2: the kind of a file the JDK cannot name from its file name.
+    private static final String UNKNOWN_MIME = "application/octet-stream";
     // NAME_MAX of common file systems.
     private static final int NAME_LIMIT = 255;
     // A URL beyond this length is no source a person looks up.
@@ -131,7 +134,10 @@ public record DocumentWrite(
     private Map<String, Object> props(long size) {
         Map<String, Object> props = new HashMap<>();
         props.put(SHA256, sha256);
-        props.put("name", String.valueOf(name).strip());
+        String stripped = String.valueOf(name).strip();
+        props.put("name", stripped);
+        String mime = URLConnection.guessContentTypeFromName(stripped);
+        props.put("mime", mime == null ? UNKNOWN_MIME : mime);
         props.put("size", size);
         props.put("path", path(sha256));
         props.put("source", "user");

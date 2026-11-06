@@ -49,6 +49,10 @@ public class SyncService implements DisposableBean {
     private final String repo;
     // The timer and a hand-run kb sync must not fetch and push over each other.
     private final ReentrantLock running = new ReentrantLock();
+    // A round's merge checks out files under blobs/; held over it and over a document completion,
+    // so a checkout cannot put a link in a blobs/ directory between Blobs' check and its open.
+    // Taken before the writer lock, never inside it.
+    private final Object workingTree = new Object();
 
     SyncService(
             EmbeddedNeo4jStore store, WriteService writes, @Value("${agentkb.repo:}") String repo) {
@@ -85,6 +89,14 @@ public class SyncService implements DisposableBean {
     }
 
     /**
+     * The monitor a sync round holds while it merges into the working tree; a document completion
+     * holds it too. Take it before the writer lock.
+     */
+    public Object workingTree() {
+        return workingTree;
+    }
+
+    /**
      * The shutdown snapshot: one round without fetch or merge. Only on a repo of its own: a
      * directory inside another repository (a checkout's seed/) is not the knowledge repository, so
      * nothing is written or committed there.
@@ -109,9 +121,12 @@ public class SyncService implements DisposableBean {
             SyncGit.Remote remote = git.fetch();
             // The read transaction is unused: it holds the writer lock over the round's own reads
             // and writes (reentrant), so no other write commits between export and commit.
-            Round round =
-                    store.readUnderWriteLock(
-                            unused -> round(git, remote == SyncGit.Remote.REACHED));
+            Round round;
+            synchronized (workingTree) {
+                round =
+                        store.readUnderWriteLock(
+                                unused -> round(git, remote == SyncGit.Remote.REACHED));
+            }
             commit = round.commit() == null ? commit : round.commit();
             if (remote == SyncGit.Remote.NONE) {
                 return result(commit, false, round);

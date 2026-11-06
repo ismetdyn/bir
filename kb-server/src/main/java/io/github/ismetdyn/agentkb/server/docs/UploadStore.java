@@ -98,12 +98,8 @@ public class UploadStore {
     public synchronized Answer<Start> start(String sha, long length) throws IOException {
         requireSha256(sha);
         removeIdle();
-        Optional<Path> blob =
-                Optional.ofNullable(repo)
-                        .map(dir -> dir.resolve(DocumentWrite.path(sha)))
-                        .filter(Files::isRegularFile);
-        if (blob.isPresent()) {
-            long stored = Files.size(blob.get());
+        if (repo != null && Blobs.intact(repo, sha)) {
+            long stored = Files.size(repo.resolve(DocumentWrite.path(sha)));
             return new Answer<>(stored == length ? Start.EXISTING : Start.LENGTH_CONFLICT, stored);
         }
         Optional<Path> staged = staged(sha);
@@ -230,7 +226,7 @@ public class UploadStore {
         }
     }
 
-    private static void requireSha256(String sha) {
+    static void requireSha256(String sha) {
         if (!isSha256(sha)) {
             throw new IllegalArgumentException("an upload id is a lowercase sha256");
         }

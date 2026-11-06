@@ -3,6 +3,8 @@ package io.github.ismetdyn.agentkb.server.api;
 import static io.github.ismetdyn.agentkb.server.security.ErrorBodyAssertions.assertNoLeak;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.ismetdyn.agentkb.core.secret.SecretPatterns;
+import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.io.ByteArrayOutputStream;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +13,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * The document secret scan (ADR-0025 decision 3, SPEC §6.7, invariant 2): text decoded as UTF-8
@@ -29,6 +32,8 @@ class DocumentSecretScanTest extends DocumentControllerTestBase {
     private static final String FILLER = "plain runbook text line\n";
     private static final int SECRET_LINE = 4321;
     private static final int BEFORE_BOUNDARY = 20;
+
+    @Autowired private WriteService writes;
 
     @Test
     void a_secret_in_the_text_is_refused_with_its_line_and_without_its_value() throws Exception {
@@ -72,6 +77,50 @@ class DocumentSecretScanTest extends DocumentControllerTestBase {
         int line = (int) prefix.chars().filter(c -> c == '\n').count() + 1;
 
         assertRefusedAtLine(text.getBytes(StandardCharsets.UTF_8), line);
+    }
+
+    /**
+     * A value stored on a Secret is refused like a pattern hit, as on every other write path, even
+     * when no pattern knows its shape; the answer names the line, never the value.
+     */
+    @Test
+    void a_value_stored_on_a_secret_is_refused_with_its_line_and_without_its_value()
+            throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        String stored = "zzStoredPlain" + suffix;
+        assertThat(SecretPatterns.looksLikeSecret(stored)).as("no pattern finds it").isFalse();
+        writes.putSecret(ENTITY + "/zz-h4/doc-scan-" + suffix.substring(0, 8), stored);
+        byte[] content =
+                ("zz-h4 notes\n" + UUID.randomUUID() + "\nthe login is " + stored + " today\n")
+                        .getBytes(StandardCharsets.UTF_8);
+
+        String sha = documents.upload(content);
+        HttpResponse<String> reply = documents.complete(sha, NAME);
+
+        assertThat(reply.statusCode()).as(reply.body()).isEqualTo(422);
+        assertNoLeak(reply.body());
+        assertThat(reply.body()).doesNotContain(stored).doesNotContain(suffix);
+        assertThat(reply.body()).containsPattern(Pattern.compile("(?<![0-9])3(?![0-9])"));
+        assertThat(stagedFiles(sha)).as("staging removed").isEmpty();
+        assertThat(blobFiles(sha)).as("nothing in blobs/").isEmpty();
+        assertThat(documentNodes(sha)).isEmpty();
+    }
+
+    /**
+     * UTF-16 text, as PowerShell's {@code >} writes it, is scanned as UTF-16 (lead decision F3).
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void a_secret_in_utf16le_text_is_refused(boolean byteOrderMark) throws Exception {
+        String text =
+                (byteOrderMark ? "\uFEFF" : "")
+                        + "zz-h4 utf16\r\n"
+                        + UUID.randomUUID()
+                        + "\r\ndeploy token "
+                        + TOKEN
+                        + "\r\n";
+
+        assertRefusedAtLine(text.getBytes(StandardCharsets.UTF_16LE), 3);
     }
 
     /** A clean document of the same shape passes, so the refusals above are the token's. */

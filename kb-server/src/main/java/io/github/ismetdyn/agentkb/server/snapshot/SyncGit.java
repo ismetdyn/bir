@@ -2,7 +2,6 @@ package io.github.ismetdyn.agentkb.server.snapshot;
 
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Snapshot;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,10 +20,8 @@ public final class SyncGit {
     private static final String ORIGIN = "origin";
     private static final String NODES = "snapshot/" + SnapshotFormat.NODES_FILE;
     private static final String EDGES = "snapshot/" + SnapshotFormat.EDGES_FILE;
-    // ADR-0025 decision 5: the blobs and their git-lfs rules travel with the snapshot.
-    private static final List<String> DOCUMENT_STORE = List.of("blobs", ".gitattributes");
-    private static final String NOT_TMP = ":(exclude)*.tmp";
     private final Path repo;
+    private final DocumentStoreGit documents;
     private @Nullable String branch;
 
     /** The rows git holds in the index for the two files after {@link #stage}. */
@@ -32,6 +29,7 @@ public final class SyncGit {
 
     public SyncGit(Path repo) {
         this.repo = repo;
+        this.documents = new DocumentStoreGit(repo);
     }
 
     /** What {@link #fetch} found. */
@@ -55,8 +53,11 @@ public final class SyncGit {
     /**
      * Brings the fetched remote branch into HEAD unless HEAD already holds it: a fast-forward, or a
      * merge left uncommitted for {@link #commit}. The snapshot files take our side, as the caller
-     * rewrites them from the merged graph; other files merge as git merges them. The snapshot files
-     * go back to HEAD first, so a sync that stopped half-way does not block the merge.
+     * rewrites them from the merged graph; {@code .gitattributes} keeps the lines of both sides;
+     * other files merge as git merges them. The snapshot files go back to HEAD first, so a sync
+     * that stopped half-way does not block the merge. The document store is committed first: git
+     * refuses to merge over a local file the remote also brings (a new {@code .gitattributes}, the
+     * same blob added on both machines), and only a committed {@code .gitattributes} merges.
      *
      * @return the snapshot of the remote branch; empty if the remote has no such branch yet
      * @throws IOException if its snapshot cannot be read or git cannot merge; a merge is aborted
@@ -75,6 +76,8 @@ public final class SyncGit {
         Snapshot theirs = SnapshotHistory.read(repo, remote);
         if (!git("merge-base", "--is-ancestor", remote, "HEAD").ok()) {
             git("checkout", "--quiet", "HEAD", "--", NODES, EDGES);
+            documents.commitAlone();
+            documents.mergeByUnion();
             // git asks for a committer identity even for a merge it does not commit.
             if (!git(SystemGit.asServer("merge", "--quiet", "--no-commit", "-X", "ours", remote))
                     .ok()) {
@@ -94,15 +97,7 @@ public final class SyncGit {
     public Staged stage(Snapshot snapshot) throws IOException {
         SnapshotFormat.write(repo.resolve("snapshot"), snapshot);
         require(git("add", "--", NODES, EDGES), "git add of the snapshot failed");
-        // git refuses a path that matches nothing, so only those that exist.
-        List<String> present =
-                DOCUMENT_STORE.stream().filter(path -> Files.exists(repo.resolve(path))).toList();
-        if (!present.isEmpty()) {
-            List<String> add = new ArrayList<>(List.of("add", "--all", "--"));
-            add.addAll(present);
-            add.add(NOT_TMP);
-            require(git(add.toArray(String[]::new)), "git add of the document store failed");
-        }
+        documents.stage();
         return new Staged(stagedRows(NODES), stagedRows(EDGES));
     }
 
@@ -115,13 +110,7 @@ public final class SyncGit {
      */
     public @Nullable String commit() throws IOException {
         boolean merging = git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").ok();
-        // A commit of paths refuses one git does not know, so only the store paths with changes.
-        List<String> store = new ArrayList<>();
-        for (String path : DOCUMENT_STORE) {
-            if (!git("diff", "--cached", "--quiet", "--", path).ok()) {
-                store.add(path);
-            }
-        }
+        List<String> store = documents.staged();
         if (!merging
                 && store.isEmpty()
                 && git("diff", "--cached", "--quiet", "--", NODES, EDGES).ok()) {
@@ -134,7 +123,7 @@ public final class SyncGit {
         if (!merging) {
             commit.addAll(List.of("--", NODES, EDGES));
             commit.addAll(store);
-            commit.add(NOT_TMP);
+            commit.add(DocumentStoreGit.NOT_TMP);
         }
         require(
                 git(SystemGit.asServer(commit.toArray(String[]::new))),
@@ -181,7 +170,7 @@ public final class SyncGit {
         return SystemGit.run(repo, false, args);
     }
 
-    private static void require(SystemGit.Result result, String message) throws IOException {
+    static void require(SystemGit.Result result, String message) throws IOException {
         if (!result.ok()) {
             throw new IOException(message);
         }

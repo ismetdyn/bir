@@ -2,6 +2,9 @@ package io.github.ismetdyn.agentkb.server.mcp.archfixture;
 
 import io.github.ismetdyn.agentkb.server.graph.archfixture.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.secrets.archfixture.FakeSecretService;
+import io.github.ismetdyn.agentkb.server.write.SecretWrite;
+import java.util.List;
+import org.neo4j.graphdb.Transaction;
 
 /** Classes under the mcp package for ArchitectureRulesTest. Only their class files are read. */
 public final class McpFixtures {
@@ -12,6 +15,12 @@ public final class McpFixtures {
 
     public static final class UsesSecretService {
         FakeSecretService secrets;
+    }
+
+    public static final class UsesSecretWrite {
+        List<String> call(Transaction tx) {
+            return SecretWrite.storedValues(tx);
+        }
     }
 
     public static final class CallsStoreWrite {

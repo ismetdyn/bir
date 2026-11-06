@@ -54,6 +54,33 @@ class DocumentLfsTest extends DocumentControllerTestBase {
                 .doesNotContain("lfs");
     }
 
+    /**
+     * Tracked before the move (CP2 J1): a blob over the threshold that git-lfs could not track
+     * would be committed raw by the next kb sync, and history is never rewritten. Here git lfs
+     * fails because the repository's {@code .git} is moved aside for the call.
+     */
+    @Test
+    void a_blob_git_lfs_cannot_track_never_reaches_blobs() throws Exception {
+        Assumptions.assumeTrue(UploadControllerHttp.gitLfsPresent(), "not run: git-lfs missing");
+        Path repo = committedRepo();
+        byte[] content = new byte[OVER_LFS_THRESHOLD];
+        byte[] text = uniqueText();
+        System.arraycopy(text, 0, content, 0, text.length);
+        String sha = documents.upload(content);
+        Path git = repo.resolve(".git");
+        Path aside = Files.move(git, repo.resolve(".git-aside"));
+        try {
+            HttpResponse<String> reply = documents.complete(sha, NAME);
+
+            assertThat(reply.statusCode()).as(reply.body()).isEqualTo(500);
+            assertThat(blobFiles(sha)).as("nothing under blobs/ for git to commit raw").isEmpty();
+            assertThat(stagedFiles(sha)).as("the upload is kept for a retry").hasSize(1);
+            assertThat(documentNodes(sha)).isEmpty();
+        } finally {
+            Files.move(aside, git);
+        }
+    }
+
     @Test
     void a_document_under_the_threshold_is_not_tracked_by_git_lfs() throws Exception {
         Assumptions.assumeTrue(UploadControllerHttp.gitLfsPresent(), "not run: git-lfs missing");

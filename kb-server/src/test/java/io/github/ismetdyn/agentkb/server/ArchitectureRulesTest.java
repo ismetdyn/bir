@@ -30,6 +30,7 @@ import io.github.ismetdyn.agentkb.server.scan.archfixture.ScanReachesMcp;
 import io.github.ismetdyn.agentkb.server.signals.archfixture.SignalsReachesHooks;
 import io.github.ismetdyn.agentkb.server.snapshot.archfixture.SnapshotReachesApi;
 import io.github.ismetdyn.agentkb.server.snapshot.archfixture.SnapshotReachesWrite;
+import io.github.ismetdyn.agentkb.server.write.SecretWrite;
 import io.github.ismetdyn.agentkb.server.write.archfixture.WriteFixtures;
 import io.github.ismetdyn.agentkb.server.write.archfixture.WriteUsesApiRecord;
 import java.util.stream.Stream;
@@ -94,13 +95,17 @@ class ArchitectureRulesTest {
                     .should()
                     .dependOnClassesThat()
                     .resideInAnyPackage(ENTRY);
+    // SecretWrite hands out the stored values for the checks that refuse them.
     private static final ArchRule MCP_DOES_NOT_REACH_SECRET_VALUES =
             noClasses()
                     .that()
                     .resideInAPackage(MCP)
                     .should()
                     .dependOnClassesThat()
-                    .resideInAPackage(SECRETS);
+                    .resideInAPackage(SECRETS)
+                    .orShould()
+                    .dependOnClassesThat()
+                    .belongToAnyOf(SecretWrite.class);
     private static final ArchRule STORE_WRITE_ONLY_FROM_WRITE_PACKAGE =
             noClasses()
                     .that()
@@ -192,6 +197,7 @@ class ArchitectureRulesTest {
                 arguments(GRAPH_USERS_DO_NOT_KNOW_ENTRY_POINTS, SignalsReachesHooks.class),
                 arguments(GRAPH_USERS_DO_NOT_KNOW_ENTRY_POINTS, DocsReachesApi.class),
                 arguments(MCP_DOES_NOT_REACH_SECRET_VALUES, McpFixtures.UsesSecretService.class),
+                arguments(MCP_DOES_NOT_REACH_SECRET_VALUES, McpFixtures.UsesSecretWrite.class),
                 arguments(STORE_WRITE_ONLY_FROM_WRITE_PACKAGE, McpFixtures.CallsStoreWrite.class),
                 arguments(
                         STORE_WRITE_ONLY_FROM_WRITE_PACKAGE,
