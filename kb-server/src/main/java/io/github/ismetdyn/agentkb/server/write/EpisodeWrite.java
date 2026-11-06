@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.core.secret.SecretPatterns;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -38,19 +39,26 @@ public final class EpisodeWrite {
 
     /**
      * The stripped {@code sessionId} if it is a plain short id, the only kind an Episode is opened
-     * for; empty otherwise. Also the boundary check of the hook's session (checklist A1).
+     * for; empty otherwise, also when it looks like a secret (invariant 2). Also the boundary check
+     * of the hook's session (checklist A1).
      */
     public static Optional<String> sessionId(String sessionId) {
         String id = sessionId.strip();
-        return SESSION_PATTERN.matcher(id).matches() ? Optional.of(id) : Optional.empty();
+        return SESSION_PATTERN.matcher(id).matches() && !SecretPatterns.looksLikeSecret(id)
+                ? Optional.of(id)
+                : Optional.empty();
     }
 
-    /** {@code transcriptPath} if it is plain short text; null otherwise, so it is left out. */
+    /**
+     * {@code transcriptPath} if it is plain short text that does not look like a secret; null
+     * otherwise, so it is left out.
+     */
     static @Nullable String transcriptPath(@Nullable String transcriptPath) {
         return transcriptPath == null
                         || transcriptPath.isBlank()
                         || transcriptPath.length() > PATH_LIMIT
                         || transcriptPath.chars().anyMatch(Character::isISOControl)
+                        || SecretPatterns.looksLikeSecret(transcriptPath)
                 ? null
                 : transcriptPath;
     }

@@ -1,0 +1,7 @@
+# Test classpath only: classpath:/config/application.yml overrides these two keys of
+# src/main/resources/application.yml (Spring Boot config locations), so a server a test starts
+# without --agentkb.repo or --agentkb.data-dir never opens this machine's ~/kb or
+# ~/.local/share/agentkb (DefaultPathsTest). A blank repo loads and commits nothing.
+agentkb:
+  repo: ""
+  data-dir: target/test-data

@@ -4,8 +4,11 @@ import io.github.ismetdyn.agentkb.server.signals.PromptRing;
 import io.github.ismetdyn.agentkb.server.write.EpisodeWrite;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +41,7 @@ class HookController {
                     "session-start", "SessionStart",
                     "user-prompt-submit", "UserPromptSubmit",
                     "post-tool-use", "PostToolUse");
+    private static final Logger LOG = LoggerFactory.getLogger(HookController.class);
     private static final Set<String> CLIENTS = Set.of("claude", "codex");
     private static final JsonMapper JSON = JsonMapper.builder().build();
     // docs/MCP-TOOLS.md kb_brief, integrations/AGENT-RULES.md: the one line with the episode id.
@@ -102,15 +106,29 @@ class HookController {
      */
     private String sessionStart(String client, JsonNode payload) {
         String brief = briefs.forCwd(text(payload.path("cwd"))).orElse("");
-        return writes.openSession(
-                        client,
-                        text(payload.path("session_id")),
-                        text(payload.path("transcript_path")))
+        return openSession(client, payload)
                 .map(
                         episode ->
                                 (brief.isEmpty() ? "" : brief + "\n")
                                         + EPISODE_LINE.formatted(episode))
                 .orElse(brief);
+    }
+
+    /**
+     * Fail-open (ARCHITECTURE §11): a failed Episode write costs the Episode line, never the brief.
+     * Only the exception class is logged; its message may carry the session id or a path (invariant
+     * 10).
+     */
+    private Optional<String> openSession(String client, JsonNode payload) {
+        try {
+            return writes.openSession(
+                    client,
+                    text(payload.path("session_id")),
+                    text(payload.path("transcript_path")));
+        } catch (RuntimeException e) {
+            LOG.warn("event=episode_open_failed error={}", e.getClass().getName());
+            return Optional.empty();
+        }
     }
 
     /**

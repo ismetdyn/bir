@@ -3,6 +3,7 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.neo4j.graphdb.Result;
 import org.springframework.beans.factory.InitializingBean;
@@ -44,7 +45,13 @@ class SnapshotImporter implements InitializingBean {
         if (repo.isBlank() || !graphIsEmpty()) {
             return;
         }
-        writeService.importRecords(SnapshotFormat.read(Path.of(repo).resolve(SNAPSHOT_DIRECTORY)));
+        Path snapshot = Path.of(repo).resolve(SNAPSHOT_DIRECTORY);
+        // No snapshot/ at all is a first run (a repo without a sync yet); one with a file missing
+        // or broken is an error, which SnapshotFormat.read names.
+        if (!Files.isDirectory(snapshot)) {
+            return;
+        }
+        writeService.importRecords(SnapshotFormat.read(snapshot));
     }
 
     private boolean graphIsEmpty() {

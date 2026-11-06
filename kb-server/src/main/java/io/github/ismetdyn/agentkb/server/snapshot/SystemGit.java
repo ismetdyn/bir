@@ -19,6 +19,15 @@ final class SystemGit {
 
     // Only stops a hung git; fsck of a large repository takes a while.
     private static final long TIMEOUT_SECONDS = 300;
+    // A server commit has no terminal: a fixed identity, and no signing that could wait for a PIN.
+    private static final String[] COMMITTER = {
+        "-c",
+        "user.name=agentkb",
+        "-c",
+        "user.email=agentkb@localhost",
+        "-c",
+        "commit.gpgsign=false"
+    };
 
     /** {@code output} is stdout, with stderr appended when the caller asked for it. */
     record Result(int exitCode, String output) {
@@ -28,6 +37,14 @@ final class SystemGit {
     }
 
     private SystemGit() {}
+
+    /** {@code args} of a commit (sync, init) after the server's committer options. */
+    static String[] asServer(String... args) {
+        String[] all = new String[COMMITTER.length + args.length];
+        System.arraycopy(COMMITTER, 0, all, 0, COMMITTER.length);
+        System.arraycopy(args, 0, all, COMMITTER.length, args.length);
+        return all;
+    }
 
     /**
      * @param withErrors stderr goes into the output; otherwise it is discarded, as it may quote an

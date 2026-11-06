@@ -66,6 +66,30 @@ class StartupImportTest {
         }
     }
 
+    /** A repo kb init made before the first sync, or one without snapshot/ yet: a first run. */
+    @Test
+    void a_repo_without_a_snapshot_directory_starts_with_an_empty_graph() throws IOException {
+        Files.createDirectories(repo.resolve("schema"));
+
+        try (ConfigurableApplicationContext context = start()) {
+            EmbeddedNeo4jStore store = context.getBean(EmbeddedNeo4jStore.class);
+
+            assertThat(count(store, "MATCH (n) WHERE NOT n:Signal RETURN count(n) AS v")).isZero();
+        }
+    }
+
+    /** One of the two files missing is a broken snapshot, not an empty one. */
+    @Test
+    void a_snapshot_directory_missing_a_file_stops_startup_naming_the_file() throws IOException {
+        Path snapshot = Files.createDirectories(repo.resolve("snapshot"));
+        Files.copy(SEED_SNAPSHOT.resolve(NODES), snapshot.resolve(NODES));
+
+        Throwable failure = catchThrowable(() -> start().close());
+
+        assertThat(failure).as("the server started instead of refusing").isNotNull();
+        assertThat(messagesOf(failure)).contains(EDGES);
+    }
+
     @Test
     void an_edge_with_a_missing_endpoint_stops_startup_naming_the_edge() throws IOException {
         Path snapshot = Files.createDirectories(repo.resolve("snapshot"));

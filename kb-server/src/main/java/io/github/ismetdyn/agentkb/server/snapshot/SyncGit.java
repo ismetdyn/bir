@@ -18,16 +18,6 @@ public final class SyncGit {
     private static final String ORIGIN = "origin";
     private static final String NODES = "snapshot/" + SnapshotFormat.NODES_FILE;
     private static final String EDGES = "snapshot/" + SnapshotFormat.EDGES_FILE;
-    // A server commit has no terminal: a fixed identity, and no signing that could wait for a PIN.
-    private static final String[] COMMITTER = {
-        "-c",
-        "user.name=agentkb",
-        "-c",
-        "user.email=agentkb@localhost",
-        "-c",
-        "commit.gpgsign=false"
-    };
-
     private final Path repo;
     private @Nullable String branch;
 
@@ -70,6 +60,12 @@ public final class SyncGit {
         if (!git("rev-parse", "--verify", "--quiet", remote + "^{commit}").ok()) {
             return Optional.empty();
         }
+        if (!git("merge-base", "HEAD", remote).ok()) {
+            throw new IOException(
+                    "the remote branch has an unrelated history: it shares no commit with the"
+                            + " knowledge repository, so nothing was merged or pushed. Point origin"
+                            + " at this repository's own remote, or clone that remote again");
+        }
         Snapshot theirs = SnapshotHistory.read(repo, remote);
         if (!git("merge-base", "--is-ancestor", remote, "HEAD").ok()) {
             git("checkout", "--quiet", "HEAD", "--", NODES, EDGES);
@@ -90,20 +86,25 @@ public final class SyncGit {
     }
 
     /**
-     * Commits what {@link #stage} staged, and the merge {@link #mergeRemote} left open.
+     * Commits what {@link #stage} staged, and the merge {@link #mergeRemote} left open. Outside a
+     * merge only the two snapshot files are committed: other files the user staged stay staged.
      *
-     * @return the new commit; null if nothing changed and no merge was open
+     * @return the new commit; null if the snapshot did not change and no merge was open
      */
     public @Nullable String commit() throws IOException {
         boolean merging = git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").ok();
-        if (!merging && git("diff", "--cached", "--quiet").ok()) {
+        if (!merging && git("diff", "--cached", "--quiet", "--", NODES, EDGES).ok()) {
             return null;
         }
-        String[] commit = {"commit", "--quiet", "-m", "kb sync: snapshot"};
-        String[] args = new String[COMMITTER.length + commit.length];
-        System.arraycopy(COMMITTER, 0, args, 0, COMMITTER.length);
-        System.arraycopy(commit, 0, args, COMMITTER.length, commit.length);
-        require(git(args), "git commit of the snapshot failed");
+        // git refuses a commit of only some paths during a merge; a merge starts from a clean
+        // index, so then the index holds only the merge and the snapshot.
+        String[] commit =
+                merging
+                        ? new String[] {"commit", "--quiet", "-m", "kb sync: snapshot"}
+                        : new String[] {
+                            "commit", "--quiet", "-m", "kb sync: snapshot", "--", NODES, EDGES
+                        };
+        require(git(SystemGit.asServer(commit)), "git commit of the snapshot failed");
         return git("rev-parse", "HEAD").output().strip();
     }
 
@@ -112,7 +113,8 @@ public final class SyncGit {
      *     protects the branch)
      */
     public boolean push() throws IOException {
-        String head = branch();
+        // Full ref names: a branch named "+kb" must not become the forced refspec "+kb:+kb".
+        String head = "refs/heads/" + branch();
         return git("push", "--quiet", ORIGIN, head + ":" + head).ok();
     }
 
