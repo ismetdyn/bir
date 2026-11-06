@@ -155,8 +155,8 @@ class CheckServiceTest {
     private CheckService open(Path repo) throws IOException {
         store = new EmbeddedNeo4jStore(dir.resolve("data"));
         WriteService writes = new WriteService(store, new RepoSchema(repo.toString()));
-        writes.ensureSchema();
-        writes.importRecords(SnapshotFormat.read(repo.resolve("snapshot")));
+        writes.maintenance().ensureSchema();
+        writes.maintenance().importRecords(SnapshotFormat.read(repo.resolve("snapshot")));
         return new CheckService(store, repo.toString());
     }
 

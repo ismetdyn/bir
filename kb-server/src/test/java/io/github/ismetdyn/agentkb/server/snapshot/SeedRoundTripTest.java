@@ -24,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.neo4j.graphdb.GraphDatabaseService;
 
 /**
- * G4: seed/snapshot goes into the graph through WriteService.importRecords and comes back out
+ * G4: seed/snapshot goes into the graph through GraphMaintenance.importRecords and comes back out
  * through SnapshotExporter unchanged (ADR-0022 decision 9, invariants 8 and 11).
  */
 class SeedRoundTripTest {
@@ -42,6 +42,7 @@ class SeedRoundTripTest {
     void importSeed() throws IOException {
         store = new EmbeddedNeo4jStore(dataDir);
         new WriteService(store, new RepoSchema(""))
+                .maintenance()
                 .importRecords(SnapshotFormat.read(SEED_SNAPSHOT));
     }
 

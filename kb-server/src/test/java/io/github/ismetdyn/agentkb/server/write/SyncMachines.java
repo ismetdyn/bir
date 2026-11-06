@@ -60,7 +60,7 @@ final class SyncMachines implements AutoCloseable {
     /** A machine on an existing {@code kb} repo; its graph holds the seed. */
     Machine open(String name, Path kb) throws IOException {
         WriteHarness graph = WriteHarness.open(dir.resolve(name));
-        graph.writes.importRecords(SnapshotRepos.seed());
+        graph.writes.maintenance().importRecords(SnapshotRepos.seed());
         Machine machine = new Machine(graph, kb);
         opened.add(machine);
         return machine;

@@ -21,7 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * When {@code WriteService.revert(batch)} refuses (BatchRevertTest has the contract): a {@link
+ * When {@code GraphMaintenance.revert(batch)} refuses (BatchRevertTest has the contract): a {@link
  * WriteRejectedException} with message and hint (REST and MCP turn it into {error, hint}), and
  * nothing changes, signals and every property included. No partial revert: a batch whose records a
  * later batch built on is refused whole, and the hint names the later batch, which goes first.
@@ -60,7 +60,7 @@ class BatchRevertRefusalTest {
 
     @Test
     void a_reverted_batch_is_gone_so_a_second_revert_is_refused() {
-        graph.writes.revert(UNDONE);
+        graph.writes.maintenance().revert(UNDONE);
         Map<String, Object> before = graph.state();
 
         WriteRejectedException refused = refusedRevert(UNDONE);
@@ -84,8 +84,8 @@ class BatchRevertRefusalTest {
         assertThat(graph.state()).isEqualTo(before);
         assertThat(graph.revertMarkers(UNDONE)).as("a refused revert leaves no marker").isEmpty();
 
-        graph.writes.revert(LATER);
-        graph.writes.revert(UNDONE);
+        graph.writes.maintenance().revert(LATER);
+        graph.writes.maintenance().revert(UNDONE);
         assertThat(graph.stateWithoutRevertMarkers()).as("both reverted in order").isEmpty();
         assertThat(graph.revertMarkers(UNDONE)).as("decision 42").containsExactly(UNDONE);
     }
@@ -130,15 +130,16 @@ class BatchRevertRefusalTest {
         assertThat(refused.hint()).contains(LATER);
         assertThat(graph.state()).isEqualTo(before);
 
-        graph.writes.revert(LATER);
-        graph.writes.revert(disputed);
+        graph.writes.maintenance().revert(LATER);
+        graph.writes.maintenance().revert(disputed);
         assertThat(graph.openFacts(entity, "os", PROD)).as("both reverted in order").isEmpty();
     }
 
     private WriteRejectedException refusedRevert(String batch) {
         WriteRejectedException refused =
                 catchThrowableOfType(
-                        WriteRejectedException.class, () -> graph.writes.revert(batch));
+                        WriteRejectedException.class,
+                        () -> graph.writes.maintenance().revert(batch));
         assertThat(refused).as("revert of %s was not refused", batch).isNotNull();
         return refused;
     }

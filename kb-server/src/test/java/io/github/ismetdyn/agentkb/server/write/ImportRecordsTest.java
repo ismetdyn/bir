@@ -20,8 +20,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * WriteService.importRecords: lossless (invariant 11), no validation, one transaction. Limits from
- * ARCHITECTURE §4: summary 300, text fact 500, body 4,000 characters.
+ * GraphMaintenance.importRecords: lossless (invariant 11), no validation, one transaction. Limits
+ * from ARCHITECTURE §4: summary 300, text fact 500, body 4,000 characters.
  */
 class ImportRecordsTest {
 
@@ -107,7 +107,7 @@ class ImportRecordsTest {
                         Map.of("updated_at", AT));
         Snapshot input = new Snapshot(List.of(entity, fact, lesson), List.of(hasFact, unknownType));
 
-        writeService.importRecords(input);
+        writeService.maintenance().importRecords(input);
 
         Snapshot exported = new SnapshotExporter(store).export();
         assertThat(exported.nodes()).containsExactlyInAnyOrderElementsOf(input.nodes());
@@ -131,9 +131,12 @@ class ImportRecordsTest {
 
         assertThatThrownBy(
                         () ->
-                                writeService.importRecords(
-                                        new Snapshot(
-                                                List.of(first, second), List.of(valid, orphan))))
+                                writeService
+                                        .maintenance()
+                                        .importRecords(
+                                                new Snapshot(
+                                                        List.of(first, second),
+                                                        List.of(valid, orphan))))
                 .hasMessageContaining(ORPHAN_EDGE_ID)
                 .hasMessageContaining(MISSING_NODE);
 
@@ -146,9 +149,12 @@ class ImportRecordsTest {
         Node node = new Node("node-a", List.of("Topic"), Map.of("updated_at", AT));
         Edge orphan = new Edge(ORPHAN_EDGE_ID, "ABOUT", "node-a", MISSING_NODE, Map.of());
         assertThatThrownBy(
-                () -> writeService.importRecords(new Snapshot(List.of(node), List.of(orphan))));
+                () ->
+                        writeService
+                                .maintenance()
+                                .importRecords(new Snapshot(List.of(node), List.of(orphan))));
 
-        writeService.importRecords(new Snapshot(List.of(node), List.of()));
+        writeService.maintenance().importRecords(new Snapshot(List.of(node), List.of()));
 
         assertThat(count("MATCH (n:Topic {id: 'node-a'}) RETURN count(n) AS v")).isEqualTo(1);
     }
@@ -168,7 +174,7 @@ class ImportRecordsTest {
                                 "updated_at",
                                 AT));
 
-        writeService.importRecords(new Snapshot(List.of(secret), List.of()));
+        writeService.maintenance().importRecords(new Snapshot(List.of(secret), List.of()));
 
         assertThat(count("MATCH (s:Secret) WHERE s.secret_value IS NOT NULL RETURN count(s) AS v"))
                 .isZero();

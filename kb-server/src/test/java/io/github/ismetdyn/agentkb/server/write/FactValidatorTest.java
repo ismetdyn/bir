@@ -183,7 +183,7 @@ class FactValidatorTest {
         }
         Snapshot input = new Snapshot(nodes, edges);
 
-        graph.writes.importRecords(input);
+        graph.writes.maintenance().importRecords(input);
 
         Snapshot exported = new SnapshotExporter(graph.store).export();
         assertThat(exported.nodes()).containsExactlyInAnyOrderElementsOf(input.nodes());

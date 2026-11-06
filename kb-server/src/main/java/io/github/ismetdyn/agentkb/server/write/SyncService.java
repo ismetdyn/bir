@@ -153,7 +153,7 @@ public class SyncService implements DisposableBean {
     private Round commitRound(SyncGit git, @Nullable Snapshot theirs) throws IOException {
         SnapshotExporter exporter = new SnapshotExporter(store);
         int conflicts =
-                theirs == null ? 0 : writes.maintenance.mergeSnapshot(exporter.export(), theirs);
+                theirs == null ? 0 : writes.maintenance().mergeSnapshot(exporter.export(), theirs);
         Snapshot exported = exporter.export();
         SyncGit.Staged staged = git.stage(exported);
         long nodes = count(NODE_COUNT);

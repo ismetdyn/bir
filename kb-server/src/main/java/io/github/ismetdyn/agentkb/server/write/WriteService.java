@@ -3,7 +3,6 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.core.Times;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
-import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Snapshot;
 import io.github.ismetdyn.agentkb.server.write.WriteCheck.Checked;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * The only writer of the graph (invariant 1): new knowledge here, the writes on the graph as a
- * whole through {@link #maintenance}.
+ * whole through {@link #maintenance()}, which only this class creates.
  */
 @Component
 public class WriteService {
@@ -32,13 +31,17 @@ public class WriteService {
     // Vocabulary types that already have their id constraint in this process (RelationWriteTest).
     private final Set<String> constrainedTypes = ConcurrentHashMap.newKeySet();
 
-    /** Schema, import, revert, restore and sync merge; reached by this package only. */
-    final GraphMaintenance maintenance;
+    private final GraphMaintenance maintenance;
 
     public WriteService(EmbeddedNeo4jStore store, RepoSchema schema) {
         this.store = store;
         this.schema = schema;
         this.maintenance = new GraphMaintenance(store, schema);
+    }
+
+    /** Schema, import, revert, restore and sync merge: the writes on the graph as a whole. */
+    public GraphMaintenance maintenance() {
+        return maintenance;
     }
 
     /**
@@ -202,43 +205,5 @@ public class WriteService {
                                         SecretWrite.maskStoredValues(tx, payload, MASK),
                                         seen))
                 != null;
-    }
-
-    /**
-     * Creates the fixed schema and brings the fulltext index to its current definition; called on
-     * every start, whatever the graph holds (GraphSchema).
-     */
-    public void ensureSchema() {
-        maintenance.ensureSchema();
-    }
-
-    /**
-     * Loads snapshot rows as they are: no schema, key or length checks and {@code updated_at} kept
-     * (invariant 11), all rows in one transaction; only an {@code id} or secret_value prop is
-     * ignored (RecordImport, invariant 2). Fails, leaving the data unchanged, only when a row
-     * cannot exist in a graph: a duplicate id or an edge whose endpoint is missing.
-     */
-    public void importRecords(Snapshot snapshot) {
-        maintenance.importRecords(snapshot);
-    }
-
-    /**
-     * {@code kb revert --batch <id>} (BatchRevert): deletes what the batch opened and reopens what
-     * it closed, in one transaction.
-     *
-     * @throws WriteRejectedException if the batch is empty or unknown, or a later batch built on
-     *     it; nothing changed
-     */
-    public RevertResult revert(@Nullable String batch) {
-        return maintenance.revert(batch);
-    }
-
-    /**
-     * {@code kb restore} (RecordRestore): rebuilds the graph from {@code snapshot} in one
-     * transaction, keeping local data (ADR-0022 decision 38). Rows are taken as they are (invariant
-     * 11). Fails, leaving the graph unchanged, only when a row cannot exist in a graph.
-     */
-    public RestoreResult replaceAll(Snapshot snapshot) {
-        return maintenance.replaceAll(snapshot);
     }
 }

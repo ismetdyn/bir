@@ -57,8 +57,8 @@ class SyncConsistencyTest {
     /** A's user value and B's newer agent value: trust decides, not time. */
     @Test
     void two_new_values_of_one_slot_are_both_kept_and_the_lower_trust_one_becomes_a_conflict() {
-        a.graph.writes.importRecords(slotWith("A", "zz-os-a", "user", OLDER));
-        b.graph.writes.importRecords(slotWith("B", "zz-os-b", "agent", NEWER));
+        a.graph.writes.maintenance().importRecords(slotWith("A", "zz-os-a", "user", OLDER));
+        b.graph.writes.maintenance().importRecords(slotWith("B", "zz-os-b", "agent", NEWER));
 
         syncAThenBThenA();
 
@@ -79,8 +79,8 @@ class SyncConsistencyTest {
 
     @Test
     void two_new_values_of_one_slot_with_equal_trust_keep_the_newer_current_and_open_a_signal() {
-        a.graph.writes.importRecords(slotWith("A", "zz-os-a", "user", OLDER));
-        b.graph.writes.importRecords(slotWith("B", "zz-os-b", "user", NEWER));
+        a.graph.writes.maintenance().importRecords(slotWith("A", "zz-os-a", "user", OLDER));
+        b.graph.writes.maintenance().importRecords(slotWith("B", "zz-os-b", "user", NEWER));
 
         syncAThenBThenA();
 

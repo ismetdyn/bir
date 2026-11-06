@@ -41,7 +41,7 @@ class SnapshotImporter implements InitializingBean {
     public void afterPropertiesSet() throws IOException {
         // On every start: a fresh install has no snapshot, and a changed definition must reach an
         // existing graph.
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
         if (repo.isBlank() || !graphIsEmpty()) {
             return;
         }
@@ -51,7 +51,7 @@ class SnapshotImporter implements InitializingBean {
         if (!Files.isDirectory(snapshot)) {
             return;
         }
-        writeService.importRecords(SnapshotFormat.read(snapshot));
+        writeService.maintenance().importRecords(SnapshotFormat.read(snapshot));
     }
 
     private boolean graphIsEmpty() {

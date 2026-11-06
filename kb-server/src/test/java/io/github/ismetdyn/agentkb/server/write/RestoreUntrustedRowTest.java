@@ -36,7 +36,7 @@ class RestoreUntrustedRowTest {
     @BeforeEach
     void seedGraph() throws IOException {
         graph = WriteHarness.open(dir);
-        graph.writes.importRecords(SnapshotRepos.seed());
+        graph.writes.maintenance().importRecords(SnapshotRepos.seed());
     }
 
     @AfterEach
@@ -52,7 +52,9 @@ class RestoreUntrustedRowTest {
                         .toList();
 
         RestoreResult result =
-                graph.writes.replaceAll(new Snapshot(nodes, SnapshotRepos.seed().edges()));
+                graph.writes
+                        .maintenance()
+                        .replaceAll(new Snapshot(nodes, SnapshotRepos.seed().edges()));
 
         assertThat(graph.state().toString()).doesNotContain(PLANTED);
         assertThat(holders(SEED_SECRET)).containsExactly("ornek-app-01");

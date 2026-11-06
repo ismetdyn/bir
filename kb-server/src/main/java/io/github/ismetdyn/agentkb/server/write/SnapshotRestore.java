@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * {@code kb restore [--at <commit>]} (SPEC §10, ARCHITECTURE §8): the snapshot of a commit of
- * {@code <agentkb.repo>} through {@link WriteService#replaceAll}. A commit that cannot be read, or
- * whose snapshot cannot become a graph, is a refusal with a hint, and the graph is not touched.
+ * {@code <agentkb.repo>} through {@link GraphMaintenance#replaceAll}. A commit that cannot be read,
+ * or whose snapshot cannot become a graph, is a refusal with a hint, and the graph is not touched.
  * Lives in {@code write} for the same reason as SnapshotImporter: {@code write} may use {@code
  * snapshot}, not the other way round.
  */
@@ -53,7 +53,7 @@ public class SnapshotRestore {
             throw new WriteRejectedException(e.getMessage(), HINT);
         }
         try {
-            return writes.replaceAll(snapshot);
+            return writes.maintenance().replaceAll(snapshot);
         } catch (IllegalArgumentException e) {
             // RecordImport's own message: it names a record id of the snapshot, never a value.
             throw new WriteRejectedException(

@@ -57,7 +57,7 @@ final class ScanHarness implements AutoCloseable {
         Path root = Files.createDirectories(dir.resolve("projects"));
         EmbeddedNeo4jStore store = new EmbeddedNeo4jStore(dir.resolve("data"));
         WriteService writes = new WriteService(store, new RepoSchema(repo.toString()));
-        writes.ensureSchema();
+        writes.maintenance().ensureSchema();
         ScannerService scanner =
                 new ScannerService(
                         writes, new ScanProperties(List.of(root), List.of(INTERNAL_DOMAIN)));

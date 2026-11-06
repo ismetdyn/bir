@@ -36,6 +36,7 @@ class SeedFulltextTest {
     static void importSeedAndFindIndex() throws IOException {
         store = new EmbeddedNeo4jStore(dataDir);
         new WriteService(store, new RepoSchema(""))
+                .maintenance()
                 .importRecords(SnapshotFormat.read(SEED_SNAPSHOT));
         index = entitySummaryIndexWithStandardFolding(store.database());
     }

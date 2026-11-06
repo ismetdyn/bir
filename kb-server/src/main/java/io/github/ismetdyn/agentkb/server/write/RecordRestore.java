@@ -17,7 +17,7 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 
 /**
- * {@link WriteService#replaceAll} in its one transaction (SPEC §10, ARCHITECTURE §8, ADR-0022
+ * {@link GraphMaintenance#replaceAll} in its one transaction (SPEC §10, ARCHITECTURE §8, ADR-0022
  * decision 38). Local data is set aside first and put back after the snapshot is loaded: every
  * Signal and every Secret the snapshot lacks stay as they are, the value of a Secret the snapshot
  * has moves onto its new node. An edge of a kept record to a record that goes is put back when the

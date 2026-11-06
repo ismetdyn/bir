@@ -89,7 +89,7 @@ class MaintenanceController {
                             + " letters, digits, '.', '_', ':' or '-')",
                     "Give the batch id a write returned, e.g. kb revert --batch <id>.");
         }
-        return ApiAnswers.of(writes.revert(batch));
+        return ApiAnswers.of(writes.maintenance().revert(batch));
     }
 
     @PostMapping("/api/v1/restore")

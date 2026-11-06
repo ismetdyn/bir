@@ -76,7 +76,7 @@ class EpisodeSnapshotTest extends RunningServerTestBase {
                                 assertThat(edge.props())
                                         .containsEntry("episode", session.episode()));
 
-        writes.replaceAll(before);
+        writes.maintenance().replaceAll(before);
 
         assertThat(new SnapshotExporter(store).export()).isEqualTo(before);
         assertThat(probe.episode(session.episode())).isPresent();

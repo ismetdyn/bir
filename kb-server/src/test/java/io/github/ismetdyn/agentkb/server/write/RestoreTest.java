@@ -32,7 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@code kb restore [--at <commit>]} (SPEC §10, ARCHITECTURE §8, ADR-0022 decision 38): {@code
- * WriteService.replaceAll(snapshot)} rebuilds the graph from the snapshot in one transaction
+ * GraphMaintenance.replaceAll(snapshot)} rebuilds the graph from the snapshot in one transaction
  * (invariant 1) and gives {@code RestoreResult(nodes, edges, keptSecrets, keptSignals,
  * droppedEdges)}. Local data stays: every Signal, every secret_value, a Secret the snapshot lacks;
  * an edge of a kept record whose other end the snapshot lacks is the only thing that goes. Rows are
@@ -65,7 +65,7 @@ class RestoreTest {
     @BeforeEach
     void seedGraph() throws IOException {
         graph = WriteHarness.open(dir);
-        graph.writes.importRecords(SnapshotRepos.seed());
+        graph.writes.maintenance().importRecords(SnapshotRepos.seed());
     }
 
     @AfterEach
@@ -84,7 +84,7 @@ class RestoreTest {
                 .extracting(f -> f.get("value"))
                 .containsExactly("Rocky Linux 10");
 
-        RestoreResult result = graph.writes.replaceAll(SnapshotRepos.seed());
+        RestoreResult result = graph.writes.maintenance().replaceAll(SnapshotRepos.seed());
 
         SnapshotFormat.write(out, new SnapshotExporter(graph.store).export());
         for (String file : List.of(SnapshotFormat.NODES_FILE, SnapshotFormat.EDGES_FILE)) {
@@ -123,7 +123,7 @@ class RestoreTest {
         List<Map<String, Object>> signals = graph.rows(SIGNALS, Map.of());
         assertThat(signals).as("precondition").hasSize(2);
 
-        RestoreResult result = graph.writes.replaceAll(SnapshotRepos.seed());
+        RestoreResult result = graph.writes.maintenance().replaceAll(SnapshotRepos.seed());
 
         assertThat(property(SEED_SECRET, SECRET_VALUE)).isEqualTo(VALUE);
         assertThat(property(NEW_SECRET, SECRET_VALUE)).isEqualTo(NEW_VALUE);
@@ -149,7 +149,8 @@ class RestoreTest {
         signalAbout(SIGNAL_ON_LB, "ornek-lb");
         signalAbout(SIGNAL_ON_APP, "ornek-app-01");
 
-        RestoreResult result = graph.writes.replaceAll(SnapshotHistory.read(repo, "HEAD~1"));
+        RestoreResult result =
+                graph.writes.maintenance().replaceAll(SnapshotHistory.read(repo, "HEAD~1"));
 
         assertThat(property(LB_SECRET, SECRET_VALUE)).isEqualTo(LB_VALUE);
         assertThat(ids(HOLDER, LB_SECRET)).isEmpty();
@@ -216,7 +217,7 @@ class RestoreTest {
                         "01KBTESTLONGFACT0000000001",
                         Map.of("updated_at", "2026-10-01T09:00:00Z")));
 
-        graph.writes.replaceAll(new Snapshot(nodes, edges));
+        graph.writes.maintenance().replaceAll(new Snapshot(nodes, edges));
 
         assertThat(property("kbtest-long", "summary")).isEqualTo(longSummary);
         assertThat(property("01KBTESTLONGFACT0000000001", "value")).isEqualTo(longValue);
@@ -242,7 +243,7 @@ class RestoreTest {
                         Map.of()));
         Snapshot broken = new Snapshot(SnapshotRepos.seed().nodes(), edges);
 
-        assertThatThrownBy(() -> graph.writes.replaceAll(broken))
+        assertThatThrownBy(() -> graph.writes.maintenance().replaceAll(broken))
                 .isInstanceOf(RuntimeException.class);
 
         assertThat(graph.state()).isEqualTo(before);

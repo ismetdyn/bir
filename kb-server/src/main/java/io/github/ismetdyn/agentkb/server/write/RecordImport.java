@@ -15,8 +15,8 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 
 /**
- * The rows of {@link WriteService#importRecords} and {@link WriteService#replaceAll} as graph
- * records, in the caller's one transaction.
+ * The rows of {@link GraphMaintenance#importRecords} and {@link GraphMaintenance#replaceAll} as
+ * graph records, in the caller's one transaction.
  */
 final class RecordImport {
 

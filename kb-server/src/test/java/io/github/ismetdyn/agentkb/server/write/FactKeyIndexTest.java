@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.neo4j.graphdb.GraphDatabaseService;
 
 /**
- * WriteService.ensureSchema indexes Fact.key, so RequestWrite's address lookup seeks instead of
+ * GraphMaintenance.ensureSchema indexes Fact.key, so RequestWrite's address lookup seeks instead of
  * reading every Fact. Fact.value and Entity.aliases stay unindexed: a range index refuses a value
  * above its key limit (~8 kB), and import and the scanner do not cap values (invariant 11).
  */
@@ -28,7 +28,7 @@ class FactKeyIndexTest {
     void openStore() {
         store = new EmbeddedNeo4jStore(dataDir);
         // No repo: ensuring the schema needs no schema files.
-        new WriteService(store, new RepoSchema("")).ensureSchema();
+        new WriteService(store, new RepoSchema("")).maintenance().ensureSchema();
     }
 
     @AfterEach

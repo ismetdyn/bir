@@ -20,9 +20,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@code kb revert --batch <id>} (ARCHITECTURE §5, ADR-0022 decisions 10 and 22-23, invariant 5):
- * {@code WriteService.revert(batch)} deletes every record the batch opened and reopens every record
- * it closed (found through SUPERSEDES), in one transaction, and gives {@code RevertResult(batch,
- * deleted, reopened)}. Signals are never deleted. Refusals: BatchRevertRefusalTest.
+ * {@code GraphMaintenance.revert(batch)} deletes every record the batch opened and reopens every
+ * record it closed (found through SUPERSEDES), in one transaction, and gives {@code
+ * RevertResult(batch, deleted, reopened)}. Signals are never deleted. Refusals:
+ * BatchRevertRefusalTest.
  *
  * <p>updated_at is left out of the comparison: it is the technical sync time and a revert writes a
  * new one on what it reopens (BatchRevertReadinessTest). So is the RevertedBatch node a revert
@@ -106,8 +107,8 @@ class BatchRevertTest {
         assertThat(graph.state(UPDATED_AT)).as("precondition").isNotEqualTo(before);
         assertThat(proposalBatch).as("precondition").isNotEqualTo(UNDONE);
 
-        RevertResult proposalRevert = graph.writes.revert(proposalBatch);
-        RevertResult result = graph.writes.revert(UNDONE);
+        RevertResult proposalRevert = graph.writes.maintenance().revert(proposalBatch);
+        RevertResult result = graph.writes.maintenance().revert(UNDONE);
 
         assertThat(graph.stateWithoutRevertMarkers(UPDATED_AT)).isEqualTo(before);
         assertThat(graph.revertMarkers(UNDONE)).as("decision 42").containsExactly(UNDONE);
@@ -129,7 +130,7 @@ class BatchRevertTest {
         List<Map<String, Object>> signals = signals();
         assertThat(signals).as("precondition: the conflict raised a signal").hasSize(1);
 
-        graph.writes.revert(UNDONE);
+        graph.writes.maintenance().revert(UNDONE);
 
         assertThat(signals()).isEqualTo(signals);
         assertThat(graph.openFacts(HOST, "hostname", PROD))

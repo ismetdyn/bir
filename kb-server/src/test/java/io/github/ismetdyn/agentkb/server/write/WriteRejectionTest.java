@@ -123,10 +123,16 @@ class WriteRejectionTest {
     /** Lead decision (todo G7): ids are unique across every label, which Neo4j cannot enforce. */
     @Test
     void an_entity_id_held_by_a_record_of_another_label_is_rejected() {
-        graph.writes.importRecords(
-                new Snapshot(
-                        List.of(new Node("zz-taken", List.of("Lesson"), Map.of("title", "t"))),
-                        List.of()));
+        graph.writes
+                .maintenance()
+                .importRecords(
+                        new Snapshot(
+                                List.of(
+                                        new Node(
+                                                "zz-taken",
+                                                List.of("Lesson"),
+                                                Map.of("title", "t"))),
+                                List.of()));
         Map<String, Object> before = graph.state();
 
         WriteRejectedException rejected =
@@ -147,18 +153,20 @@ class WriteRejectionTest {
     /** ARCHITECTURE §5 step 2: an alias, in any case, finds the entity; nothing new is created. */
     @Test
     void an_alias_in_another_case_resolves_to_the_existing_entity() {
-        graph.writes.importRecords(
-                new Snapshot(
-                        List.of(
-                                new Node(
-                                        "zz-aliased",
-                                        List.of("Entity", "Server"),
-                                        Map.of(
-                                                "aliases",
-                                                List.of("zz-alias-one"),
-                                                "status",
-                                                "current"))),
-                        List.of()));
+        graph.writes
+                .maintenance()
+                .importRecords(
+                        new Snapshot(
+                                List.of(
+                                        new Node(
+                                                "zz-aliased",
+                                                List.of("Entity", "Server"),
+                                                Map.of(
+                                                        "aliases",
+                                                        List.of("zz-alias-one"),
+                                                        "status",
+                                                        "current"))),
+                                List.of()));
 
         WriteResult result =
                 graph.write(untyped(Source.USER, "ZZ-ALIAS-ONE", T2, fact("os", "rhel 9", PROD)));

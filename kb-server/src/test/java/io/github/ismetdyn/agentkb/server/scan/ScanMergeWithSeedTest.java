@@ -49,7 +49,7 @@ class ScanMergeWithSeedTest {
                 .as("merge_with_seed has the six lines this class checks, one test each")
                 .isEqualTo(6);
         harness = ScanHarness.open(dir);
-        harness.writes.importRecords(SnapshotFormat.read(SEED_SNAPSHOT));
+        harness.writes.maintenance().importRecords(SnapshotFormat.read(SEED_SNAPSHOT));
         for (String entity : List.of("ornek-app-01", "ornek-db", PROJECT)) {
             harness.rows(
                             "MATCH (:Entity {id: $entity})-[:HAS_FACT]->(f:Fact)"

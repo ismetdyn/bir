@@ -12,10 +12,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * The writes that keep the graph as a whole rather than add knowledge to it: schema, snapshot
  * import, {@code kb revert}, {@code kb restore} and {@code kb sync}'s merge. Only {@link
- * WriteService} makes one and reaches it (invariant 1); it writes through the same store, so under
- * the same writer lock. The contracts are on WriteService's methods.
+ * WriteService} creates it and hands it out through {@link WriteService#maintenance()}, so the
+ * single writer stays the one entry (invariant 1); it writes through the same store, so under the
+ * same writer lock.
  */
-final class GraphMaintenance {
+public final class GraphMaintenance {
 
     private final EmbeddedNeo4jStore store;
     private final RepoSchema schema;
@@ -25,16 +26,33 @@ final class GraphMaintenance {
         this.schema = schema;
     }
 
-    void ensureSchema() {
+    /**
+     * Creates the fixed schema and brings the fulltext index to its current definition; called on
+     * every start, whatever the graph holds (GraphSchema).
+     */
+    public void ensureSchema() {
         GraphSchema.ensure(store, Set.of(), Set.of());
     }
 
-    void importRecords(Snapshot snapshot) {
+    /**
+     * Loads snapshot rows as they are: no schema, key or length checks and {@code updated_at} kept
+     * (invariant 11), all rows in one transaction; only an {@code id} or secret_value prop is
+     * ignored (RecordImport, invariant 2). Fails, leaving the data unchanged, only when a row
+     * cannot exist in a graph: a duplicate id or an edge whose endpoint is missing.
+     */
+    public void importRecords(Snapshot snapshot) {
         GraphSchema.ensureFor(store, snapshot);
         store.write(tx -> RecordImport.create(tx, snapshot));
     }
 
-    RevertResult revert(@Nullable String batch) {
+    /**
+     * {@code kb revert --batch <id>} (BatchRevert): deletes what the batch opened and reopens what
+     * it closed, in one transaction.
+     *
+     * @throws WriteRejectedException if the batch is empty or unknown, or a later batch built on
+     *     it; nothing changed
+     */
+    public RevertResult revert(@Nullable String batch) {
         if (batch == null || batch.isBlank()) {
             throw new WriteRejectedException(
                     "no batch given",
@@ -44,7 +62,12 @@ final class GraphMaintenance {
         return store.write(tx -> BatchRevert.revert(tx, batch, now));
     }
 
-    RestoreResult replaceAll(Snapshot snapshot) {
+    /**
+     * {@code kb restore} (RecordRestore): rebuilds the graph from {@code snapshot} in one
+     * transaction, keeping local data (ADR-0022 decision 38). Rows are taken as they are (invariant
+     * 11). Fails, leaving the graph unchanged, only when a row cannot exist in a graph.
+     */
+    public RestoreResult replaceAll(Snapshot snapshot) {
         GraphSchema.ensureFor(store, snapshot);
         return store.write(tx -> RecordRestore.replace(tx, snapshot));
     }

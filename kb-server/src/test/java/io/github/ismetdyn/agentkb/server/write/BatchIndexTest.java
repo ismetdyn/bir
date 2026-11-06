@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Lead decision 3: {@code kb revert --batch} finds a batch through an index on the batch property,
- * for nodes and for edges, instead of a scan of every node and edge. WriteService.ensureSchema
+ * for nodes and for edges, instead of a scan of every node and edge. GraphMaintenance.ensureSchema
  * creates it on every start, like the rest of the fixed schema (EnsureSchemaTest).
  */
 class BatchIndexTest {
@@ -36,7 +36,7 @@ class BatchIndexTest {
     @Test
     void an_empty_graph_gets_an_online_index_on_batch_for_nodes_and_edges() {
         // No repo: ensuring the schema needs no schema files.
-        new WriteService(store, new RepoSchema("")).ensureSchema();
+        new WriteService(store, new RepoSchema("")).maintenance().ensureSchema();
 
         List<Map<String, Object>> batchIndexes =
                 store.database()

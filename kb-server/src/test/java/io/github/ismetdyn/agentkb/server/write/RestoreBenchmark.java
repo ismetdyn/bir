@@ -29,10 +29,10 @@ final class RestoreBenchmark {
     public static void main(String[] args) {
         try (EmbeddedNeo4jStore store = new EmbeddedNeo4jStore(Path.of(args[0]))) {
             WriteService writes = new WriteService(store, new RepoSchema(""));
-            writes.importRecords(generated("old"));
+            writes.maintenance().importRecords(generated("old"));
             Snapshot snapshot = generated("new");
             long start = System.nanoTime();
-            writes.replaceAll(snapshot);
+            writes.maintenance().replaceAll(snapshot);
             long millis = (System.nanoTime() - start) / 1_000_000;
             System.out.printf(
                     Locale.ROOT,

@@ -67,9 +67,9 @@ class SyncUnseenWorkTest {
                 new Snapshot(
                         List.of(older.nodes().get(0), older.nodes().get(1), newer.nodes().get(1)),
                         List.of(older.edges().getFirst(), newer.edges().getFirst()));
-        a.graph.writes.importRecords(third);
-        b.graph.writes.importRecords(third);
-        b.graph.writes.maintenance.mergeSnapshot(b.export(), third);
+        a.graph.writes.maintenance().importRecords(third);
+        b.graph.writes.maintenance().importRecords(third);
+        b.graph.writes.maintenance().mergeSnapshot(b.export(), third);
 
         a.sync();
         b.sync();
@@ -103,7 +103,7 @@ class SyncUnseenWorkTest {
         String later =
                 (String) b.graph.openFacts("zz-sync-base", "version", PROD).getFirst().get("id");
 
-        a.graph.writes.revert(batch);
+        a.graph.writes.maintenance().revert(batch);
         a.sync();
         b.sync();
         a.sync();

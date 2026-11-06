@@ -90,8 +90,14 @@ class SyncMergeTest {
     /** Decision 41: "zz tie from b" is the larger canonical row, whichever machine merges. */
     @Test
     void an_equal_updated_at_picks_the_same_winner_everywhere_and_opens_one_conflict_signal() {
-        a.graph.writes.importRecords(new Snapshot(List.of(tieNode("zz tie from a")), List.of()));
-        b.graph.writes.importRecords(new Snapshot(List.of(tieNode("zz tie from b")), List.of()));
+        a.graph
+                .writes
+                .maintenance()
+                .importRecords(new Snapshot(List.of(tieNode("zz tie from a")), List.of()));
+        b.graph
+                .writes
+                .maintenance()
+                .importRecords(new Snapshot(List.of(tieNode("zz tie from b")), List.of()));
 
         a.sync();
         SyncResult atB = b.sync();
@@ -123,7 +129,7 @@ class SyncMergeTest {
         b.sync();
         assertThat(nodeIds(b.export())).as("precondition").contains("zz-sync-revert");
 
-        a.graph.writes.revert(batch);
+        a.graph.writes.maintenance().revert(batch);
         syncAThenBThenA();
 
         Snapshot exported = a.export();

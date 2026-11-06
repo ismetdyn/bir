@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.neo4j.graphdb.GraphDatabaseService;
 
 /**
- * WriteService.ensureSchema: the schema does not depend on what a snapshot happened to hold
+ * GraphMaintenance.ensureSchema: the schema does not depend on what a snapshot happened to hold
  * (ARCHITECTURE §4), and the fulltext index follows its definition in code.
  */
 class EnsureSchemaTest {
@@ -43,7 +43,7 @@ class EnsureSchemaTest {
 
     @Test
     void an_empty_graph_gets_the_fulltext_index_online() {
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
 
         Map<String, Object> index = fulltextIndex();
         assertThat(index.get("state")).isEqualTo("ONLINE");
@@ -52,7 +52,7 @@ class EnsureSchemaTest {
 
     @Test
     void an_empty_graph_gets_id_constraints_for_labels_and_edges_no_snapshot_held() {
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
 
         assertThat(constrained("NODE"))
                 .contains("Entity", "Fact", "Decision", "Lesson", "Secret", "Signal", "Proposal");
@@ -65,7 +65,7 @@ class EnsureSchemaTest {
                         "CREATE FULLTEXT INDEX kb_fulltext FOR (n:Entity) ON EACH [n.summary]"
                                 + " OPTIONS {indexConfig: {`fulltext.analyzer`: 'standard'}}");
 
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
 
         Map<String, Object> index = fulltextIndex();
         assertThat(analyzerOf(index)).isEqualTo("standard-folding");
@@ -75,10 +75,10 @@ class EnsureSchemaTest {
 
     @Test
     void a_current_fulltext_index_is_kept_and_not_rebuilt_on_every_start() {
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
         Object firstId = fulltextIndex().get("id");
 
-        writeService.ensureSchema();
+        writeService.maintenance().ensureSchema();
 
         assertThat(fulltextIndex().get("id")).isEqualTo(firstId);
     }

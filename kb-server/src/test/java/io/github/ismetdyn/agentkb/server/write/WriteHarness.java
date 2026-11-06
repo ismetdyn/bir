@@ -50,7 +50,7 @@ final class WriteHarness implements AutoCloseable {
         }
         EmbeddedNeo4jStore store = new EmbeddedNeo4jStore(dir.resolve("data"));
         WriteService writes = new WriteService(store, new RepoSchema(repo.toString()));
-        writes.ensureSchema();
+        writes.maintenance().ensureSchema();
         return new WriteHarness(store, writes);
     }
 

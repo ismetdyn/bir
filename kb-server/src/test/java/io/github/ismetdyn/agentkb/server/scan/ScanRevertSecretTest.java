@@ -79,7 +79,7 @@ class ScanRevertSecretTest {
         String userOwned = secretHolding(PROD_PASSWORD);
         harness.writes.putSecret(userOwned, USER_VALUE);
 
-        RevertResult result = harness.writes.revert(scan.batch());
+        RevertResult result = harness.writes.maintenance().revert(scan.batch());
 
         assertThat(harness.rows(VALUES)).containsExactly(Map.of("id", userOwned));
         assertThat(secret(userOwned).get("value")).isEqualTo(USER_VALUE);
