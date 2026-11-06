@@ -97,9 +97,12 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Açık (LOW): sunucu kapanışı açık MCP akışları yüzünden ~31 sn sürüyor (systemd 90 sn içinde); makine boşken tarama süresini yeniden ölç.
 
 ## F3 — kb istemcisi (plan: `.engineering/tasks/plan.md`, onay bekliyor)
-- [ ] H0 ADR-0025 + belge hizası
-- [ ] H1 Native + TamboUI spike
-- [ ] CP1 TamboUI / Jackson go-no-go
+- [x] H0 ADR-0025 + belge hizası
+  Kanıt: `8f2b359`; ADR-0025 + ROADMAP/CLIENTS/SPEC §6.7/ARCHITECTURE/MCP-TOOLS/CLAUDE.md hizalandı.
+- [x] H1 Native + TamboUI spike
+  Kanıt: `mise exec java@mandrel-23.1.13.0-Final+java21 -- ./mvnw -B -pl kb-client -Pnative verify` → exit 0, KbNativeIT 14/14 (boyut 40.701.048 bayt, `--help` medyan 5 ms, `kb tui` + `--no-alt-screen` + `q`, SIGINT/SIGTERM'de `--file` silinir; bayraksız RED görüldü), JVM≡native JSON 5/5. `./mvnw -B clean verify` → exit 0 (kb-client 82 + 15). `libstdc++-static` gerekmedi.
+- [x] CP1 TamboUI / Jackson go-no-go
+  Kanıt: TamboUI go (native testler yeşil). Jackson no-go: native 55,8 MB > 50 MB → `Json.java` kalır (ADR-0025 karar 6). İnceleme: native testler `-Pnative`'de artık zorunlu (atlanmaz); `{"error":7}` regresyonu testle yakalandı.
 - [ ] H2 `kb-api` + tipli istemci
 - [ ] H3 Yükleme staging'i (sunucu)
 - [ ] H4 Tamamlama + blob deposu + senkron

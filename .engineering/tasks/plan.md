@@ -48,11 +48,11 @@ Bağımsız inceleme: `java-reviewer` her checkpoint'te. `security-reviewer` H3,
 | `dev.tamboui:tamboui-bom` (import) + `tamboui-toolkit`, `tamboui-jline3-backend`, `tamboui-picocli` (transitive `org.jline:jline:3.25.1`), MIT | H1 | 0.6.0. Araştırmacı Maven Central metadata'sında doğruladı (2026-11-06); ben yeniden doğrulamadım |
 | `info.picocli:picocli-codegen` (yalnız annotation processor) | H1 | 4.7.7 (Maven Central, araştırmacı) |
 | `org.graalvm.buildtools:native-maven-plugin` | H1 | Boot 4.1.2 yönetiyor: 1.1.14. En son sürüm 1.1.18. Öneri: Boot'unkini kullanmak |
-| `tools.jackson.core:jackson-databind` (kb-client) | H2 | Boot BOM. F2 planı `jackson-bom` 3.1.7 diyor; H2'de `dependency:tree` ile teyit edilmeli |
+| ~~`jackson-databind` (kb-client)~~ | — | CP1'de çıkarıldı: native 55,8 MB > 50 MB (ADR-0025 karar 6). `Json.java` kalır |
 | `archunit-junit5` (kb-client test) | H8a | 1.5.1 (parent'ta zaten var) |
 | U1 `mise install java@mandrel-23.1.13.0-Final+java21` | H1 | Kullanıcı başına kurulur, varsayılan java değişmez |
 | U2 `sudo dnf install libstdc++-static git-lfs` | H1, H4 | root ister. Makine fc45: OS `7.2.15-300.fc45` |
-| U3 `Json.java` silinmesi (H2, Jackson seçilirse) | H2 | F2 dosyası olduğu için silme onayı gerekir |
+| ~~U3 `Json.java` silinmesi~~ | — | Silinmez (CP1) |
 
 Yükleme için yeni bağımlılık yok: `java.net.http`, `FileChannel` ve `MessageDigest` yeterli.
 

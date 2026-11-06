@@ -33,8 +33,10 @@ araçlar kabul edildi: TamboUI 0.6.0 BOM + `tamboui-toolkit` + `tamboui-jline3-b
 
 ### Modül, istemci, araç zinciri
 6. **`kb-api`:** yalnız record; bağımlılığı JDK + JSpecify. Domain record'ları sunucuda kalır, `server.api` DTO'ya eşler;
-   böylece domain → wire bağımlılığı oluşmaz. `kb-client` Jackson kullanır; native'de doğrulanması CP1 şartıdır.
-   Doğrulanırsa `kb-client/.../Json.java` silinir.
+   böylece domain → wire bağımlılığı oluşmaz. **CP1 sonucu (2026-11-07, ölçüldü):** Jackson native `kb`'yi 55,8 MB'a
+   çıkardı (+15 MB, `java.xml` dahil); 50 MB sınırını aşıyor. Bu yüzden `kb-client` Jackson kullanmaz, F2'deki küçük
+   `Json.java` kalır ve `kb-api` record'larına elle eşler (native 40,7 MB). TamboUI native'de çalıştı (`kb tui`,
+   `--no-alt-screen`, `q`), `--install-exit-handlers` ile `kb run` geçici dosyası SIGINT/SIGTERM'de siliniyor.
 7. **Native:** Mandrel 23.1.13 (JDK 21). `native` profili yalnız `kb-client`'ta; build her zaman `-pl kb-client`, çünkü
    kökten `-Pnative` kb-server'da Boot AOT'yi tetikler. Ayarlar: picocli-codegen, `--no-fallback`,
    `--install-exit-handlers`, `spring-boot.aot.skip=true`.
@@ -70,14 +72,14 @@ tarafından verilen yanıtlardır (sektör örneği: Datomic'te geri çekme işl
 - (−) Sıkıştırılmış dokümandaki secret taramadan kaçabilir.
 - (−) `closed_batch` alanı ve `BatchRevert` değişikliği geçmiş davranışı genişletir; her işlem için revert tablo testi gerekir.
 - (−) TamboUI 0.x: API sık değişebilir; sürüm sabit, çıkış yolu karar 8.
-- Doğrulanmamış (H1/H3'te ölçülür): native `kb` boyutu ve açılış süresi, TamboUI ve Jackson'ın native'de çalışması,
+- Ölçüldü (CP1): native `kb` 40,7 MB, `--help` medyan 5 ms; TamboUI native'de çalışıyor; Jackson boyut yüzünden çıkarıldı. Doğrulanmamış (H3'te ölçülür):
   Tomcat'in `offset+octet-stream` gövdesini önden okumaması.
 
 ## Değerlendirilen alternatifler
 - **tus 1.0 uyumlu sunucu:** başlık ve uzantı yükü; yalnız kesişen çekirdek alındı.
 - **Parça başına checksum:** dosya sha256'sı sunucuda zaten doğrulanıyor; loopback'te gereksiz.
 - **Zamanlayıcı ile staging temizliği:** açılış ve `PUT`'ta silme yeterli (ADR-0016).
-- **Mevcut `Json.java`'yı korumak:** kayıt/sözleşme için elle ayrıştırma; Jackson native'de çalışırsa gereksiz.
+- **Mevcut `Json.java`'yı korumak:** kayıt/sözleşme için elle ayrıştırma. CP1'de seçildi: Jackson native boyut sınırını aştı.
 - **Go/Bubble Tea (ADR-0012 B planı):** TamboUI spike'ı (H1, CP1) başarısız olursa devreye girer.
 
 ## Kaynaklar
