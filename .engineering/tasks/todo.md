@@ -96,7 +96,7 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Kanıt: temiz worktree, global git kimliği olmayan HOME: `./mvnw -B -o clean verify` iki kez → exit 0 (kb-core 3168, kb-server 1171 + IT 2, kb-client 67 + IT 1); `-Peval` → exit 0, 18/18. Gerçek Claude Code ile bitti tanımı: (1) oturum açılışında brief + arka plan taraması 14 bilgi ekledi; (2) "eskiden IP" KB'den cevaplandı, eski IP ile arama sunucuyu buluyor; (3) bilinmeyeni sordu, cevabı `owner: Mehmet Kaya · user_stated · episode` olarak birebir kaydetti (AGENT-RULES düzeltmesinden sonra); (4) `kb run` değeri transkript/log/git'te 0 kez, çıktı `****`; (5) sync → restore → export `cmp` aynı, secret korunuyor. Codex `kb_search` onaysız. Tarama süresi: ADR-0022 karar 45 (kullanıcı). Model harcaması ≈ 0,15 USD.
   Açık (LOW): sunucu kapanışı açık MCP akışları yüzünden ~31 sn sürüyor (systemd 90 sn içinde); makine boşken tarama süresini yeniden ölç.
 
-## F3 — kb istemcisi (plan: `.engineering/tasks/plan.md`, onay bekliyor)
+## F3 — kb istemcisi (plan: `.engineering/tasks/plan.md`, onaylı)
 - [x] H0 ADR-0025 + belge hizası
   Kanıt: `8f2b359`; ADR-0025 + ROADMAP/CLIENTS/SPEC §6.7/ARCHITECTURE/MCP-TOOLS/CLAUDE.md hizalandı.
 - [x] H1 Native + TamboUI spike
@@ -105,9 +105,10 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Kanıt: TamboUI go (native testler yeşil). Jackson no-go: native 55,8 MB > 50 MB → `Json.java` kalır (ADR-0025 karar 6). İnceleme: native testler `-Pnative`'de artık zorunlu (atlanmaz); `{"error":7}` regresyonu testle yakalandı.
 - [x] H2 `kb-api` + tipli istemci
   Kanıt: `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1197, kb-client 219); `quality_gate.py` → exit 0; sözleşme dosyaları `fixtures/api/*.json` hem sunucu hem istemci testinde; native 40,8 MB, KbNativeIT 14/14. Lider kararı: 4 F2 istemci testinin sahte cevapları tamamlandı (yeni "eksik alan = exit 1" kuralı).
-- [ ] H3 Yükleme staging'i (sunucu)
-- [ ] H4 Tamamlama + blob deposu + senkron
-- [ ] CP2 Güvenlik incelemesi (doküman)
+- [x] H3 Yükleme staging'i (sunucu) · [x] H4 Tamamlama + blob deposu + senkron
+  Kanıt: `55e74e2` (refactor: `WriteService.maintenance()`), `a1c7eb9`; `./mvnw -B clean verify` → exit 0 (kb-server 1280); git-lfs 3.7.1 kurulunca `DocumentLfsTest`/`SyncBlobsTest` 0 skip.
+- [x] CP2 Güvenlik incelemesi (doküman)
+  Kanıt: `bca2d72`, `83aa419`. security-reviewer 2 tur + java-reviewer: symlink (CWE-59), kayıtlı secret değeri, UTF-16, blob hash, LFS sırası, `.gitattributes` union + belge deposu ayrı commit, sync/tamamlama ortak monitör. `clean verify` exit 0 (kb-core 3179, kb-server 1294), gate exit 0. Not: aynı saklı-değer sorgusunun 3. kopyası `graph/CypherRows.java:26` (paket yönü engeli) — H6'da ele al.
 - [ ] H5 Yeni yazma işlemleri (kapat, arşiv, çelişki çöz, öneri kabul)
 - [ ] CP3 İnceleme
 - [ ] H6 Kalan REST + CLI
