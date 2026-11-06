@@ -7,8 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). F2 bitti: G0–G14, G12b/G12f ve CP1–CP6 kanıtlı, commit edildi. Kalan tek F2 maddesi: kullanıcının gerçek Claude Code/Codex ayarlarına geçiş (AGENT-RULES, hook'lar, MCP, yerleşik hafızayı kapatma) — onay bekliyor; adımlar `integrations/*/setup.md`, `install.sh --dry-run`. Codex hook'ları gerçek ayarla ölçülmedi (yalnız kaynak koddan).
-Sonraki faz F3 (kb CLI/TUI, native, doküman deposu + sıra numaralı yükleme). Hatırlatma: F2–F5 bitince agentguard.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). F2 bitti (son: `13b542c`; ayarlara geçiş kullanıcı kararıyla todo'da bekliyor). F3 planlanıyor: workflow `f3-plan` (run `wf_182214b8-54d`): TamboUI, GraalVM native, sürdürülebilir yükleme standartları (tus/S3), kod haritası → dilimli plan. Sonra: plan + yeni bağımlılıklar + sistem kurulumları (GraalVM, git-lfs) için kullanıcıdan tek onay; onaydan sonra F2 planı arşive, F3 `plan.md`/`todo.md`, dal `f3-client`.
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f3-plan-wf_182214b8-54d.js, resumeFromRunId: "wf_182214b8-54d"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
