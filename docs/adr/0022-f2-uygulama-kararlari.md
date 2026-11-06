@@ -135,6 +135,10 @@ diğer belgeler buraya bağlanır.
     çağrı sayısının dosya sayısıyla doğrusal kaldığını sabitler. Süre bu makinede yük 7–13 iken yeniden ölçülemedi
     (17 sn, ilgisiz derleme koşuyordu); boş makinede CP6'da yeniden ölçülür. Değişmemiş yeniden tarama 18/18 koşuda 0
     ekledi, 0 kapattı.
+45. **Tarama süresi hedefi netleşti** (kullanıcı kararı 2026-11-07): 5 sn hedefi yeniden tarama içindir; 500 dosyalık ilk
+    tarama oturum açılışında arka planda çalıştığı için hedefi < 10 sn'dir. CP6 ölçümü (500 dosya, `-Xmx512m`, yük 3–4,7):
+    yeniden tarama 0,6–1,1 sn; ilk tarama yeni JVM'de medyan 5,8 sn, ısınmış JVM'de 4,6–5,9 sn. Makine boşken yeniden
+    ölçülür ve buraya eklenir.
 
 ### Geri yükleme (G12)
 38. **Restore yerel veriyi korur** (kullanıcı kararı 2026-11-05; değişmez 8): geri yüklenen anlık görüntüde olmayan Secret

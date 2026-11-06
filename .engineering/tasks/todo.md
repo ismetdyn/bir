@@ -92,8 +92,9 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Açık (G4'ten): `snapshot/` olmayan repo "boş" mu "bozuk" mu; `agentkb.repo` varsayılanı testlerde gerçek `~/kb`'yi açmasın.
   Scope: kb-server/**, kb-client/**, integrations/**
   Depends: G13
-- [ ] CP6 Bitti tanımı uçtan uca + `./mvnw verify`
-  Ayrıca: 500 dosyalık tarama süresini boş makinede ölç (SPEC < 5 sn).
+- [x] CP6 Bitti tanımı uçtan uca + `./mvnw verify`
+  Kanıt: temiz worktree, global git kimliği olmayan HOME: `./mvnw -B -o clean verify` iki kez → exit 0 (kb-core 3168, kb-server 1171 + IT 2, kb-client 67 + IT 1); `-Peval` → exit 0, 18/18. Gerçek Claude Code ile bitti tanımı: (1) oturum açılışında brief + arka plan taraması 14 bilgi ekledi; (2) "eskiden IP" KB'den cevaplandı, eski IP ile arama sunucuyu buluyor; (3) bilinmeyeni sordu, cevabı `owner: Mehmet Kaya · user_stated · episode` olarak birebir kaydetti (AGENT-RULES düzeltmesinden sonra); (4) `kb run` değeri transkript/log/git'te 0 kez, çıktı `****`; (5) sync → restore → export `cmp` aynı, secret korunuyor. Codex `kb_search` onaysız. Tarama süresi: ADR-0022 karar 45 (kullanıcı). Model harcaması ≈ 0,15 USD.
+  Açık (LOW): sunucu kapanışı açık MCP akışları yüzünden ~31 sn sürüyor (systemd 90 sn içinde); makine boşken tarama süresini yeniden ölç.
 
 ## Tüm iş bitince (F2–F5 tamam) kullanıcıya hatırlat
 - [ ] agentguard'ı ayrı proje olarak ele al: `/home/ismetdyn/dev/bir/agentguard/` (kod, testler, `QUALITY.md`, ADR-0010).

@@ -28,45 +28,46 @@ F1 spike ──► F2 bilgi çekirdeği ──► F3 kb istemcisi (CLI/TUI)
 
 F2'nin kapsam kararları: ADR-0022.
 
-- [ ] Maven çoklu modül iskeleti: `kb-core`, `kb-server`, `kb-client` (JVM jar); `kb-api` F3'te
-- [ ] `OriginGuard` (servlet Filter, `/*`: Host + Origin) + loopback dışı açılış reddi + negatif testler; Claude Code ve
+- [x] Maven çoklu modül iskeleti: `kb-core`, `kb-server`, `kb-client` (JVM jar); `kb-api` F3'te
+- [x] `OriginGuard` (servlet Filter, `/*`: Host + Origin) + loopback dışı açılış reddi + negatif testler; Claude Code ve
       Codex'in geçtiğini doğrula (ADR-0020). Veri aracından önce.
-- [ ] `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale gelir
-- [ ] Graf modeli (SPEC §6), şema yükleyici (`schema/*.yaml`), kısıtlar ve tam metin indeksi; `GraphStore` arayüzü yok
+- [x] `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale gelir
+- [x] Graf modeli (SPEC §6), şema yükleyici (`schema/*.yaml`), kısıtlar ve tam metin indeksi; `GraphStore` arayüzü yok
       (`EmbeddedNeo4jStore`)
-- [ ] `Signal` en küçük hali: `conflict`, `qa-capture`, `imported-memory` türleri (kalanı F4)
-- [ ] `WritePolicy` (kb-core, saf, tablo güdümlü testler): kaynak sırası, tazeleme (`valid_from` değişmez), kapat +
+- [x] `Signal` en küçük hali: `conflict`, `qa-capture`, `imported-memory` türleri (kalanı F4)
+- [x] `WritePolicy` (kb-core, saf, tablo güdümlü testler): kaynak sırası, tazeleme (`valid_from` değişmez), kapat +
       ekle, çelişki
-- [ ] `WriteService` (tek yazıcı) + `EntityResolver` + `kb revert --batch`
-- [ ] Markdown görünümü (SPEC §6.6) ve okuma araçları: `kb_search`, `kb_read`, `kb_related`, `kb_schema`, `kb_cypher`
+- [x] `WriteService` (tek yazıcı) + `EntityResolver` + `kb revert --batch`
+- [x] Markdown görünümü (SPEC §6.6) ve okuma araçları: `kb_search`, `kb_read`, `kb_related`, `kb_schema`, `kb_cypher`
       + `CypherGuard` (`secret_value` engeli dahil), `kb_stale`, `kb_brief`
-- [ ] Okuma kuralı: hiçbir kayıt gizlenmiyor; güncel önce, eski değer, biten ilişki ve arşiv işaretli sonra; eski değer
+- [x] Okuma kuralı: hiçbir kayıt gizlenmiyor; güncel önce, eski değer, biten ilişki ve arşiv işaretli sonra; eski değer
       eşleşince güncel değer de yazılıyor; metin sınırları (`summary` 300, metin fact 500, `body` 4.000) yazarken
       doğrulanıyor (ADR-0017)
-- [ ] Kayıt kaynağı ve genel bilgi (ADR-0023, ADR-0024): `Episode` düğümü ve kayıtlarda `episode`; SessionStart'ta
+- [x] Kayıt kaynağı ve genel bilgi (ADR-0023, ADR-0024): `Episode` düğümü ve kayıtlarda `episode`; SessionStart'ta
       Episode, brief'te kimlik satırı, `kb_remember`/`kb_propose`/`kb_scan` `episode` argümanı; `topic` varlık türü, `note`
       anahtarı, bilinmeyen anahtar ipucu; okumada kaynak ve durum. **Doğrula:** Claude Code/Codex MCP isteğinde oturum
       kimliği gönderiyor mu. Eval'e genel bilgi soruları kullanıcıya öneri (`eval/questions.yaml` hakem dosyası)
-- [ ] `kb_remember` + PromptRing kanıt doğrulaması; secret görünümlü değer reddi; `kb_propose` → `Proposal`
+- [x] `kb_remember` + PromptRing kanıt doğrulaması; secret görünümlü değer reddi; `kb_propose` → `Proposal`
       (hedefe `ABOUT`)
-- [ ] Secret'lar: `Secret` düğümü, `GET/PUT /api/v1/secrets/{id}`, veri dizini 0700; `secret_value` anlık görüntüye,
+- [x] Secret'lar: `Secret` düğümü, `GET/PUT /api/v1/secrets/{id}`, veri dizini 0700; `secret_value` anlık görüntüye,
       loga ve araç çıktılarına girmiyor (test)
-- [ ] `kb-client` (JVM jar, picocli): `kb run` (placeholder → ortam değişkeni, akış süzgeci + maskeleme testleri, değer
+- [x] `kb-client` (JVM jar, picocli): `kb run` (placeholder → ortam değişkeni, akış süzgeci + maskeleme testleri, değer
       bu bilgisayarda yoksa net hata), `kb secret set|show` ve REST alt kümesi: `/secrets/{id}`, `/revert`, `/sync`, `/restore`,
       `/check`, `/signals/imported-memories`
-- [ ] Tarayıcı: önce SpringConfig, DotEnv, BuildFile; sonra Compose, K8s, Ansible; `kb_scan` + allowed-roots;
+- [x] Tarayıcı: önce SpringConfig, DotEnv, BuildFile; sonra Compose, K8s, Ansible; `kb_scan` + allowed-roots;
       `fixtures/scanner` golden testi (sahte secret dizeleri hiçbir çıktıda yok)
-- [ ] Anlık görüntü + `kb sync` + `kb restore`; iki geçici repo ile senkron testi; systemd timer; commit öncesi satır
+- [x] Anlık görüntü + `kb sync` + `kb restore`; iki geçici repo ile senkron testi; systemd timer; commit öncesi satır
       sayısı kontrolü; force-push yok; `kb check`: sahipsiz kenar, sözlük dışı ilişki, açık çelişki, `git fsck`
-- [ ] Kayıpsızlık testleri: restore ve senkron yereldeki secret değerlerini ve sinyalleri koruyor; sınırdan uzun eski
+- [x] Kayıpsızlık testleri: restore ve senkron yereldeki secret değerlerini ve sinyalleri koruyor; sınırdan uzun eski
       kayıt içeri alınırken reddedilmiyor; eski IP ve arşivli varlık aramada işaretli olarak çıkıyor (eval q16–q18)
-- [ ] Hook uçları (`/hooks/session-start`, `/user-prompt-submit`, `/post-tool-use`) + `integrations/kb-hook.sh`;
+- [x] Hook uçları (`/hooks/session-start`, `/user-prompt-submit`, `/post-tool-use`) + `integrations/kb-hook.sh`;
       yakalamada secret maskeleme (test)
-- [ ] `kb init` (sunucu jar'ında, Neo4j açılmadan); systemd servisi
-- [ ] `server.eval` + `-Peval` JUnit sarmalayıcı + `eval/questions.yaml`; `seed/` ile yüklenen örnek veride eşik
+- [x] `kb init` (sunucu jar'ında, Neo4j açılmadan); systemd servisi
+- [x] `server.eval` + `-Peval` JUnit sarmalayıcı + `eval/questions.yaml`; `seed/` ile yüklenen örnek veride eşik
       0,85 (18 soruda en az 16); CI gelene kadar `-Peval verify` çıkış kodu
 - [ ] AGENT-RULES devreye (sunucu kapalıyken anlık görüntüden salt okunur okuma dahil); yerleşik hafızaları kapatma
-      (önce `kb import-memories`)
+      (önce `kb import-memories`). Kural metni, `kb import-memories` ve `install.sh --dry-run` hazır; senin bilgisayarındaki
+      Claude Code ve Codex ayarlarına geçiş kullanıcı onayıyla yapılır (plan "Kapsam dışı").
 
 **Bitti tanımı:** Yeni bir repoda oturum açınca bilgiler otomatik toplanıyor; ajan bildiğini sormuyor, bilmediğini sorup
 kaydediyor; parola gereken bir komutu `kb run` ile değeri görmeden çalıştırıyor; "eskiden IP neydi?" cevaplanıyor ve

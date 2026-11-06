@@ -7,8 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G14, CP1–CP5 bitti; CP6 boşlukları (oturum başında tarama, hafıza sınırı) commit edildi (`67751c3`). CP6 uçtan uca: madde 1, 2, 4, 5 geçti; madde 3 kısmen (ajan değeri yeniden yazdı → AGENT-RULES düzeltildi, commit'siz). Workflow `f2-cp6-fixes` (run `wf_2c545ff0-4dc`): git kimliği olmayan makinede sync merge, kararsız test, arka plan taramasında oturum episode'u, ilk tarama performansı (6,1 sn > 5 sn hedef). Sonra madde 3'ü gerçek `claude -p` ile yeniden dene (kendi auth'umla, gerçek HOME'da yalnız `--settings/--mcp-config`; kimlik bilgisi kopyalama YOK).
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-cp6-fixes-wf_2c545ff0-4dc.js, resumeFromRunId: "wf_2c545ff0-4dc"})`.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). F2 bitti: G0–G14, G12b/G12f ve CP1–CP6 kanıtlı, commit edildi. Kalan tek F2 maddesi: kullanıcının gerçek Claude Code/Codex ayarlarına geçiş (AGENT-RULES, hook'lar, MCP, yerleşik hafızayı kapatma) — onay bekliyor; adımlar `integrations/*/setup.md`, `install.sh --dry-run`. Codex hook'ları gerçek ayarla ölçülmedi (yalnız kaynak koddan).
+Sonraki faz F3 (kb CLI/TUI, native, doküman deposu + sıra numaralı yükleme). Hatırlatma: F2–F5 bitince agentguard.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
@@ -20,6 +20,7 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Ana amaç: ajan kullanıcıdan önce agentkb'ye sorar; her konuda her bilgi (SPEC §1). Wikidata modeli + kayıt kaynağı (ADR-0023/0024, 2026-11-06).
 - Her iş bitince commit (kullanıcı, 2026-11-05).
 - Senkron eşitliği: sabit kural + çelişki sinyali (kullanıcı, karar 41).
+- Tarama hedefi: yeniden tarama < 5 sn, ilk tarama arka planda < 10 sn (kullanıcı, karar 45).
 - `user_stated` kanıtı değeri içermeli ve mesajda birebir geçmeli; port hedefi değerin parçası ("sektör standardı") (karar 29–30).
 
 ## Denenip başarısız olan

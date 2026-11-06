@@ -300,7 +300,7 @@ parti geri alınır. Bkz. CURATOR.md.
 | Konu | Gereksinim |
 |---|---|
 | Performans | `kb_search` p95 < 100 ms; brief ve recall < 300 ms; 10.000 kayıtlık anlık görüntüden restore < 30 sn |
-| Tarama | 500 dosyalık Spring repo < 5 sn |
+| Tarama | 500 dosyalık Spring repo: yeniden tarama < 5 sn; ilk tarama arka planda < 10 sn (ADR-0022 karar 45) |
 | Kaynak | Sunucu heap ≤ 512 MB; Neo4j page cache 128 MB; `kb` native binary < 50 MB |
 | Ağ | Sadece `127.0.0.1`; dışarıya tek çıkış `kb sync`'in git'i |
 | Dayanıklılık | Çökmeye karşı Neo4j işlem günlüğü; disk kaybına karşı anlık görüntü (en fazla 10 dk kayıp) |
