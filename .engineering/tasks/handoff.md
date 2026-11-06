@@ -7,8 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G13 ve CP1–CP5 bitti, commit edildi (son: `45f9be9`). Workflow `f2-g14-init-install` (run `wf_5f90a85a-527`): G13 LOW'ları, `kb init`, kurulum script'i + dry-run, `kb import-memories`, inceleme. Bitince commit; sonra CP6 (uçtan uca bitti tanımı + boş makinede tarama süresi).
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-g14-init-install-wf_5f90a85a-527.js, resumeFromRunId: "wf_5f90a85a-527"})`.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G14 ve CP1–CP5 bitti, commit edildi (son: `66bc67e`). Workflow `f2-cp6-definition-of-done` (run `wf_5333d9bb-3ae`): SessionStart arka plan taraması (SPEC S1, eksikti) + hafıza metni sınırı (test-first), sonra temiz worktree verify, boş makinede süre ölçümü, gerçek Claude Code/Codex ile bitti tanımı uçtan uca. Bitince commit ve F2 kapanış özeti.
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-cp6-definition-of-done-wf_5333d9bb-3ae.js, resumeFromRunId: "wf_5333d9bb-3ae"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
