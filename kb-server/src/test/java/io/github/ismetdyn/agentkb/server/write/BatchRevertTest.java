@@ -25,7 +25,8 @@ import org.junit.jupiter.api.io.TempDir;
  * deleted, reopened)}. Signals are never deleted. Refusals: BatchRevertRefusalTest.
  *
  * <p>updated_at is left out of the comparison: it is the technical sync time and a revert writes a
- * new one on what it reopens (BatchRevertReadinessTest).
+ * new one on what it reopens (BatchRevertReadinessTest). So is the RevertedBatch node a revert
+ * leaves (ADR-0022 decision 42); it is asserted on its own.
  */
 class BatchRevertTest {
 
@@ -108,7 +109,8 @@ class BatchRevertTest {
         RevertResult proposalRevert = graph.writes.revert(proposalBatch);
         RevertResult result = graph.writes.revert(UNDONE);
 
-        assertThat(graph.state(UPDATED_AT)).isEqualTo(before);
+        assertThat(graph.stateWithoutRevertMarkers(UPDATED_AT)).isEqualTo(before);
+        assertThat(graph.revertMarkers(UNDONE)).as("decision 42").containsExactly(UNDONE);
         assertThat(proposalRevert.deleted()).as("proposal and its ABOUT edge").isEqualTo(2);
         assertThat(result.batch()).isEqualTo(UNDONE);
         assertThat(result.deleted()).isEqualTo(opened);

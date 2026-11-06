@@ -2,6 +2,7 @@ package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
+import io.github.ismetdyn.agentkb.server.snapshot.SnapshotMerge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +108,31 @@ final class WriteHarness implements AutoCloseable {
                             GraphRows.without(edge.get("props"), skip)));
         }
         return state;
+    }
+
+    /**
+     * {@link #state} without the RevertedBatch nodes a revert leaves (ADR-0022 decision 42), for
+     * comparing the graph before a batch with the graph after its revert.
+     */
+    Map<String, Object> stateWithoutRevertMarkers(String... ignored) {
+        Map<String, Object> state = state(ignored);
+        state.values()
+                .removeIf(
+                        record ->
+                                ((List<?>) record)
+                                        .getFirst()
+                                        .equals(List.of(SnapshotMerge.REVERTED_BATCH)));
+        return state;
+    }
+
+    /** The ids of the RevertedBatch nodes that carry {@code batch} as their id. */
+    List<Object> revertMarkers(String batch) {
+        return rows(
+                        "MATCH (t:" + SnapshotMerge.REVERTED_BATCH + " {id: $b}) RETURN t.id AS id",
+                        Map.of("b", batch))
+                .stream()
+                .map(row -> row.get("id"))
+                .toList();
     }
 
     @Override

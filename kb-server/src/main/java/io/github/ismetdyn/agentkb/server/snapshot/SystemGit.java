@@ -10,9 +10,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The local system git on {@code ~/kb} (ARCHITECTURE §8). Only local commands run here (invariant
- * 3): no lazy fetch from a promisor remote, no prompt. GIT_DIR pins the repository, so a repo
- * directory without {@code .git} fails instead of git finding an enclosing repository.
+ * The local system git on {@code ~/kb} (ARCHITECTURE §8). Only {@code kb sync}'s fetch and push
+ * (SyncGit) reach the network (invariant 3): no lazy fetch from a promisor remote, no prompt.
+ * GIT_DIR pins the repository, so a repo directory without {@code .git} fails instead of git
+ * finding an enclosing repository.
  */
 final class SystemGit {
 

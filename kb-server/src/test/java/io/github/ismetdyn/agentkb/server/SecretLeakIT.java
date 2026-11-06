@@ -36,7 +36,8 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
  * a commit of it, the application log, every file under the data directory except the store itself
  * (Neo4j's logs), Signal payloads and the three hook answers (brief, recall, and a question
  * answered with the value, whose qa-capture signal must hold it masked). One class, extended as new
- * ways out arrive (sync G13); G12 adds the restore, check and revert answers. The values are fake.
+ * ways out arrive; G12 adds the restore, check and revert answers, G13 the sync answer and the
+ * whole history of the remote it pushed to. The values are fake.
  *
  * <p>The scanner (G10) is a second way in: fixtures/scanner/ornek-proje is copied under the allowed
  * root and scanned twice, so its two fake passwords are stored by kb_scan, not by PUT, and are
@@ -69,6 +70,7 @@ class SecretLeakIT extends RunningServerTestBase {
 
     @TempDir Path gitRepo;
     @TempDir Path workingCopy;
+    @TempDir Path remoteDir;
 
     @Test
     void the_value_leaves_through_get_only(CapturedOutput output) throws Exception {
@@ -93,6 +95,13 @@ class SecretLeakIT extends RunningServerTestBase {
         assertThat(paths.get("check")).contains(ORPHANED_ID);
         assertThat(secrets.get(ORPHANED_ID).body()).as("kept by restore").isEqualTo(VALUE);
         assertThat(secrets.get(NEW_ID).body()).as("kept by restore").isEqualTo(NEW_VALUE);
+        // G13 (SPEC §10, invariants 2 and 8): kb sync pushes to a bare remote; its answer and the
+        // remote's whole history are ways out, and the values and signals are still here after.
+        String signalsBefore = signals();
+        paths.putAll(new MaintenanceHttp(port).syncToBareRemote(committedRepo(), remoteDir));
+        assertThat(secrets.get(SEED_ID).body()).as("kept by sync").isEqualTo(VALUE);
+        assertThat(secrets.get(NEW_ID).body()).as("kept by sync").isEqualTo(NEW_VALUE);
+        assertThat(signals()).as("signals kept by sync").isEqualTo(signalsBefore);
         paths.put("signal payloads", signals());
         paths.putAll(filesUnderDataDir());
         paths.put("application log", output.getAll());
@@ -103,6 +112,7 @@ class SecretLeakIT extends RunningServerTestBase {
         assertThat(paths.get("kb_scan")).contains("kb:secret/" + SCANNED_PROD_ID);
         assertThat(paths.get("snapshot")).contains(SCANNED_LOCAL_ID);
         assertThat(paths.get("git history")).contains(NEW_ID);
+        assertThat(paths.get("remote git history")).contains(NEW_ID).contains(ORPHANED_ID);
         assertThat(paths.get("signal payloads")).contains(ENTITY).contains(QUESTION);
         assertThat(paths.get("hook session-start claude")).contains("ornek-proje");
         assertThat(paths.get("kb_brief ornek-proje")).contains("ornek-proje");
@@ -300,7 +310,9 @@ class SecretLeakIT extends RunningServerTestBase {
     private String signals() {
         return store.read(
                 tx ->
-                        tx.execute("MATCH (s:Signal) RETURN properties(s) AS p").stream()
+                        tx
+                                .execute("MATCH (s:Signal) RETURN properties(s) AS p ORDER BY s.id")
+                                .stream()
                                 .map(row -> String.valueOf(row.get("p")))
                                 .toList()
                                 .toString());

@@ -82,10 +82,12 @@ class BatchRevertRefusalTest {
 
         assertThat(refused.hint()).contains(LATER);
         assertThat(graph.state()).isEqualTo(before);
+        assertThat(graph.revertMarkers(UNDONE)).as("a refused revert leaves no marker").isEmpty();
 
         graph.writes.revert(LATER);
         graph.writes.revert(UNDONE);
-        assertThat(graph.state()).as("both reverted in order").isEmpty();
+        assertThat(graph.stateWithoutRevertMarkers()).as("both reverted in order").isEmpty();
+        assertThat(graph.revertMarkers(UNDONE)).as("decision 42").containsExactly(UNDONE);
     }
 
     /**

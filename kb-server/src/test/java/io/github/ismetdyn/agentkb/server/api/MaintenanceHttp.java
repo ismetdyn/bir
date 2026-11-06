@@ -2,12 +2,14 @@ package io.github.ismetdyn.agentkb.server.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,6 +24,10 @@ public final class MaintenanceHttp {
     public static final String REVERT = "/api/v1/revert";
     public static final String RESTORE = "/api/v1/restore";
     public static final String CHECK = "/api/v1/check";
+
+    /** {@code POST {}} → 200 {@code {"commit", "pushed", "nodes", "edges", "conflicts"}}. */
+    public static final String SYNC = "/api/v1/sync";
+
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
 
     private final HttpClient http =
@@ -61,6 +67,27 @@ public final class MaintenanceHttp {
         answers.put("check", get(CHECK).body());
         answers.put(
                 "revert unknown batch", post(REVERT, "{\"batch\": \"" + unknown + "\"}").body());
+        return answers;
+    }
+
+    /**
+     * {@code POST /api/v1/sync} after giving {@code repo} a bare remote {@code
+     * remoteDir/remote.git} that holds its current main, for SecretLeakIT. The sync must succeed
+     * and push; the answer and the remote's whole history ({@code git log --patch --all}) are
+     * returned as ways out.
+     */
+    public Map<String, String> syncToBareRemote(Path repo, Path remoteDir)
+            throws IOException, InterruptedException {
+        Path remote = remoteDir.resolve("remote.git");
+        ScanProjects.git(remoteDir, "init", "--bare", "--quiet", remote.toString());
+        ScanProjects.git(repo, "remote", "add", "origin", remote.toString());
+        ScanProjects.git(repo, "push", "--quiet", "--set-upstream", "origin", "main");
+        HttpResponse<String> sync = post(SYNC, "{}");
+        assertThat(sync.statusCode()).as(sync.body()).isEqualTo(200);
+        assertThat(sync.body()).containsPattern("\"pushed\"\\s*:\\s*true");
+        Map<String, String> answers = new LinkedHashMap<>();
+        answers.put("sync", sync.body());
+        answers.put("remote git history", ScanProjects.git(remote, "log", "--patch", "--all"));
         return answers;
     }
 

@@ -81,7 +81,7 @@ class KbCheckTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"check", "restore", "revert --batch 01KBTESTBATCH"})
+    @ValueSource(strings = {"check", "restore", "revert --batch 01KBTESTBATCH", "sync"})
     void an_unreachable_server_exits_three(String command) throws IOException {
         String closed;
         try (ServerSocket socket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {

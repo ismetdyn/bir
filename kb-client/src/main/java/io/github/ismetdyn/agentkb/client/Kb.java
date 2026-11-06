@@ -21,6 +21,7 @@ import picocli.CommandLine.Command;
             RunCommand.class,
             MaintenanceCommands.Revert.class,
             MaintenanceCommands.Restore.class,
+            MaintenanceCommands.Sync.class,
             MaintenanceCommands.Check.class
         })
 public final class Kb {
@@ -28,7 +29,7 @@ public final class Kb {
     /** kb itself failed; for kb run, the command did not start; for kb check, it found problems. */
     static final int FAILED = 1;
 
-    /** docs/CLIENTS.md: the server could not be reached (revert, restore, check). */
+    /** docs/CLIENTS.md: the server could not be reached (revert, restore, sync, check). */
     static final int UNREACHABLE = 3;
 
     private Kb() {}

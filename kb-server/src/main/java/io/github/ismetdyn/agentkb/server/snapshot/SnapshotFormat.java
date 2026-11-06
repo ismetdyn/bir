@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -59,24 +61,48 @@ public final class SnapshotFormat {
                 rows(NODES_FILE, nodes, Node.class), rows(EDGES_FILE, edges, Edge.class));
     }
 
+    /**
+     * ADR-0022 decision 43: both texts are built first, so a row with no JSON form fails before
+     * either file changes; each file is then written to a temporary file and renamed over the old
+     * one. A crash between the two renames can still leave a new nodes.jsonl next to an old
+     * edges.jsonl.
+     */
     public static void write(Path dir, Snapshot snapshot) throws IOException {
         Files.createDirectories(dir);
-        List<Map<String, ?>> nodes = new ArrayList<>();
-        for (Node node : snapshot.nodes()) {
-            nodes.add(Map.of("id", node.id(), "labels", node.labels(), "props", node.props()));
-        }
-        List<Map<String, ?>> edges = new ArrayList<>();
-        for (Edge edge : snapshot.edges()) {
-            edges.add(
-                    Map.of(
-                            "id", edge.id(),
-                            "type", edge.type(),
-                            "from", edge.from(),
-                            "to", edge.to(),
-                            "props", edge.props()));
-        }
-        writeRows(dir.resolve(NODES_FILE), nodes);
-        writeRows(dir.resolve(EDGES_FILE), edges);
+        String nodes =
+                snapshot.nodes().stream()
+                        .sorted(Comparator.comparing(Node::id))
+                        .map(node -> row(node) + "\n")
+                        .collect(Collectors.joining());
+        String edges =
+                snapshot.edges().stream()
+                        .sorted(Comparator.comparing(Edge::id))
+                        .map(edge -> row(edge) + "\n")
+                        .collect(Collectors.joining());
+        replace(dir.resolve(NODES_FILE), nodes);
+        replace(dir.resolve(EDGES_FILE), edges);
+    }
+
+    /** The line of a {@link Node} or {@link Edge} in its file, without the line end. */
+    static String row(Record record) {
+        Map<String, ?> fields =
+                switch (record) {
+                    case Node node ->
+                            Map.of("id", node.id(), "labels", node.labels(), "props", node.props());
+                    case Edge edge ->
+                            Map.of(
+                                    "id", edge.id(),
+                                    "type", edge.type(),
+                                    "from", edge.from(),
+                                    "to", edge.to(),
+                                    "props", edge.props());
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "not a snapshot row: " + record.getClass().getName());
+                };
+        StringBuilder out = new StringBuilder();
+        appendValue(out, fields);
+        return out.toString();
     }
 
     private static <T> List<T> rows(String file, String text, Class<T> type) throws IOException {
@@ -92,15 +118,15 @@ public final class SnapshotFormat {
         return rows;
     }
 
-    private static void writeRows(Path file, List<Map<String, ?>> rows) throws IOException {
-        List<Map<String, ?>> sorted = new ArrayList<>(rows);
-        sorted.sort(Comparator.comparing(row -> (String) row.get("id")));
-        StringBuilder out = new StringBuilder();
-        for (Map<String, ?> row : sorted) {
-            appendValue(out, row);
-            out.append('\n');
+    private static void replace(Path file, String text) throws IOException {
+        Path temporary =
+                Files.createTempFile(file.getParent(), "." + file.getFileName() + "-", ".tmp");
+        try {
+            Files.writeString(temporary, text, StandardCharsets.UTF_8);
+            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(temporary);
         }
-        Files.writeString(file, out, StandardCharsets.UTF_8);
     }
 
     private static void appendValue(StringBuilder out, Object value) {

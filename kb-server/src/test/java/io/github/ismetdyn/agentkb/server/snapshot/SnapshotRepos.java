@@ -49,6 +49,14 @@ public final class SnapshotRepos {
                         .toList());
     }
 
+    public static List<String> nodeIds(Snapshot snapshot) {
+        return snapshot.nodes().stream().map(SnapshotFormat.Node::id).toList();
+    }
+
+    public static List<String> edgeIds(Snapshot snapshot) {
+        return snapshot.edges().stream().map(SnapshotFormat.Edge::id).toList();
+    }
+
     /** A new repository under {@code dir/repo} whose first commit holds {@code snapshot}. */
     public static Path repo(Path dir, Snapshot snapshot) {
         Path repo = dir.resolve("repo");

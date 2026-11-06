@@ -17,7 +17,10 @@ import org.jspecify.annotations.Nullable;
 import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Component;
 
-/** The only writer of the graph (invariant 1). */
+/**
+ * The only writer of the graph (invariant 1): new knowledge here, the writes on the graph as a
+ * whole through {@link #maintenance}.
+ */
 @Component
 public class WriteService {
 
@@ -29,9 +32,13 @@ public class WriteService {
     // Vocabulary types that already have their id constraint in this process (RelationWriteTest).
     private final Set<String> constrainedTypes = ConcurrentHashMap.newKeySet();
 
+    /** Schema, import, revert, restore and sync merge; reached by this package only. */
+    final GraphMaintenance maintenance;
+
     public WriteService(EmbeddedNeo4jStore store, RepoSchema schema) {
         this.store = store;
         this.schema = schema;
+        this.maintenance = new GraphMaintenance(store, schema);
     }
 
     /**
@@ -199,7 +206,7 @@ public class WriteService {
      * every start, whatever the graph holds (GraphSchema).
      */
     public void ensureSchema() {
-        GraphSchema.ensure(store, Set.of(), Set.of());
+        maintenance.ensureSchema();
     }
 
     /**
@@ -209,8 +216,7 @@ public class WriteService {
      * cannot exist in a graph: a duplicate id or an edge whose endpoint is missing.
      */
     public void importRecords(Snapshot snapshot) {
-        GraphSchema.ensureFor(store, snapshot);
-        store.write(tx -> RecordImport.create(tx, snapshot));
+        maintenance.importRecords(snapshot);
     }
 
     /**
@@ -221,13 +227,7 @@ public class WriteService {
      *     it; nothing changed
      */
     public RevertResult revert(@Nullable String batch) {
-        if (batch == null || batch.isBlank()) {
-            throw new WriteRejectedException(
-                    "no batch given",
-                    "Give the batch id a write returned, e.g. kb revert --batch <id>.");
-        }
-        String now = Times.format(Instant.now());
-        return store.write(tx -> BatchRevert.revert(tx, batch, now));
+        return maintenance.revert(batch);
     }
 
     /**
@@ -236,7 +236,6 @@ public class WriteService {
      * 11). Fails, leaving the graph unchanged, only when a row cannot exist in a graph.
      */
     public RestoreResult replaceAll(Snapshot snapshot) {
-        GraphSchema.ensureFor(store, snapshot);
-        return store.write(tx -> RecordRestore.replace(tx, snapshot));
+        return maintenance.replaceAll(snapshot);
     }
 }

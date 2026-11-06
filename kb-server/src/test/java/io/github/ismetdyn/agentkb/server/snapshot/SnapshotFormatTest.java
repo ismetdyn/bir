@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.snapshot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Edge;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Node;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -101,6 +103,34 @@ class SnapshotFormatTest {
 
         assertThat(out.resolve(NODES)).isEmptyFile();
         assertThat(out.resolve(EDGES)).isEmptyFile();
+    }
+
+    /**
+     * ADR-0022 decision 43: the files are written to a temporary file and renamed. A write that
+     * fails after nodes.jsonl is ready (here an edge prop with no JSON form) leaves the previous
+     * complete pair, and no temporary file stays behind for kb sync's commit to pick up.
+     */
+    @Test
+    void a_write_that_fails_on_the_edges_keeps_the_previous_pair_and_no_temporary_file()
+            throws IOException {
+        SnapshotFormat.write(out, SnapshotFormat.read(SEED_SNAPSHOT));
+        Node newer = new Node("zz-atomic", List.of("Topic"), Map.of("updated_at", "x"));
+        Edge broken =
+                new Edge(
+                        "01ZZATOMIC", "ABOUT", "zz-atomic", "zz-atomic", Map.of("p", new Object()));
+
+        assertThatThrownBy(
+                        () ->
+                                SnapshotFormat.write(
+                                        out, new Snapshot(List.of(newer), List.of(broken))))
+                .as("precondition: the edge cannot be written")
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertSameFiles(SEED_SNAPSHOT, out);
+        try (Stream<Path> files = Files.list(out)) {
+            assertThat(files.map(file -> file.getFileName().toString()))
+                    .containsExactlyInAnyOrder(NODES, EDGES);
+        }
     }
 
     static void assertSameFiles(Path expectedDir, Path actualDir) throws IOException {

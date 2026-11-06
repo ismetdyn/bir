@@ -10,9 +10,9 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
 /**
- * {@code kb revert --batch <id>}, {@code kb restore [--at <commit>]} and {@code kb check}
- * (docs/CLIENTS.md §2, ADR-0022 decision 3): each one REST call to the local server, which does the
- * work. Exit codes: 0 success, 1 error or problems found, 3 server unreachable.
+ * {@code kb revert --batch <id>}, {@code kb restore [--at <commit>]}, {@code kb sync} and {@code kb
+ * check} (docs/CLIENTS.md §2, ADR-0022 decision 3): each one REST call to the local server, which
+ * does the work. Exit codes: 0 success, 1 error or problems found, 3 server unreachable.
  */
 final class MaintenanceCommands {
 
@@ -81,6 +81,39 @@ final class MaintenanceCommands {
                                     + " signal edges to records the snapshot lacks; ignored "
                                     + answer.get("droppedSecretValues")
                                     + " secret values the snapshot should not carry");
+            return 0;
+        }
+    }
+
+    @Command(
+            name = "sync",
+            description =
+                    "Merge the remote's snapshot into the graph, commit the snapshot and push it;"
+                            + " never force-pushes.")
+    static final class Sync implements Callable<Integer> {
+
+        @Spec CommandSpec spec;
+
+        @Override
+        public Integer call() {
+            Map<?, ?> answer = JsonApi.fromEnvironment().post("/api/v1/sync", "{}");
+            Object commit = answer.get("commit");
+            spec.commandLine()
+                    .getOut()
+                    .println(
+                            (commit == null
+                                            ? "no new commit (nothing changed)"
+                                            : "commit " + commit)
+                                    + (Boolean.TRUE.equals(answer.get("pushed"))
+                                            ? ", pushed to the remote"
+                                            : ", kept in the local repository only (no remote)")
+                                    + "; "
+                                    + answer.get("nodes")
+                                    + " nodes and "
+                                    + answer.get("edges")
+                                    + " edges written, "
+                                    + answer.get("conflicts")
+                                    + " conflicts found (each has a conflict signal)");
             return 0;
         }
     }

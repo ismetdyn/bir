@@ -1,4 +1,13 @@
 # ~/.config/systemd/user/agentkb-sync.service — grafın anlık görüntüsünü yazar ve GitHub ile senkronlar.
+# Elle çalıştırma: systemctl --user start agentkb-sync ; sonuç: journalctl --user -u agentkb-sync
+#
+# Üst üste binme yok: Type=oneshot birim süreç bitene kadar "activating" kalır; o sırada gelen timer
+# tetiklemesi aynı işe katılır, ikinci bir kb sync başlatmaz (systemd'nin doğal sıralaması, ayrı kilit yok).
+# Elle `kb sync` ile çakışmayı bu birim değil sunucu engeller (POST /api/v1/sync tek seferde bir senkron).
+#
+# Başarısızlık görünür: kb çıkış kodu 1 (hata) ve 3 (sunucuya ulaşılamıyor) birimi "failed" yapar
+# (systemctl --user --failed). Başına "-" konmaz, SuccessExitStatus= eklenmez.
+# Journal'a yalnız kb sync çıktısı düşer (sayılar); secret değeri ve git uzak adresi çıktıya girmez (sunucu sözleşmesi).
 
 [Unit]
 Description=agentkb anlık görüntü ve senkron
@@ -7,4 +16,8 @@ Requires=agentkb.service
 
 [Service]
 Type=oneshot
+# kb istemcisinin kurulduğu yer (agentkb-curator.service ile aynı; kurulum G14).
 ExecStart=%h/.local/bin/kb sync
+# oneshot'ta başlama zaman aşımı varsayılan olarak kapalıdır; asılı bir çalışma sonraki bütün tetiklemeleri
+# yutardı. İstemcinin kendi istek zaman aşımı (5 dk, JsonApi.REQUEST_TIMEOUT) önce düşer; bu yalnız son güvence.
+TimeoutStartSec=10min

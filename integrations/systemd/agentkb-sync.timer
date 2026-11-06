@@ -6,9 +6,11 @@
 Description=agentkb anlık görüntü ve senkronu 10 dakikada bir
 
 [Timer]
-OnBootSec=5min
+# OnBootSec değil: kullanıcı yöneticisi ilk girişte açılır; açılış süresi geçmişse timer hemen tetiklenir ve
+# henüz dinlemeyen sunucuya gider (çıkış 3). OnStartupSec kullanıcı yöneticisinin açılışından sayar.
+OnStartupSec=5min
 OnUnitActiveSec=10min
-Persistent=true
+# Persistent= yalnız OnCalendar= ile etkilidir (systemd.timer(5)); burada işe yaramadığı için yok.
 
 [Install]
 WantedBy=timers.target

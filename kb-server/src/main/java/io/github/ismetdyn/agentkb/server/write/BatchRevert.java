@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.server.snapshot.SnapshotMerge;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,10 @@ import org.neo4j.graphdb.Transaction;
  * value on since carries the batch of that PUT and stays (SecretWrite.put), only this batch's
  * HAS_SECRET edge to it goes. The result counts the values deleted. Runs in the caller's one
  * transaction.
+ *
+ * <p>The revert leaves a {@code RevertedBatch {id: <batch>, at}} node (ADR-0022 decision 42). It
+ * goes into the snapshot, so {@code kb sync} does not bring the batch back from another machine
+ * (SnapshotMerge) and drops it there too.
  *
  * <p>No partial revert: when a later batch built on a record of this one (an edge of the later
  * batch touches it: a HAS_FACT onto its entity, a SUPERSEDES that closed its fact; or a conflict
@@ -68,6 +73,11 @@ final class BatchRevert {
             "MATCH ()-[r]->() WHERE elementId(r) IN $edges DELETE r";
     private static final String DELETE_NODES =
             "MATCH (n) WHERE elementId(n) IN $nodes DETACH DELETE n";
+    private static final String TOMBSTONE =
+            "MERGE (t:"
+                    + SnapshotMerge.REVERTED_BATCH
+                    + " {id: $batch})"
+                    + " SET t.at = $now, t.updated_at = $now";
 
     private BatchRevert() {}
 
@@ -97,6 +107,7 @@ final class BatchRevert {
         int reopened = count(tx, REOPEN, params);
         tx.execute(DELETE_EDGES, params).close();
         tx.execute(DELETE_NODES, params).close();
+        tx.execute(TOMBSTONE, params).close();
         return new RevertResult(batch, deleted, reopened, secretValues);
     }
 

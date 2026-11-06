@@ -54,6 +54,8 @@ public class CheckService {
             """;
     private static final String UNHELD_SECRETS =
             "MATCH (s:Secret) WHERE NOT ()-[:HAS_SECRET]->(s) RETURN s.id AS id ORDER BY id";
+    private static final String UNHELD_FACTS =
+            "MATCH (f:Fact) WHERE NOT ()-[:HAS_FACT]->(f) RETURN f.id AS id ORDER BY id";
     private static final String CONFLICTS_ABOUT_NOTHING =
             """
             MATCH (s:Signal {kind: 'conflict'}) WHERE NOT (s)-[:ABOUT]->()
@@ -141,6 +143,15 @@ public class CheckService {
                         Map.of(),
                         "local-record",
                         row -> "a Secret no entity holds; a restore kept it with its value"));
+        problems.addAll(
+                rows(
+                        tx,
+                        UNHELD_FACTS,
+                        Map.of(),
+                        "orphan-fact",
+                        row ->
+                                "a Fact no entity holds; a batch reverted on another machine"
+                                        + " took its entity"));
         problems.addAll(
                 rows(
                         tx,

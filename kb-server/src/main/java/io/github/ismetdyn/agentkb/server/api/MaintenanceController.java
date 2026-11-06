@@ -5,6 +5,8 @@ import io.github.ismetdyn.agentkb.server.snapshot.CheckService;
 import io.github.ismetdyn.agentkb.server.write.RestoreResult;
 import io.github.ismetdyn.agentkb.server.write.RevertResult;
 import io.github.ismetdyn.agentkb.server.write.SnapshotRestore;
+import io.github.ismetdyn.agentkb.server.write.SyncResult;
+import io.github.ismetdyn.agentkb.server.write.SyncService;
 import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.util.List;
@@ -17,10 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The F2 maintenance endpoints (docs/CLIENTS.md §1, ADR-0022 decision 5): {@code POST
- * /api/v1/revert {batch}}, {@code POST /api/v1/restore {at?}} and {@code GET /api/v1/check}. JSON
- * in and out, no token: OriginGuard keeps browsers out (ADR-0020). A refusal is 400 {@code {error,
- * hint}} (RestErrorHandler); a batch or commit name beyond the length and charset limits is refused
- * before anything looks it up, and the refusal never repeats it.
+ * /api/v1/revert {batch}}, {@code POST /api/v1/restore {at?}}, {@code POST /api/v1/sync} (body
+ * ignored) and {@code GET /api/v1/check}. JSON in and out, no token: OriginGuard keeps browsers out
+ * (ADR-0020). A refusal is 400 {@code {error, hint}} (RestErrorHandler); a batch or commit name
+ * beyond the length and charset limits is refused before anything looks it up, and the refusal
+ * never repeats it.
  */
 @RestController
 class MaintenanceController {
@@ -40,11 +43,19 @@ class MaintenanceController {
     private final WriteService writes;
     private final SnapshotRestore restore;
     private final CheckService check;
+    private final SyncService sync;
 
-    MaintenanceController(WriteService writes, SnapshotRestore restore, CheckService check) {
+    MaintenanceController(
+            WriteService writes, SnapshotRestore restore, CheckService check, SyncService sync) {
         this.writes = writes;
         this.restore = restore;
         this.check = check;
+        this.sync = sync;
+    }
+
+    @PostMapping("/api/v1/sync")
+    SyncResult sync() {
+        return sync.sync();
     }
 
     @PostMapping("/api/v1/revert")
