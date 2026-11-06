@@ -109,8 +109,11 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Kanıt: `55e74e2` (refactor: `WriteService.maintenance()`), `a1c7eb9`; `./mvnw -B clean verify` → exit 0 (kb-server 1280); git-lfs 3.7.1 kurulunca `DocumentLfsTest`/`SyncBlobsTest` 0 skip.
 - [x] CP2 Güvenlik incelemesi (doküman)
   Kanıt: `bca2d72`, `83aa419`. security-reviewer 2 tur + java-reviewer: symlink (CWE-59), kayıtlı secret değeri, UTF-16, blob hash, LFS sırası, `.gitattributes` union + belge deposu ayrı commit, sync/tamamlama ortak monitör. `clean verify` exit 0 (kb-core 3179, kb-server 1294), gate exit 0. Not: aynı saklı-değer sorgusunun 3. kopyası `graph/CypherRows.java:26` (paket yönü engeli) — H6'da ele al.
-- [ ] H5 Yeni yazma işlemleri (kapat, arşiv, çelişki çöz, öneri kabul)
-- [ ] CP3 İnceleme
+- [x] H5 Yeni yazma işlemleri (kapat, arşiv, çelişki çöz, öneri kabul)
+  Kanıt: `abfb778` (sync MERGE_HEAD), `6b27b0a`; ADR-0025 karar 15–18 (kullanıcı: revizyonla geri al, kapatılan kapalı kalır). `clean verify` + `-Peval verify` exit 0 (kb-core 3214, kb-server 1425), gate exit 0.
+- [x] CP3 İnceleme
+  Kanıt: java-reviewer (4 LOW + 3 hipotez) + security-reviewer (1 Sev-2, 5 Sev-3) → hepsi testle düzeltildi; J5/J6 hipotezleri gerçekti (sync'te kapatma kazanır).
+  Açık (H6/H7'de ele al): kabul edilen şema anahtarı `schema/facts.yaml` `kb sync` ile taşınmıyor; normal (closed_batch'siz) kapatma sync'te "sonra yazan kazanır"a tabi; MCP `WriteTools.java:269` çelişki mesajı ilişkileri "fact" diye sayıyor; REST'te alias sayısı/gövde limiti.
 - [ ] H6 Kalan REST + CLI
 - [ ] H7 Doküman okuma, `kb doctor`, bütünlük
 - [ ] CP4 İnceleme
