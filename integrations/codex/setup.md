@@ -1,6 +1,7 @@
 # Codex entegrasyonu
 
-Ön koşul: Claude Code kurulumundaki gibi `~/kb-tools/` ve `kb init`.
+Ön koşul: Claude Code kurulumundaki gibi `integrations/install.sh` çalıştırılmış. Adımları `integrations/install.sh --dry-run`
+yazdırır; onaydan sonra elle uygulanır.
 
 ## 1. MCP sunucusu ve özellikler — `~/.codex/config.toml` (F1+)
 

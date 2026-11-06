@@ -86,7 +86,9 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Açık (G4'ten): aynı saniyede eşit `updated_at` için birleştirme kuralı (SPEC §10 eki, kullanıcıya sorulacak); anlık görüntü yazımı geçici dosya + rename ile atomik.
   Scope: kb-server/**, kb-client/**, integrations/systemd/**
   Depends: G12
-- [ ] G14 `kb init`, kurulum, AGENT-RULES dry-run
+- [x] G14 `kb init`, kurulum, AGENT-RULES dry-run
+  Kanıt: `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1159 + IT 2 `SecretLeakIT`/`InstallInitIT`, kb-client 67 + `KbJarIT`); `-Peval` → exit 0; `quality_gate.py` → exit 0. `InstallInitIT` gerçek java + jar ile geçici HOME'da kurar, gerçek `~/kb` ve `~/.local/share/agentkb` dokunulmadı. İnceleme: istemci jar'ı çalışmıyordu (HIGH), `user.home` farkı, arama satırında satır sonu ile sahte sonuç → RED → düzeltildi. G13 LOW'ları (`+` dal adıyla force-push, index'in tamamını commit'leme) düzeltildi.
+  Açık (LOW): içe aktarılan hafıza başına metin sınırı yok (ADR-0017); CP6'da.
   Açık (G4'ten): `snapshot/` olmayan repo "boş" mu "bozuk" mu; `agentkb.repo` varsayılanı testlerde gerçek `~/kb`'yi açmasın.
   Scope: kb-server/**, kb-client/**, integrations/**
   Depends: G13

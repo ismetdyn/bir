@@ -1,8 +1,8 @@
 # ~/.config/systemd/user/agentkb.service
-# Kurulum:
+# Şablon: integrations/install.sh @JAVA@ yerine sürümünü denetlediği java'nın yolunu yazar, sonra
 #   systemctl --user daemon-reload
 #   systemctl --user enable --now agentkb
-#   loginctl enable-linger "$USER"   # oturum açılmadan da çalışsın istiyorsan
+# çalıştırır. Oturum açılmadan da çalışsın istiyorsan: loginctl enable-linger "$USER"
 
 [Unit]
 Description=agentkb — AI ajanları için bilgi bankası sunucusu
@@ -10,7 +10,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/java -Xms128m -Xmx512m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -jar %h/kb-tools/agentkb-server.jar
+ExecStart=@JAVA@ -Xms128m -Xmx512m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -jar %h/kb-tools/agentkb-server.jar
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

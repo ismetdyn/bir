@@ -44,9 +44,21 @@ Bilgi doğrudan grafta duruyor (ADR-0014); secret değerleri sadece bu bilgisaya
 | `eval/questions.yaml` | Değerlendirme seti |
 | `integrations/` | Ortak ajan talimatı, `kb-hook.sh`, Claude Code/Codex ayarları, systemd birimleri |
 
+## Kurulum
+
+Gerekenler: Java 21+, git, systemd (user). Tek komut, tekrar çalıştırmak güvenlidir:
+
+```bash
+integrations/install.sh --dry-run   # hiçbir şey yazmaz; yapılacakları ve ajan ayarı geçişini gösterir
+integrations/install.sh             # derler, ~/kb-tools ve ~/.local/bin/kb'yi kurar, kb init, servis + senkron timer
+```
+
+Claude Code ve Codex ayarları (MCP, hook'lar, AGENT-RULES, yerleşik hafızayı kapatma) script tarafından yazılmaz;
+adımlar `integrations/claude-code/setup.md` ve `integrations/codex/setup.md`'de. Önce `kb import-memories`.
+
 ## Başlarken
 
-F1 (spike) bitti; bulgular `docs/adr/0018-f1-spike-bulgulari.md`'de. Sıradaki faz F2'dir.
+F1 (spike) bitti; bulgular `docs/adr/0018-f1-spike-bulgulari.md`'de. F2 (bilgi çekirdeği) geliştiriliyor.
 
 ```bash
 claude

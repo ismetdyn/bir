@@ -22,7 +22,8 @@ import picocli.CommandLine.Command;
             MaintenanceCommands.Revert.class,
             MaintenanceCommands.Restore.class,
             MaintenanceCommands.Sync.class,
-            MaintenanceCommands.Check.class
+            MaintenanceCommands.Check.class,
+            ImportMemoriesCommand.class
         })
 public final class Kb {
 

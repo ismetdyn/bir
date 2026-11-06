@@ -188,17 +188,20 @@ public class WriteService {
      * opens with count 1, the same kind and key again raises its count. A value stored on a Secret
      * is masked as {@link #MASK} in key and payload first (docs/SECRETS.md); the caller masks what
      * only looks like a secret.
+     *
+     * @return true if a new signal opened, false if an existing one was raised
      */
-    public void raiseSignal(String kind, String key, String payload, Instant at) {
+    public boolean raiseSignal(String kind, String key, String payload, Instant at) {
         String seen = Times.format(at);
-        store.write(
-                tx ->
-                        SignalWrite.raise(
-                                new GraphWrite(tx, Ulid.next(), Instant.now()),
-                                kind,
-                                SecretWrite.maskStoredValues(tx, key, MASK),
-                                SecretWrite.maskStoredValues(tx, payload, MASK),
-                                seen));
+        return store.write(
+                        tx ->
+                                SignalWrite.raise(
+                                        new GraphWrite(tx, Ulid.next(), Instant.now()),
+                                        kind,
+                                        SecretWrite.maskStoredValues(tx, key, MASK),
+                                        SecretWrite.maskStoredValues(tx, payload, MASK),
+                                        seen))
+                != null;
     }
 
     /**

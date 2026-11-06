@@ -1,6 +1,7 @@
 # Claude Code entegrasyonu
 
-Ön koşul: `~/kb-tools/` altında `kb-hook.sh`, `AGENT-RULES.md`; `kb init` çalıştırılmış.
+Ön koşul: `integrations/install.sh` çalıştırılmış (`~/kb-tools/` altında `kb-hook.sh`, `AGENT-RULES.md`; `init`; servis).
+Bu dosyadaki adımları kurulum yapmaz; `integrations/install.sh --dry-run` onları yazdırır, onaydan sonra elle uygulanır.
 Hook'lar F2'de kurulur. Token yok (ADR-0020).
 
 ## 1. MCP sunucusu (F1+)
@@ -45,4 +46,5 @@ ln -s ~/kb-tools/AGENT-RULES.md ~/.claude/CLAUDE.md   # veya mevcut dosyanın so
 ## 4. Yerleşik hafıza (tek beyin, F2)
 
 1. `kb import-memories` (mevcut auto memory içeriği sinyal olarak alınır).
-2. Claude Code'da `/memory` menüsünden auto memory'yi kapat. (Ayar dosyasındaki anahtar adını kurulumda doğrula.)
+2. Sonra auto memory'yi kapat: `~/.claude/settings.json` içine `"autoMemoryEnabled": false` (ya da Claude Code'da `/memory`
+   menüsündeki anahtar; aynı ayarı yazar). Kaynak: code.claude.com settings-reference, 2026-11-06.

@@ -31,4 +31,23 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <!-- install.sh runs this jar as `java -jar`: the plugin kb-server already uses makes it self-contained
+           (picocli inside, Main-Class set). No Spring code is added; the jar only gets the Boot launcher. -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>io.github.ismetdyn.agentkb.client.Kb</mainClass>
+        </configuration>
+      </plugin>
+      <!-- Runs *IT classes (KbJarIT: the packaged jar) in verify; version and goals come from the Boot parent. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>

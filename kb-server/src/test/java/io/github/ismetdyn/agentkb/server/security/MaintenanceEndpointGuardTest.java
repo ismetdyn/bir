@@ -123,6 +123,31 @@ class MaintenanceEndpointGuardTest extends SecurityTestBase {
         assertThat(withOrigin.body() + forgedHost.body()).doesNotContain("problems");
     }
 
+    /**
+     * Passes before G14 too (the guard answers every path); ImportedMemoriesApiTest proves it
+     * opens.
+     */
+    @Test
+    void a_browser_request_does_not_import_memories() throws Exception {
+        String text = "zz-guard-import-" + UUID.randomUUID();
+        String body =
+                "{\"memories\": [{\"source\": \"claude-code\", \"path\": \".claude/x.md\", \"text\": \""
+                        + text
+                        + "\"}]}";
+        String path = "/api/v1/signals/imported-memories";
+
+        Reply withOrigin = postJson(path, body, host(), ORIGIN);
+        Reply forgedHost = postJson(path, body, "Host: attacker.example:" + port);
+
+        assertThat(withOrigin.status()).isEqualTo(403);
+        assertThat(forgedHost.status()).isEqualTo(403);
+        assertThat(
+                        count(
+                                "MATCH (s:Signal) WHERE s.payload CONTAINS $t RETURN count(s) AS n",
+                                Map.of("t", text)))
+                .isZero();
+    }
+
     private long count(String cypher, Map<String, Object> params) {
         return store.read(tx -> (Long) tx.execute(cypher, params).next().get("n"));
     }

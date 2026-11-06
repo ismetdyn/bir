@@ -69,6 +69,11 @@ final class KbProcess {
             throws IOException {
         List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
+        // A test HOME is the JVM's home too: on Linux user.home comes from the password file, not
+        // from $HOME, so kb would otherwise read this machine's real home.
+        if (env.containsKey("HOME")) {
+            command.add("-Duser.home=" + env.get("HOME"));
+        }
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(MAIN_CLASS);

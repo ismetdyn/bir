@@ -77,6 +77,25 @@
               </resources>
             </configuration>
           </execution>
+          <!-- init writes seed/schema into a new ~/kb (InitCommand); seed/ stays their one place. -->
+          <execution>
+            <id>copy-seed-schema</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/seed/schema</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../seed/schema</directory>
+                  <includes>
+                    <include>*.yaml</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
