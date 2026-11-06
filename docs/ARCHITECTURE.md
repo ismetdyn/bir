@@ -239,7 +239,8 @@ Code'u sadece `/mcp/curator` araçlarıyla başlatır. Ayrıntılar: CURATOR.md.
   secret yok.
 - **`kb doctor`:** sunucu, graf, son anlık görüntü ve senkron zamanı, veri dizini izinleri, bu bilgisayarda
   değeri olmayan secret'lar, büyük doküman varsa git-lfs kurulumu, iki ajanın MCP ve hook yapılandırması, son küratör çalışması ve eval skoru. LFS gönderimi başarısız olursa `kb sync` hata verir.
-- **`kb check`** (F2: sahipsiz kenar, sözlük dışı ilişki, açık çelişki, `git fsck`; doküman bütünlüğü F3, büyüme raporu
+- **`kb check`** (F2: sahipsiz kenar, sözlük dışı ilişki, açık çelişki, yinelenen `id`, yerel kayıt, sahipsiz fact, `git fsck`;
+  doküman bütünlüğü F3, büyüme raporu
   F4; ADR-0022): tutarlılık sorunları (sahipsiz kenar, sözlük dışı ilişki, açık çelişki) ve büyüme raporu: varlıklar
   (duruma göre), güncel ve kapalı fact'ler, kararlar, dersler, dokümanlar (toplam boyut), açık, işlenmiş ve atılan
   sinyaller, bayat oranı; her biri için bir önceki `kb check`'e göre fark (ADR-0017). Doküman bütünlüğü: her

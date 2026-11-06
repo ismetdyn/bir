@@ -79,7 +79,9 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Doğrula: Claude Code/Codex MCP isteklerinde oturum kimliği gidiyor mu. Eval'e genel bilgi soruları kullanıcıya önerilir (hakem dosyası).
   Kanıt: ölçüm (Claude Code 2.1.318, Codex 0.161.0): Codex `_meta.sessionId` gönderiyor, Claude yalnız `toolUseId` → ADR-0023 karar 6. `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1101, `SecretLeakIT` 1, kb-client 58); `-Peval` 18/18; `quality_gate.py` → exit 0, yeni suppress yok. Uçtan uca: brief `Episode:` satırı → `kb_remember` → `kb_read` `episode: claude, …`. İnceleme MEDIUM'ları (eski brief ipucu, sınırsız `session_id`) RED → düzeltildi.
   Açık (LOW, G14/CP6): SessionStart'ta Episode yazımı düşerse brief de kayboluyor (hook fail-open, oturum bloklanmaz); `transcript_path` secret desen denetimi yok; Claude için PreToolUse ile `toolUseId` → oturum eşlemesi ayrı karar.
-- [ ] G13 Senkron + timer
+- [x] G13 Senkron + timer
+  Kanıt: `./mvnw -B clean verify` → exit 0 (kb-core 3168, kb-server 1117, `SecretLeakIT` 1, kb-client 62); `-Peval` → exit 0; `quality_gate.py` → exit 0, suppress yok. İki makine + bare remote: kayıpsız birleşme, eşitlik kuralı, RevertedBatch, satır sayısı reddi, force-push yok, atomik yazım, kapanışta yerel commit; `SecretLeakIT` uzak geçmişi temiz. İnceleme MEDIUM'ları (birleştirmede rastgele kenar kimliği, geri alınan partinin üstündeki kayıt) RED → düzeltildi.
+  Açık (LOW, G14 başında): senkron commit'i bütün index'i alıyor (yalnız `snapshot/` almalı); `+` ile başlayan dal adı zorlanmış refspec'e dönebilir; ilişkisiz geçmiş için ipucu.
   Açık (CP2'den): restore ve `SyncService` grafa yazacaksa `write`'ta durur ya da `Snapshot` record'ları taşınır; yoksa döngü kuralı düşer. RSS ≈ 2 × Xmx (1,07 GB): servis dosyasına `MemoryMax` konacaksa buna göre.
   Açık (G4'ten): aynı saniyede eşit `updated_at` için birleştirme kuralı (SPEC §10 eki, kullanıcıya sorulacak); anlık görüntü yazımı geçici dosya + rename ile atomik.
   Scope: kb-server/**, kb-client/**, integrations/systemd/**

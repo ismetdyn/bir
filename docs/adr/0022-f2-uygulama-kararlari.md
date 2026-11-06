@@ -150,6 +150,24 @@ diğer belgeler buraya bağlanır.
     değeri değildir. Kullanılamayan anlık görüntü 400 `{error, hint}` döner. `kb` istemcisi sunucu metnindeki kontrol
     karakterlerini (sekme ve satır sonu hariç) yazdırmadan siler; `kb secret show` değeri olduğu gibi basar.
 
+### Senkron (G13)
+41. **Eşit zamanda sabit kural + uyarı** (kullanıcı kararı 2026-11-06): `kb sync` aynı kaydı iki tarafta aynı `updated_at` ile
+    farklı bulursa iki bilgisayarda aynı sonucu veren sabit bir kuralla birini seçer (satırın kanonik metninin sözlük
+    sırasında büyük olanı). Kaybeden sürüm git geçmişinde kalır; kayıt hakkında bir `conflict` sinyali açılır.
+42. **Geri alma senkrona taşınır** (lider; yaygın "silme işareti" deseni): `kb revert --batch` anlık görüntüye küçük bir
+    `RevertedBatch {id: <batch>, at}` kaydı bırakır. Birleştirme, geri alınmış bir partinin damgasını taşıyan kayıtları
+    diğer bilgisayardan geri getirmez. Böylece bir bilgisayarda geri alınan parti senkronla diriltilmez. Diğer
+    bilgisayarda o partinin üstüne yazılmış sonraki bir kayıt silinmez (değişmez 5, 11); varlığı kalmadıysa `kb check`
+    onu `orphan-fact` olarak gösterir. Birleştirmenin açtığı `SUPERSEDES` kenarının kimliği iki bilgisayarda aynı
+    çıkacak şekilde türetilir.
+43. **Birleştirme sonrası tutarlılık:** iki bilgisayar aynı tek değerli anahtara farklı yeni değer açtıysa birleştirme ikisini
+    de korur (kayıpsız, değişmez 11); güveni düşük olan `conflict` olur, eşit güvende yeni olan güncel kalır ve çelişki
+    sinyali açılır. Anlık görüntü dosyaları geçici dosya + yeniden adlandırma ile atomik yazılır.
+44. **Senkron ayrıntıları** (lider): reddedilen push en çok 5 turda yeniden fetch-birleştir-commit edilir, sonra hata.
+    Senkron commit'leri bot kimliğiyle (`agentkb <agentkb@localhost>`) ve imzasız atılır; ayar yalnız o git çağrılarına
+    verilir, kullanıcının git ayarına yazılmaz (otomasyon commit'lerinin yaygın biçimi; yeni makinede ek kurulum gerekmez).
+    Sunucu kapanırken anlık görüntüyü yazar ve değişiklik varsa yerel commit'ler; push bir sonraki `kb sync`'e kalır.
+
 ### F3 notu
 21. **Doküman yükleme (F3):** `kb doc add` sıra numaralı, kaldığı yerden sürdürülebilir yükleme kullanır (ROADMAP F3,
     CLIENTS §2). Bu, protokol ve durum takibi ekler; loopback'te paket kaybı olmamasına rağmen kullanıcı bu yolu seçti.

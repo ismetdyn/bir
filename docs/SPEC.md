@@ -260,7 +260,8 @@ bilgisayarlar arasında senkronlanmaz. Ayrıntılar: SECRETS.md.
   `id`'ye göre sıralı, sabit biçimde (anahtarlar özyinelemeli alfabetik; ADR-0022). Değişiklik varsa commit'lenir. Sinyaller ve secret değerleri
   (`secret_value`) yazılmaz; içeri alırken yereldeki değer korunur. `Episode` düğümleri ve kayıtların `episode` alanı
   yazılır, kayıt kaynağı senkronla taşınır (ADR-0023). `blobs/` aynı repoda durur.
-- `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (`updated_at`'i yeni olan kazanır), grafa uygular,
+- `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (`updated_at`'i yeni olan kazanır; eşitlikte sabit kural +
+  çelişki sinyali; geri alınmış partinin kayıtları dirilmez: ADR-0022 karar 41–43), grafa uygular,
   yeni anlık görüntüyü uzak dalın üstüne commit'leyip gönderir. Commit'lemeden önce yazdığı satır sayısını graftaki
   kayıt sayısıyla karşılaştırır (sinyaller hariç); tutmazsa commit'lemez ve hata verir. Hiçbir zaman force-push
   yapmaz; GitHub'da ana dal korumalıdır (private `~/kb` deposu), böylece geçmiş yeniden yazılamaz.

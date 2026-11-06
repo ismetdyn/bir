@@ -7,8 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G12, G12f ve ADR-0023/0024 dokümanları commit edildi (son: `68ac3cc`). G12b kodu yazıldı (19 yeni test yeşil; ölçüm: Codex `_meta.sessionId` gönderiyor, Claude yalnız `toolUseId`). Brief testi, PMD suppress'i ve `kb_schema` düzeldi. Workflow `f2-g12b-finish` (run `wf_c8dd7dc1-830`): `kb_remember` episode'u `source` içine (lizard suppress'i kalksın), inceleme. Bitince commit; sonra G13, G14, CP6.
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-g12b-finish-wf_c8dd7dc1-830.js, resumeFromRunId: "wf_c8dd7dc1-830"})`.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G12b ve CP1–CP5 bitti, commit edildi (son: `fe47112`, temiz worktree'de verify exit 0). G13 kodu ve timer yazıldı (3 test RevertedBatch işaretinden düşüyor). Workflow `f2-g13-close` (run `wf_661163e1-fa7`): test düzeltmeleri, WriteService suppress'ini refactor ile kaldırma, kapanışta anlık görüntü, inceleme. Bitince commit; sonra G14, CP6. ADR-0022 karar 41–44 commit'siz (G13 ile girer).
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-g13-close-wf_661163e1-fa7.js, resumeFromRunId: "wf_661163e1-fa7"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
@@ -19,6 +19,7 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Restore yerel veriyi korur (kullanıcı, karar 38).
 - Ana amaç: ajan kullanıcıdan önce agentkb'ye sorar; her konuda her bilgi (SPEC §1). Wikidata modeli + kayıt kaynağı (ADR-0023/0024, 2026-11-06).
 - Her iş bitince commit (kullanıcı, 2026-11-05).
+- Senkron eşitliği: sabit kural + çelişki sinyali (kullanıcı, karar 41).
 - `user_stated` kanıtı değeri içermeli ve mesajda birebir geçmeli; port hedefi değerin parçası ("sektör standardı") (karar 29–30).
 
 ## Denenip başarısız olan
