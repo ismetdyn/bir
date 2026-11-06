@@ -96,6 +96,23 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
   Kanıt: temiz worktree, global git kimliği olmayan HOME: `./mvnw -B -o clean verify` iki kez → exit 0 (kb-core 3168, kb-server 1171 + IT 2, kb-client 67 + IT 1); `-Peval` → exit 0, 18/18. Gerçek Claude Code ile bitti tanımı: (1) oturum açılışında brief + arka plan taraması 14 bilgi ekledi; (2) "eskiden IP" KB'den cevaplandı, eski IP ile arama sunucuyu buluyor; (3) bilinmeyeni sordu, cevabı `owner: Mehmet Kaya · user_stated · episode` olarak birebir kaydetti (AGENT-RULES düzeltmesinden sonra); (4) `kb run` değeri transkript/log/git'te 0 kez, çıktı `****`; (5) sync → restore → export `cmp` aynı, secret korunuyor. Codex `kb_search` onaysız. Tarama süresi: ADR-0022 karar 45 (kullanıcı). Model harcaması ≈ 0,15 USD.
   Açık (LOW): sunucu kapanışı açık MCP akışları yüzünden ~31 sn sürüyor (systemd 90 sn içinde); makine boşken tarama süresini yeniden ölç.
 
+## F3 — kb istemcisi (plan: `.engineering/tasks/plan.md`, onay bekliyor)
+- [ ] H0 ADR-0025 + belge hizası
+- [ ] H1 Native + TamboUI spike
+- [ ] CP1 TamboUI / Jackson go-no-go
+- [ ] H2 `kb-api` + tipli istemci
+- [ ] H3 Yükleme staging'i (sunucu)
+- [ ] H4 Tamamlama + blob deposu + senkron
+- [ ] CP2 Güvenlik incelemesi (doküman)
+- [ ] H5 Yeni yazma işlemleri (kapat, arşiv, çelişki çöz, öneri kabul)
+- [ ] CP3 İnceleme
+- [ ] H6 Kalan REST + CLI
+- [ ] H7 Doküman okuma, `kb doctor`, bütünlük
+- [ ] CP4 İnceleme
+- [ ] H8a TUI 1 · H8b TUI 2
+- [ ] H9 Native dağıtım + kurulum
+- [ ] CP5 Bitti tanımı: her işlem TUI'den
+
 ## Bekleyen (kullanıcı kararıyla ertelendi, 2026-11-07)
 - [ ] Kullanıcının gerçek Claude Code ve Codex ayarlarına geçiş: MCP sunucusu, hook'lar, AGENT-RULES, yerleşik hafızayı kapatma (önce `kb import-memories`). Adımlar `integrations/claude-code/setup.md`, `integrations/codex/setup.md`; önizleme `integrations/install.sh --dry-run`. Geçişte Codex hook'larını gerçek ayarla ölç (bugün yalnız kaynak koddan). Kullanıcı "şimdilik kalsın" dedi.
 
