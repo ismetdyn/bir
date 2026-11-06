@@ -24,8 +24,8 @@ import java.util.OptionalLong;
  * <p>The bytes are always decoded as UTF-8. They are also decoded as UTF-16, in the same read, when
  * they start with its byte order mark or, without one, when the first {@link #SNIFF_BYTES} hold NUL
  * in at least 90% of the odd (little-endian) or even (big-endian) positions, as ASCII text in
- * UTF-16 does; the first hit wins. Invalid bytes are replaced, so binary content does not stop the
- * scan.
+ * UTF-16 does; of the hits in one read the lowest line wins. Invalid bytes are replaced, so binary
+ * content does not stop the scan.
  */
 public final class SecretScan {
 
@@ -62,20 +62,24 @@ public final class SecretScan {
         byte[] buffer = new byte[READ_BYTES];
         int read;
         while ((read = in.read(buffer)) != -1) {
+            long found = 0;
             for (Pass pass : passes) {
-                long found = pass.feed(buffer, read);
-                if (found > 0) {
-                    return OptionalLong.of(found);
-                }
+                found = lower(found, pass.feed(buffer, read));
             }
-        }
-        for (Pass pass : passes) {
-            long found = pass.end();
             if (found > 0) {
                 return OptionalLong.of(found);
             }
         }
-        return OptionalLong.empty();
+        long found = 0;
+        for (Pass pass : passes) {
+            found = lower(found, pass.end());
+        }
+        return found > 0 ? OptionalLong.of(found) : OptionalLong.empty();
+    }
+
+    /** The lower of two hit lines, 0 being no hit. */
+    private static long lower(long found, long next) {
+        return found == 0 || (next > 0 && next < found) ? next : found;
     }
 
     /**

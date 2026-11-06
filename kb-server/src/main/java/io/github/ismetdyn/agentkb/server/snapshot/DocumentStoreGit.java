@@ -37,6 +37,13 @@ final class DocumentStoreGit {
         }
     }
 
+    /** Puts the store paths in the index back to HEAD; the working tree keeps the files. */
+    void unstage() throws IOException {
+        List<String> reset = new ArrayList<>(List.of("reset", "--quiet", "--"));
+        reset.addAll(PATHS);
+        git(reset.toArray(String[]::new));
+    }
+
     /** The document store paths whose staged state differs from HEAD. */
     List<String> staged() throws IOException {
         // A commit of paths refuses one git does not know, so only the store paths with changes.

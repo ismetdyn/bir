@@ -95,6 +95,17 @@ class SecretScanTest {
                     .as("BOM'd %s with an ASCII tail", utf16)
                     .hasValue(2);
         }
+
+        // The UTF-16 pass runs first and hits line 3 in the same read; the UTF-8 hit is lower.
+        byte[] head = ("﻿" + FILLER).getBytes(StandardCharsets.UTF_16LE);
+        byte[] after = ("\ntoken " + TOKEN + "\n").getBytes(StandardCharsets.UTF_16LE);
+        byte[] bytes = Arrays.copyOf(head, head.length + tail.length + after.length);
+        System.arraycopy(tail, 0, bytes, head.length, tail.length);
+        System.arraycopy(after, 0, bytes, head.length + tail.length, after.length);
+
+        assertThat(SecretScan.firstSecretLine(new ByteArrayInputStream(bytes), List.of()))
+                .as("the lowest line of both charsets")
+                .hasValue(2);
     }
 
     /**

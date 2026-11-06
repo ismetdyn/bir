@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The git steps of {@code kb sync} on {@code ~/kb} (SPEC §10, ARCHITECTURE §8) through {@link
@@ -17,6 +19,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class SyncGit {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SyncGit.class);
     private static final String ORIGIN = "origin";
     private static final String NODES = "snapshot/" + SnapshotFormat.NODES_FILE;
     private static final String EDGES = "snapshot/" + SnapshotFormat.EDGES_FILE;
@@ -57,12 +60,18 @@ public final class SyncGit {
      * other files merge as git merges them. The snapshot files go back to HEAD first, so a sync
      * that stopped half-way does not block the merge. The document store is committed first: git
      * refuses to merge over a local file the remote also brings (a new {@code .gitattributes}, the
-     * same blob added on both machines), and only a committed {@code .gitattributes} merges.
+     * same blob added on both machines), and only a committed {@code .gitattributes} merges. A
+     * merge already open is a sync's that died before its commit, never this round's: it is aborted
+     * first, as git refuses the commit of the document store during a merge.
      *
      * @return the snapshot of the remote branch; empty if the remote has no such branch yet
      * @throws IOException if its snapshot cannot be read or git cannot merge; a merge is aborted
      */
     public Optional<Snapshot> mergeRemote() throws IOException {
+        if (git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").ok()) {
+            discard();
+            LOG.info("event=stale_merge_aborted");
+        }
         String remote = "refs/remotes/" + ORIGIN + "/" + branch();
         if (!git("rev-parse", "--verify", "--quiet", remote + "^{commit}").ok()) {
             return Optional.empty();
@@ -146,6 +155,9 @@ public final class SyncGit {
      */
     public void discard() throws IOException {
         if (git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").ok()) {
+            // git merge --abort deletes a new file in the index; unstaged first, a blob the merge
+            // or this machine added stays in the working tree for the next commit.
+            documents.unstage();
             git("merge", "--abort");
         }
         git("checkout", "--quiet", "HEAD", "--", NODES, EDGES);

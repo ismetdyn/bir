@@ -99,6 +99,36 @@ class SyncBlobsTest {
                 .containsExactly(FOREIGN);
     }
 
+    /**
+     * A sync that died between its merge and its commit leaves MERGE_HEAD and the blob it staged;
+     * the next sync aborts that merge without losing the blob (git merge --abort deletes a staged
+     * new file), and every sync after it succeeds.
+     */
+    @Test
+    void a_merge_left_open_by_a_dead_sync_is_aborted_and_the_blob_kept() throws IOException {
+        machines = SyncMachines.withSeedRemote(dir);
+        Machine a = machines.clone("a");
+        Path other = machines.plainClone("other");
+        Files.writeString(other.resolve(FOREIGN), "pushed elsewhere\n", StandardCharsets.UTF_8);
+        ScanProjects.commitAll(other, "other machine");
+        ScanProjects.git(other, "push", "--quiet", "origin", SyncMachines.BRANCH);
+        ScanProjects.git(a.repo, "fetch", "--quiet", "origin");
+        ScanProjects.git(a.repo, "merge", "--quiet", "--no-commit", "--no-ff", "origin/main");
+        String path = putBlob(a.repo, binaryContent());
+        ScanProjects.git(a.repo, "add", "--", path);
+        a.graph.write(request(Source.USER, "zz-sync-stale", T1, fact("os", "rhel 9", PROD)));
+
+        a.sync();
+        a.sync();
+
+        assertThat(ScanProjects.git(machines.remote, "ls-tree", "-r", "--name-only", "main"))
+                .contains(path)
+                .contains(FOREIGN);
+        assertThat(ScanProjects.git(a.repo, "status", "--porcelain", "--", "blobs"))
+                .as("nothing under blobs/ left uncommitted on A")
+                .isBlank();
+    }
+
     /** ADR-0017 decision 7: "LFS gönderimi başarısızsa kb sync hata verir". */
     @Test
     void a_failed_git_lfs_push_is_a_sync_error() throws IOException, InterruptedException {
@@ -171,20 +201,17 @@ class SyncBlobsTest {
 
     /** Writes {@code content} as POST /documents does; returns its repo-relative path. */
     private static String putBlob(Path repo, byte[] content) throws IOException {
-        String sha = sha256(content);
+        String sha;
+        try {
+            sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
         String path = "blobs/" + sha.substring(0, 2) + "/" + sha;
         Path blob = repo.resolve(path);
         Files.createDirectories(blob.getParent());
         Files.write(blob, content);
         return path;
-    }
-
-    private static String sha256(byte[] content) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     private static List<String> changedIn(Path repo, String commit) {
