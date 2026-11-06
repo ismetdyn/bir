@@ -22,7 +22,10 @@ konudaki bilgisi. Kalıcı bilginin tek yeri burası.
 - İlişki sorularında `kb_related`; karmaşık sorularda önce `kb_schema`, sonra `kb_cypher`.
 - Bilgi bankasında yoksa kullanıcıya sor; mümkünse yapılandırılmış soru aracıyla (Claude Code: AskUserQuestion,
   Codex: `request_user_input`). Cevabı aldığın anda `kb_remember` ile kaydet
-  (`source.kind = user_stated`, `evidence` = kullanıcının kendi sözleri).
+  (`source.kind = user_stated`, `evidence` = kullanıcının kendi sözleri). `value` kullanıcının söylediği değerin
+  kendisidir, birebir (ör. kullanıcı "sahibi Mehmet Kaya" dediyse `owner` = `Mehmet Kaya`); cümle kurma, yeniden
+  yazma. Sözlükte uygun anahtar varsa (`kb_schema`) onu kullan, yoksa `note`. Değer kullanıcının mesajında birebir
+  geçmezse bilgi doğrulanmamış (`agent`) olarak saklanır.
 - Koddan veya dokümandan bilgi bankasında olmayan kalıcı bir şey öğrenirsen `kb_remember` (`source.kind = code|doc`).
   Bilgiyi kaydet, konuşmayı değil: her fact kısa tek bir cümle. Bilgi bankasındaki bir dokümandan (`doc:…`)
   öğrendiysen `document` alanına onu yaz.

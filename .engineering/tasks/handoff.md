@@ -7,8 +7,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 - Codex 0.161.0 okuma araçlarını ayarsız çağırıyor (`destructiveHint: false`, ADR-0022 karar 28).
 
 ## Sürüyor
-- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G14 ve CP1–CP5 bitti, commit edildi (son: `66bc67e`). Workflow `f2-cp6-definition-of-done` (run `wf_5333d9bb-3ae`): SessionStart arka plan taraması (SPEC S1, eksikti) + hafıza metni sınırı (test-first), sonra temiz worktree verify, boş makinede süre ölçümü, gerçek Claude Code/Codex ile bitti tanımı uçtan uca. Bitince commit ve F2 kapanış özeti.
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-cp6-definition-of-done-wf_5333d9bb-3ae.js, resumeFromRunId: "wf_5333d9bb-3ae"})`.
+- G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). G0–G14, CP1–CP5 bitti; CP6 boşlukları (oturum başında tarama, hafıza sınırı) commit edildi (`67751c3`). CP6 uçtan uca: madde 1, 2, 4, 5 geçti; madde 3 kısmen (ajan değeri yeniden yazdı → AGENT-RULES düzeltildi, commit'siz). Workflow `f2-cp6-fixes` (run `wf_2c545ff0-4dc`): git kimliği olmayan makinede sync merge, kararsız test, arka plan taramasında oturum episode'u, ilk tarama performansı (6,1 sn > 5 sn hedef). Sonra madde 3'ü gerçek `claude -p` ile yeniden dene (kendi auth'umla, gerçek HOME'da yalnız `--settings/--mcp-config`; kimlik bilgisi kopyalama YOK).
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f2-cp6-fixes-wf_2c545ff0-4dc.js, resumeFromRunId: "wf_2c545ff0-4dc"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
