@@ -3,9 +3,11 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.core.Ids;
 import io.github.ismetdyn.agentkb.core.Times;
 import io.github.ismetdyn.agentkb.core.model.Fact;
+import io.github.ismetdyn.agentkb.core.model.Source;
 import java.time.Instant;
 import org.jspecify.annotations.Nullable;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
 
 /**
  * SPEC §7 rule 3 and ADR-0022 decision 7: a value waiting as a conflict opens a {@code conflict}
@@ -54,6 +56,27 @@ final class ConflictSignals {
                         + ", other values at "
                         + String.join(", ", dispute.others()),
                 Times.format(at));
+    }
+
+    /**
+     * ADR-0025 decision 16 for a relation (lead decision CP3 S4): {@code source} wrote the relation
+     * the user closed. The key is entity, type and target, and env; the payload names ids only.
+     */
+    void raise(Node entity, Relationship closed, Source source, String at) {
+        String relation =
+                closed.getType().name() + "->" + closed.getEndNode().getProperty(GraphWrite.ID);
+        String env = (String) closed.getProperty("env", Fact.DEFAULT_ENV);
+        raise(
+                entity,
+                relation,
+                env,
+                relation
+                        + " @"
+                        + env
+                        + " ("
+                        + Ids.normalize(source.name())
+                        + ") was written again after the user closed it",
+                at);
     }
 
     private void raise(Node entity, String key, String env, String payload, String at) {

@@ -42,6 +42,7 @@ final class FactWrites {
     private static final String VALID_TO = "valid_to";
     private static final String STATUS = "status";
     private static final String EVIDENCE = "evidence";
+    private static final String USER = Ids.normalize(Source.USER.name());
 
     private final GraphWrite graph;
     private final ConflictSignals signals;
@@ -64,14 +65,26 @@ final class FactWrites {
      * @return the fact node that holds the incoming value after the write
      */
     Node write(Node entity, CheckedFact input, Fact incoming, @Nullable Node target) {
-        Map<String, Node> open = openFacts(entity, input);
+        Map<String, Node> slot = slotFacts(entity, input);
+        Map<String, Node> open = new HashMap<>(slot);
+        open.values().removeIf(node -> node.hasProperty(VALID_TO));
         if (target != null) {
             open.values().removeIf(node -> !input.value().equals(node.getProperty(VALUE)));
         }
         List<Sourced> current = new ArrayList<>();
         open.values().forEach(node -> current.add(new Sourced(fact(node, target), null)));
+        slot.values().stream()
+                .filter(node -> node.hasProperty(VALID_TO))
+                .forEach(
+                        node ->
+                                current.add(
+                                        new Sourced(
+                                                fact(node, target),
+                                                null,
+                                                node.hasProperty(GraphWrite.CLOSED_BATCH))));
         boolean multi = input.multi() && target == null;
-        return switch (WritePolicy.decide(new Sourced(incoming, null), current, multi)) {
+        Sourced write = new Sourced(incoming, null);
+        return switch (WritePolicy.decide(write, current, multi, input.caseInsensitive())) {
             case WritePolicy.Refresh refresh -> refresh(entity, open, refresh.refreshed());
             case WritePolicy.Add add -> create(entity, add.added(), target, null);
             case WritePolicy.CloseAndAdd change
@@ -100,14 +113,20 @@ final class FactWrites {
         };
     }
 
-    /** Open facts of the entity in the key and env of {@code input}, by id. */
-    private static Map<String, Node> openFacts(Node entity, CheckedFact input) {
+    /**
+     * Facts of the entity in the key and env of {@code input}, by id: the open ones, those a user
+     * edit closed (closed_batch), which WritePolicy keeps closed (ADR-0025 decision 16), and the
+     * closed user facts, which lift such a close once the user opened the value again (CP3 J5).
+     */
+    private static Map<String, Node> slotFacts(Node entity, CheckedFact input) {
         Map<String, Node> open = new HashMap<>();
         try (ResourceIterable<Relationship> edges =
                 entity.getRelationships(Direction.OUTGOING, HAS_FACT)) {
             for (Relationship edge : edges) {
                 Node node = edge.getEndNode();
-                if (!node.hasProperty(VALID_TO)
+                if ((!node.hasProperty(VALID_TO)
+                                || node.hasProperty(GraphWrite.CLOSED_BATCH)
+                                || USER.equals(node.getProperty(SOURCE, null)))
                         && input.key().equals(node.getProperty(KEY, null))
                         && input.env().equals(node.getProperty(ENV, Fact.DEFAULT_ENV))) {
                     open.put((String) node.getProperty(GraphWrite.ID), node);

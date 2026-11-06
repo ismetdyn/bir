@@ -86,7 +86,7 @@ Ajanlar birbirleriyle konuşmaz.
 | Etiket | Ne | Başlıca alanlar |
 |---|---|---|
 | `Entity` + tür etiketi (`Server`, `Database`, `Service`, `Project`, `Network`, `Environment`, `Cluster`, `Person`, `Team`, `Topic`) | Sunucu, veritabanı, servis, proje, herhangi bir konu… (`Topic`: ADR-0024) | `id` (kısa ad, ör. `ornek-app-01`), `aliases[]`, `status` (`current` \| `observed` \| `archived`), `summary` |
-| `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?`, `episode?` |
+| `Fact` | Bir varlık hakkında tek bilgi | `id`, `key`, `value`, `env`, `source`, `valid_from`, `observed_at`, `valid_to`, `status` (`ok` \| `unverified` \| `conflict`), `evidence?`, `batch?`, `episode?`, `closed_batch?` (kullanıcının kapattığı parti) |
 | `Episode` | Bilginin geldiği oturum ya da olay; içerik tutmaz (ADR-0023) | `id` (ULID), `kind` (`session` \| `scan` \| `user` \| `import`), `client` (`claude` \| `codex` \| `kb` \| `curator` \| `scan`), `session_id?`, `transcript_path?`, `started_at`, `last_at` |
 | `Decision` | Mimari karar veya kural | `id`, `rule`, `scope`, `date`, `review_by`, `status`, `body` |
 | `Lesson` | Çıkarılmış ders | `id`, `title`, `body`, `date` |
@@ -94,7 +94,8 @@ Ajanlar birbirleriyle konuşmaz.
 | `SourceFile`, `Repo` | Bilginin geldiği dosya ve depo | `SourceFile {id:'<repo>:<yol>', repo, path}`, `Repo {id, remote}` |
 | `Document` | Bilgi bankasının sakladığı ham dosya (PDF, runbook, not) | `id` (`doc:<sha256'nın ilk 12 hanesi>`), `sha256`, `name`, `mime`, `size`, `path` (`blobs/…`), `origin?`, `source`, `added_at` |
 | `Stack` | Teknoloji yığını | `id` |
-| `Proposal` | Onay bekleyen normatif değişiklik; neyi değiştirdiği `ABOUT` kenarıyla | `id`, `kind`, `content`, `evidence`, `by`, `status` |
+| `Proposal` | Onay bekleyen normatif değişiklik; neyi değiştirdiği `ABOUT` kenarıyla | `id`, `kind`, `content`, `evidence`, `by`, `status` (`open` \| `accepted` \| `rejected`), `review_note?` (ret notu, en çok 300 karakter; ADR-0025 karar 18) |
+| `Revision` | Kullanıcı düzeltmesinin yerinde değiştirdiği alanların eski değerleri (ADR-0025 karar 15); `kb revert` bunları geri koyar | `id`, `batch`, `fields[]` (değişen alan adları), her alanın eski değeri (yoksa alan yok) |
 | `Signal` | Küratör için ham sinyal; **cihaza yerel, anlık görüntüye girmez**, silinmez; aynı `kind` + `key` tek düğümdür | `id`, `kind`, `key`, `payload` (secret görünümlü değerler maskeli), `at`, `last_at`, `count`, `status` (`open` \| `done`), `outcome?` |
 
 `body` alanları Markdown metindir. Her kayıtta ayrıca sunucunun yazdığı teknik `updated_at` vardır (senkron için).
@@ -110,13 +111,14 @@ anlık görüntüden içeri alma ve restore hiçbir kaydı reddetmez, kırpmaz.
 |---|---|
 | `HAS_FACT`, `HAS_SECRET` | Entity → Fact / Secret |
 | `SUPERSEDES` | Fact → Fact, Document → Document (yeni → eski) |
+| `REVISES` | Revision → değiştirdiği kayıt (Entity, Proposal) |
 | `FROM {line, commit}` | Fact / Secret → SourceFile; Fact / Decision / Lesson → Document (`line`/`commit` yok) |
 | `IN`, `HAS_REPO` | SourceFile → Repo, Episode → Repo (oturumun deposu biliniyorsa), Project → Repo |
 | `TARGET` | Fact (port) → Entity ("8443/https bu proje için") |
 | `APPLIES_TO` | Decision → Stack / Project |
 | `ABOUT` | Decision / Lesson / Document → Entity / Topic; Proposal → değiştirdiği kayıt; Signal → ilgili kayıt (Fact, Entity, SourceFile, Decision; sinyalinki yerel) |
 | `PRODUCED` | Signal → Fact / Proposal: sinyalden ne çıktı; sinyal gibi yerel, anlık görüntüye girmez |
-| İlişki sözlüğü (`RUNS`, `DEPLOYED_ON`, `DEPENDS_ON`, `BEHIND`, `ROUTES_TO`, `PART_OF`, `AUTHENTICATES_WITH`, `OWNED_BY`, `RELATED`) | Entity → Entity; `{env?, source, valid_from, observed_at, valid_to}` |
+| İlişki sözlüğü (`RUNS`, `DEPLOYED_ON`, `DEPENDS_ON`, `BEHIND`, `ROUTES_TO`, `PART_OF`, `AUTHENTICATES_WITH`, `OWNED_BY`, `RELATED`) | Entity → Entity; `{env?, source, valid_from, observed_at, valid_to, closed_batch?}` |
 
 İlişki türleri `schema/relations.yaml` izin listesinden gelir; eşanlamlılar (`uses` → `DEPENDS_ON`) yazarken çevrilir.
 
@@ -125,7 +127,11 @@ anlık görüntüden içeri alma ve restore hiçbir kaydı reddetmez, kırpmaz.
 Fact, ilişki ve sinyaller silinmez; tek istisna `kb revert --batch`, geri alınan partinin açtığı kayıtları siler. Değer değişince eskisine `valid_to` yazılır ve yeni fact `SUPERSEDES` ile eskisine
 bağlanır. Güncel bilgi, `valid_to`'su boş olandır. `valid_from` bilginin ilk görüldüğü andır ve hiç değişmez;
 `observed_at` son görüldüğü andır ve aynı değer yeniden görüldükçe tazelenir. Geçmiş aralığı `valid_from → valid_to`'dur.
-Varlık alanları (`aliases`, `summary`) üzerine yazılır; geçmişleri git anlık görüntülerinde durur. Birleştirilen
+Varlık alanları (`aliases`, `summary`, `status`) üzerine yazılır; kullanıcı düzeltmesi eski değerleri önce partinin
+`Revision` düğümüne yazar, geçmişleri git anlık görüntülerinde de durur. Kullanıcının kapattığı fact ve ilişki
+`closed_batch` taşır (ADR-0025 karar 10); daha düşük güvenli kaynak böyle bir değeri yeniden yazarsa güncel olmaz,
+çelişki olarak bekler (ilişkide kenar açılmaz, çelişki sinyali çıkar; hostname büyük/küçük harfe bakmadan
+karşılaştırılır); yalnız `user` yeniden açar (karar 16). Birleştirilen
 varlığın kimliği alias olarak kalır, eski adla arama da onu bulur. Secret değeri tek istisnadır: değişince eskisi
 hiçbir yerde tutulmaz.
 
@@ -261,7 +267,8 @@ bilgisayarlar arasında senkronlanmaz. Ayrıntılar: SECRETS.md.
   `id`'ye göre sıralı, sabit biçimde (anahtarlar özyinelemeli alfabetik; ADR-0022). Değişiklik varsa commit'lenir. Sinyaller ve secret değerleri
   (`secret_value`) yazılmaz; içeri alırken yereldeki değer korunur. `Episode` düğümleri ve kayıtların `episode` alanı
   yazılır, kayıt kaynağı senkronla taşınır (ADR-0023). `blobs/` aynı repoda durur.
-- `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (`updated_at`'i yeni olan kazanır; eşitlikte sabit kural +
+- `kb sync`: uzak dalı çeker, kayıtları `id`'ye göre birleştirir (kullanıcı kapatması açık sürüme karşı kazanır, ADR-0025
+  karar 16; yoksa `updated_at`'i yeni olan kazanır; eşitlikte sabit kural +
   çelişki sinyali; geri alınmış partinin kayıtları dirilmez: ADR-0022 karar 41–43), grafa uygular,
   yeni anlık görüntüyü uzak dalın üstüne commit'leyip gönderir. Commit'lemeden önce yazdığı satır sayısını graftaki
   kayıt sayısıyla karşılaştırır (sinyaller hariç); tutmazsa commit'lemez ve hata verir. Hiçbir zaman force-push

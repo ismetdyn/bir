@@ -26,6 +26,8 @@ final class WriteCheck {
     static final int VALUE_LIMIT = 500;
     // SPEC §6.1 body limit; evidence and proposal content are Markdown of that size at most.
     static final int BODY_LIMIT = 4_000;
+    // SPEC §6.1: an entity summary is at most 300 characters.
+    static final int SUMMARY_LIMIT = 300;
     // An id is a short name (ornek-app-01); this only stops a paragraph posing as one.
     static final int ID_LIMIT = 200;
     // ADR-0022 decision 31: facts and relations of one write, each counted on its own.
@@ -52,12 +54,14 @@ final class WriteCheck {
 
     private WriteCheck() {}
 
+    /** {@code caseInsensitive}: see {@link #isCaseInsensitive}. */
     record CheckedFact(
             String key,
             String value,
             String env,
             @Nullable String target,
             boolean multi,
+            boolean caseInsensitive,
             Source source) {}
 
     record CheckedRelation(String type, String target, @Nullable String env, Source source) {}
@@ -182,9 +186,27 @@ final class WriteCheck {
         }
         String target =
                 input.target() == null ? null : text(where + ": target", input.target(), ID_LIMIT);
-        boolean multi =
-                "true".equals(key.rules().get("multi")) || "text".equals(key.rules().get("kind"));
-        return new CheckedFact(key.key(), value, env(input.env(), where), target, multi, source);
+        return new CheckedFact(
+                key.key(),
+                value,
+                env(input.env(), where),
+                target,
+                isMulti(key),
+                isCaseInsensitive(key),
+                source);
+    }
+
+    /**
+     * A hostname names the same host in any case (RFC 4343); only the tombstone of a user close
+     * looks at it (lead decision CP3 S5, WritePolicy#decide).
+     */
+    static boolean isCaseInsensitive(FactKey key) {
+        return "hostname".equals(key.rules().get("validator"));
+    }
+
+    /** A text key is always multi-valued (schema/facts.yaml header). */
+    static boolean isMulti(FactKey key) {
+        return "true".equals(key.rules().get("multi")) || "text".equals(key.rules().get("kind"));
     }
 
     private static CheckedRelation relation(

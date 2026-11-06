@@ -41,7 +41,8 @@ public record Schema(
                     "Topic",
                     "Proposal",
                     "Signal",
-                    "Episode");
+                    "Episode",
+                    "Revision");
 
     /** SPEC §6.2 fixed edges; they are not in relations.yaml. */
     public static final List<String> FIXED_EDGE_TYPES =
@@ -55,7 +56,8 @@ public record Schema(
                     "TARGET",
                     "APPLIES_TO",
                     "ABOUT",
-                    "PRODUCED");
+                    "PRODUCED",
+                    "REVISES");
 
     private static final String TYPES = "types.yaml";
     private static final String RELATIONS = "relations.yaml";
@@ -96,6 +98,25 @@ public record Schema(
                 strings(decision.path("status")),
                 strings(decision.path("scope")),
                 Map.copyOf(environments));
+    }
+
+    /**
+     * The fact keys of a facts.yaml text, read as {@link #load} reads the file, so a change to it
+     * can be checked before it is written (ADR-0025 decision 12).
+     *
+     * @throws IllegalStateException if the text is no YAML or lacks the facts section
+     */
+    public static List<FactKey> factKeys(String factsYaml) {
+        JsonNode root;
+        try {
+            root = YAML.readTree(factsYaml);
+        } catch (JacksonException e) {
+            throw new IllegalStateException("facts.yaml text is no YAML", e);
+        }
+        if (root == null) {
+            throw new IllegalStateException("facts.yaml text is empty");
+        }
+        return factKeys(section(root, "facts", FACTS));
     }
 
     /**

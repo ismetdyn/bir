@@ -59,6 +59,24 @@ araçlar kabul edildi: TamboUI 0.6.0 BOM + `tamboui-toolkit` + `tamboui-jline3-b
 13. **`GET /entities/{id}`** `Accept` başlığına göre Markdown (tek render yeri `MarkdownView`) ya da JSON döner.
 14. **Kapsam dışı (F3):** `/signals*`, reopen, "Atılanlar", `/curator/*`, `kb curator run` (F4); `kb gui` (F5); kullanıcının
     Claude Code/Codex ayar geçişi.
+15. **Yerinde düzeltmeler geri alınabilir (kullanıcı kararı, 2026-11-07):** `editEntity`, `archive`/`unarchive` ve öneri
+    kabul/ret alanı yerinde değiştirmeden önce eski değerleri işlemin partisini taşıyan bir `Revision` düğümüne yazar
+    (`REVISES` → değişen kayıt). `kb revert --batch` revizyonu siler ve eski değerleri geri koyar; sonraki partiler önce
+    geri alınır (mevcut kural). Makineler arası sıra ULID'e (saat) dayanır; saat kayması kabul edilen sınırdır.
+    Revizyonlar anlık görüntüye girer, gizlenmez; tuttukları eski değerde saklı secret değeri maskelenir. Geri alma
+    yalnız düzeltmenin değiştirdiği alanları geri koyar (varlık: `aliases`, `summary`, `status`; öneri: `status`,
+    `review_note`); başka alan adlandıran revizyon geri almayı reddettirir. Sektör örneği: Wikidata revizyonları.
+16. **Kullanıcının kapattığı bilgi kapalı kalır (kullanıcı kararı, 2026-11-07):** USER'ın kapattığı bir değeri daha düşük
+    güvenli bir kaynak (user_stated, scan, agent) yeniden yazarsa güncel olmaz; çelişki olarak bekler ve kullanıcı onayı
+    ister (tombstone). Yalnız USER aynı değeri yeniden açabilir; USER değeri kapatmadan sonra yeniden açtıysa o eski
+    kapatma artık sayılmaz. Kural ilişkileri de kapsar: kullanıcının kapattığı ilişkiyi daha düşük kaynak yazarsa
+    kenar açılmaz, çelişki sinyali çıkar. Hostname karşılaştırması büyük/küçük harfe bakmaz (RFC 4343). `kb sync`
+    birleştirmesinde kullanıcı kapatması (geri alınmamış `closed_batch`) açık sürüme karşı `updated_at`'ten bağımsız
+    kazanır.
+17. **`kind=schema` kabulü parti ile geri alınmaz:** şema normatiftir (değişmez 5); geri dönüş yeni bir şema önerisiyle
+    olur. `kb revert` böyle bir partiyi ipucuyla reddeder.
+18. **Ret notu:** `kb reject -m "<not>"` notu öneriye `review_note` olarak yazılır (secret kontrolü ve uzunluk sınırından
+    geçer). Zaten arşivli kaydı yeniden arşivlemek veya arşivli olmayanı arşivden çıkarmak ipuçlu ret döner.
 
 ### Lider kararları
 - **Toplam boyut:** üst sınır yok, yalnız boş disk alanı (`usableSpace`) kontrolü (tek kullanıcı, yerel disk).

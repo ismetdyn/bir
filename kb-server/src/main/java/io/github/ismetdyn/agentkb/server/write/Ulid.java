@@ -19,10 +19,32 @@ final class Ulid {
     private static final long RANDOM_HALF_MASK = (1L << RANDOM_HALF_BITS) - 1;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    // The last id made: its millisecond and its two random halves (monotonic mode).
+    private static long lastMillis = -1;
+    private static long lastHigh;
+    private static long lastLow;
+
     private Ulid() {}
 
-    static String next() {
-        return of(System.currentTimeMillis(), RANDOM.nextLong(), RANDOM.nextLong());
+    /**
+     * Monotonic (ULID spec): in the millisecond of the last id, or if the clock went back, the
+     * random part of the last id plus one, so ids of this process sort in the order they were made.
+     * kb revert relies on that to tell a later batch (BatchRevert).
+     */
+    static synchronized String next() {
+        long millis = System.currentTimeMillis();
+        if (millis > lastMillis) {
+            lastMillis = millis;
+            lastHigh = RANDOM.nextLong() & RANDOM_HALF_MASK;
+            lastLow = RANDOM.nextLong() & RANDOM_HALF_MASK;
+        } else {
+            // ponytail: the 80 bits wrap after 2^80 ids in one millisecond, which cannot happen.
+            lastLow = (lastLow + 1) & RANDOM_HALF_MASK;
+            if (lastLow == 0) {
+                lastHigh = (lastHigh + 1) & RANDOM_HALF_MASK;
+            }
+        }
+        return of(lastMillis, lastHigh, lastLow);
     }
 
     /**

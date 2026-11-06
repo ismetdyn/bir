@@ -118,8 +118,15 @@ WriteRequest {source, entity ipucu, facts[], relations[], evidence?, batch?, epi
   onu silmez. `user_stated` yazmada kanıt, UserPromptSubmit'in `session_id` ile PromptRing'e yazdığı mesajla eşleşirse
   kayıt o oturumun episode'una otomatik bağlanır; yoksa `episode` argümanı, o da yoksa kayıt episode'suz kalır (hata değil).
 - **Yönetilen sözlük (ADR-0024):** adım 1 sözlükte olmayan anahtarı `note`/`kb_propose(kind=schema)` ipucuyla reddeder.
-- **Geri alma:** `kb revert --batch <id>` partinin açtığı kayıtları siler, kapattıklarının `valid_to`'sunu kaldırır ve
-  kapattığı sinyalleri yeniden açar (yoksa yapılandırılamamış soru-cevap kapalı kalır ve küratör ona bir daha bakmaz).
+- **Kullanıcı düzeltmeleri (ADR-0025 karar 9–18):** `WriteService.edits()` (`GraphEdits`) REST'ten gelen kapatma,
+  varlık düzeltme, arşiv/arşivden çıkarma, çelişki çözme ve öneri kabul/ret işlemlerini yapar; her biri tek parti,
+  Episode'suz. Kapatma `valid_to` ile `closed_batch` yazar; yerinde değişiklikten önce eski değerler partinin
+  `Revision` düğümüne (`REVISES` → kayıt) yazılır. Kullanıcının kapattığı değeri daha düşük kaynak yeniden yazarsa
+  `WritePolicy` onu çelişki olarak bekletir (karar 16).
+- **Geri alma:** `kb revert --batch <id>` partinin açtığı kayıtları siler, kapattıklarının `valid_to`'sunu kaldırır
+  (`SUPERSEDES` ya da `closed_batch` ile bulunur), `Revision`'ların sakladığı değerleri geri koyar ve kapattığı
+  sinyalleri yeniden açar (yoksa yapılandırılamamış soru-cevap kapalı kalır ve küratör ona bir daha bakmaz). Aynı
+  kayda dokunan sonraki parti önce geri alınır; `kind=schema` kabulü geri alınmaz (karar 17).
   Daha eski bir duruma dönmek için `kb restore --at <commit>`.
 
 ## 6. Tarayıcı
@@ -184,8 +191,8 @@ Tarama kuralları (ADR-0022 karar 32–36):
   kenarlar (`PRODUCED`, `ABOUT`) ve `secret_value` alanı yazılmaz; içeri alırken yereldeki secret değeri korunur.
   Yeni dokümanlar aynı commit'e girer. Değişiklik yoksa commit yok. Commit'ten önce yazılan satır sayısı graftaki
   kayıt sayısıyla (sinyaller hariç) karşılaştırılır; tutmazsa commit yapılmaz ve `kb sync` hata verir.
-- **Senkron (`kb sync`):** `git fetch` → uzak anlık görüntüyle `id`'ye göre birleştir (`updated_at`'i yeni olan
-  kazanır) → birleşimi grafa uygula → anlık görüntüyü yaz → uzak dalın üstüne commit → `git push`. Ağ hatasında yerel
+- **Senkron (`kb sync`):** `git fetch` → uzak anlık görüntüyle `id`'ye göre birleştir (kullanıcı kapatması kazanır,
+  yoksa `updated_at`'i yeni olan) → birleşimi grafa uygula → anlık görüntüyü yaz → uzak dalın üstüne commit → `git push`. Ağ hatasında yerel
   commit bekler, sonraki çalışmada tekrar denenir. Force-push hiç yapılmaz; GitHub'da ana dal korumalıdır.
 - **Restore:** `kb restore [--at <commit>]` grafı boşaltıp anlık görüntüden yeniden kurar. Anlık görüntüde olmayan yerel
   veriler (secret değerleri, sinyaller) önce ayrılır, kurulumdan sonra geri yazılır; restore onları silmez (test).

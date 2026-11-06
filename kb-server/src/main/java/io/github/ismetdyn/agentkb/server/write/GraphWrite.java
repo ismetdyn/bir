@@ -24,6 +24,9 @@ final class GraphWrite {
     static final String BATCH = "batch";
     static final String EPISODE = "episode";
     static final String UPDATED_AT = "updated_at";
+    static final String VALID_FROM = "valid_from";
+    static final String VALID_TO = "valid_to";
+    static final String CLOSED_BATCH = "closed_batch";
 
     final Transaction tx;
     final String batch;

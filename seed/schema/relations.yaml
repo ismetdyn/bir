@@ -1,7 +1,7 @@
 # Varlıklar arası izin verilen ilişki türleri. Yazarken küçük harf kabul edilir, grafta BÜYÜK HARF olur.
 # synonyms: bu kelimeler yazma anında asıl türe çevrilir.
 # from/to: hangi varlık türleri arasında anlamlı olduğu (boşsa her tür). Uymazsa uyarı, hata değil.
-# Sabit kenarlar bu listede değildir: HAS_FACT, HAS_SECRET, SUPERSEDES, FROM, IN, HAS_REPO, TARGET, APPLIES_TO, ABOUT.
+# Sabit kenarlar bu listede değildir: HAS_FACT, HAS_SECRET, SUPERSEDES, FROM, IN, HAS_REPO, TARGET, APPLIES_TO, ABOUT, PRODUCED, REVISES.
 version: 3
 relations:
   runs:

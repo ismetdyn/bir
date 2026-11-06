@@ -18,6 +18,9 @@ public class StoredSecretMask {
     }
 
     public String mask(String text) {
-        return store.read(tx -> SecretWrite.maskStoredValues(tx, text, WriteService.MASK));
+        return store.read(
+                tx ->
+                        SecretWrite.maskStoredValues(
+                                SecretWrite.storedValues(tx), text, WriteService.MASK));
     }
 }

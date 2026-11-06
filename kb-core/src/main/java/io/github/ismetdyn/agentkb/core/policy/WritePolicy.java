@@ -11,10 +11,11 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * SPEC §7 rules 1 to 5, CLAUDE.md invariants 5 and 6 and ADR-0022 decisions 22 and 23. Decides
- * only; the caller does the write. An existing fact never changes in place: it only gets a later
- * observed_at or is closed, never before its valid_from. Anything else is a new fact, so {@code kb
- * revert --batch} undoes a batch by deleting what it opened and reopening what it closed.
+ * SPEC §7 rules 1 to 5, CLAUDE.md invariants 5 and 6, ADR-0022 decisions 22 and 23 and ADR-0025
+ * decision 16. Decides only; the caller does the write. An existing fact never changes in place: it
+ * only gets a later observed_at or is closed, never before its valid_from. Anything else is a new
+ * fact, so {@code kb revert --batch} undoes a batch by deleting what it opened and reopening what
+ * it closed.
  */
 public final class WritePolicy {
 
@@ -23,8 +24,16 @@ public final class WritePolicy {
 
     private WritePolicy() {}
 
-    /** A fact and, for scanned ones, the repo and file it came from (SPEC §7 rule 4). */
-    public record Sourced(Fact fact, @Nullable String sourceFile) {}
+    /**
+     * A fact and, for scanned ones, the repo and file it came from (SPEC §7 rule 4). {@code
+     * closedByUser}: a user edit closed it (closed_batch, ADR-0025 decision 16; UserClosed).
+     */
+    public record Sourced(Fact fact, @Nullable String sourceFile, boolean closedByUser) {
+
+        public Sourced(Fact fact, @Nullable String sourceFile) {
+            this(fact, sourceFile, false);
+        }
+    }
 
     public sealed interface Decision {}
 
@@ -36,6 +45,10 @@ public final class WritePolicy {
     /** The caller links {@code added} to {@code closed} with SUPERSEDES. */
     public record CloseAndAdd(Fact closed, Fact added) implements Decision {}
 
+    /**
+     * {@code current} is the value it disputes: the current one, or the value the user closed when
+     * that is why it waits (ADR-0025 decision 16).
+     */
     public record Conflict(Fact added, Fact current) implements Decision {}
 
     /**
@@ -44,13 +57,22 @@ public final class WritePolicy {
      */
     public record Resolve(Fact closedWaiting, Fact closedCurrent, Fact added) implements Decision {}
 
+    /** {@link #decide(Sourced, List, boolean, boolean)} for a key whose values compare exactly. */
+    public static Decision decide(Sourced incoming, List<Sourced> current, boolean multi) {
+        return decide(incoming, current, multi, false);
+    }
+
     /**
-     * @param current facts of the record; closed ones and those of another key or env are ignored
+     * @param current facts of the record; those of another key or env are ignored, and closed ones
+     *     unless a user edit closed them or the user opened them (UserClosed)
      * @param multi {@code multi} of this key in seed/schema/facts.yaml
+     * @param caseInsensitive the key's values name the same thing in any case (a hostname, RFC
+     *     4343); only the tombstone looks at it (UserClosed), every other rule compares exactly
      * @throws IllegalArgumentException if the incoming source is the curator, which produces no new
      *     information (SPEC §7)
      */
-    public static Decision decide(Sourced incoming, List<Sourced> current, boolean multi) {
+    public static Decision decide(
+            Sourced incoming, List<Sourced> current, boolean multi, boolean caseInsensitive) {
         Fact fact = incoming.fact();
         if (fact.source() == Source.CURATOR) {
             throw new IllegalArgumentException("the curator cannot write a fact value");
@@ -62,9 +84,13 @@ public final class WritePolicy {
                 open.stream()
                         .filter(other -> other.fact().status() != FactStatus.CONFLICT)
                         .toList();
-        var currentSameValue = withSameValue(holders, fact);
-        if (currentSameValue.isPresent()) {
-            return confirm(currentSameValue.get(), fact);
+        // A current value is confirmed; a value the user closed is not reopened by a lower source.
+        Optional<Decision> settled =
+                withSameValue(holders, fact)
+                        .map(existing -> confirm(existing, fact))
+                        .or(() -> UserClosed.kept(fact, open, current, caseInsensitive));
+        if (settled.isPresent()) {
+            return settled.get();
         }
         var waitingSameValue = withSameValue(open, fact);
         if (waitingSameValue.isPresent()) {
@@ -139,7 +165,7 @@ public final class WritePolicy {
                 .toList();
     }
 
-    private static Optional<Fact> withSameValue(List<Sourced> facts, Fact fact) {
+    static Optional<Fact> withSameValue(List<Sourced> facts, Fact fact) {
         return facts.stream()
                 .map(Sourced::fact)
                 .filter(other -> other.value().equals(fact.value()))
@@ -157,7 +183,7 @@ public final class WritePolicy {
     /** Rule 1: a higher source raises the value by opening a new version (decision 22). */
     private static Decision confirm(Fact existing, Fact fact) {
         if (fact.source().trust() <= existing.source().trust()) {
-            return new Refresh(observed(existing, fact.observedAt()));
+            return new Refresh(existing.seenAt(fact.observedAt()));
         }
         return new CloseAndAdd(
                 closedAt(existing, fact.validFrom()), newVersion(fact, existing, fact.source()));
@@ -181,13 +207,11 @@ public final class WritePolicy {
         Fact holder = strongest(holders);
         return fact.source().trust() >= holder.source().trust()
                 ? new Resolve(closedWaiting, closedAt(holder, fact.validFrom()), added)
-                : new Refresh(observed(waiting, fact.observedAt()));
+                : new Refresh(waiting.seenAt(fact.observedAt()));
     }
 
     private static boolean isOpenInSameSlot(Fact other, Fact fact) {
-        return other.validTo() == null
-                && other.key().equals(fact.key())
-                && other.env().equals(fact.env());
+        return other.validTo() == null && UserClosed.isSameSlot(other, fact);
     }
 
     private static boolean isRescan(Sourced incoming, Sourced other) {
@@ -195,12 +219,6 @@ public final class WritePolicy {
                 && other.fact().source() == Source.SCAN
                 && incoming.sourceFile() != null
                 && incoming.sourceFile().equals(other.sourceFile());
-    }
-
-    private static Fact observed(Fact existing, Instant observedAt) {
-        return observedAt.isAfter(existing.observedAt())
-                ? existing.withObservedAt(observedAt)
-                : existing;
     }
 
     /**

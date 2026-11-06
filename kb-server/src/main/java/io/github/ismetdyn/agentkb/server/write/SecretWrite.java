@@ -178,10 +178,10 @@ public final class SecretWrite {
      * {@code text} with every value stored on a Secret replaced by {@code mask}; the longest value
      * first, so no part of a longer value is left behind a shorter one inside it.
      */
-    static String maskStoredValues(Transaction tx, String text, String mask) {
+    static String maskStoredValues(List<String> stored, String text, String mask) {
         String masked = text;
         for (String value :
-                storedValues(tx).stream()
+                stored.stream()
                         .sorted(Comparator.comparingInt(String::length).reversed())
                         .toList()) {
             masked = masked.replace(value, mask);

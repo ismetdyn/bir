@@ -2,7 +2,7 @@
 # operational: true → kb_stale bu türlerin fact'lerine bakar.
 # Tarayıcının oluşturduğu varlıklar status: observed ile gelir; kullanıcı doğrulayınca current olur.
 # Varlık dışındaki kayıtlar sabittir ve burada tanımlanmaz:
-#   Fact, Decision, Lesson, Secret, SourceFile, Repo, Document, Stack, Proposal, Signal (bkz. docs/SPEC.md §6)
+#   Fact, Decision, Lesson, Secret, SourceFile, Repo, Document, Stack, Proposal, Signal, Episode, Revision (bkz. docs/SPEC.md §6)
 # topic bir varlık türüdür; kimliği topic:<ad> biçimindedir (ADR-0024).
 version: 3
 entity_types:

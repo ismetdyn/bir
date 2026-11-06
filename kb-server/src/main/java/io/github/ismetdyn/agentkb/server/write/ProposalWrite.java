@@ -18,9 +18,12 @@ import org.neo4j.graphdb.Node;
 final class ProposalWrite {
 
     static final List<String> KINDS = List.of("decision", "rule-change", "archive", "schema");
-    // Signals are local; a proposal in the snapshot must not point to one (invariant 8).
+    // Signals are local; a proposal in the snapshot must not point to one (invariant 8). A Revision
+    // is the bookkeeping of an edit (ADR-0025 decision 15), nothing a proposal changes.
     private static final List<String> TARGET_LABELS =
-            Schema.LABELS.stream().filter(label -> !"Signal".equals(label)).toList();
+            Schema.LABELS.stream()
+                    .filter(label -> !"Signal".equals(label) && !Revisions.LABEL.equals(label))
+                    .toList();
     private static final String PROPOSAL = "Proposal";
 
     private ProposalWrite() {}

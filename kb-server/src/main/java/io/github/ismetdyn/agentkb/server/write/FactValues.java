@@ -4,6 +4,7 @@ import io.github.ismetdyn.agentkb.server.graph.Schema.FactKey;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,6 +61,10 @@ final class FactValues {
             throw new WriteRejectedException(where + ": value is not an allowed value", HINT);
         }
     }
+
+    /** The validators {@link #accepts} knows; a schema accept may name only these. */
+    static final Set<String> VALIDATORS =
+            Set.of("hostname", "ip", "port-spec", "url", "jdbc-url-without-password");
 
     private static boolean accepts(String validator, String value) {
         return switch (validator) {

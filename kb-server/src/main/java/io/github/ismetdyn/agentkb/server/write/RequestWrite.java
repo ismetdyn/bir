@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -51,6 +53,8 @@ final class RequestWrite {
     private final Instant at;
     // After apply: the fact node holding each checked fact's value, in the order of the request.
     final List<Node> written = new ArrayList<>();
+    // The ids of the relations the user closed that a lower source wrote again (decision 16).
+    private final List<String> relationConflicts = new ArrayList<>();
 
     RequestWrite(GraphWrite graph, WriteRequest request, Checked checked, Instant at) {
         this.graph = graph;
@@ -77,7 +81,7 @@ final class RequestWrite {
                 facts.added,
                 facts.refreshed,
                 facts.closed,
-                facts.conflicts);
+                Stream.concat(facts.conflicts.stream(), relationConflicts.stream()).toList());
     }
 
     private Optional<Node> resolve(String idOrAlias) {
@@ -182,23 +186,37 @@ final class RequestWrite {
      * An open relation of the same type, target and env is seen again: only observed_at moves
      * (decision 10). A relation has no value, so nothing else ever closes it here; kb revert can
      * reopen only what SUPERSEDES points to, which an edge cannot have.
+     *
+     * <p>ADR-0025 decision 16 covers relations (lead decision CP3 S4): when the user closed it
+     * (closed_batch) and none is open, a source below the user opens no edge; the write raises a
+     * conflict signal and reports the closed relation among its conflicts. The user opens it again.
      */
     private void relate(Node entity, CheckedRelation input) {
         Node target = target(input.target());
         RelationshipType type = RelationshipType.withName(input.type());
         String seen = Times.format(at);
+        Relationship userClosed = null;
         try (ResourceIterable<Relationship> edges =
                 entity.getRelationships(Direction.OUTGOING, type)) {
             for (Relationship edge : edges) {
-                if (edge.getEndNode().equals(target)
-                        && !edge.hasProperty("valid_to")
-                        && Objects.equals(input.env(), edge.getProperty("env", null))) {
+                if (!isSameRelation(edge, target, input.env())) {
+                    continue;
+                }
+                if (!edge.hasProperty(GraphWrite.VALID_TO)) {
                     if (seen.compareTo((String) edge.getProperty(OBSERVED_AT, "")) > 0) {
                         graph.set(edge, OBSERVED_AT, seen);
                     }
                     return;
                 }
+                if (edge.hasProperty(GraphWrite.CLOSED_BATCH)) {
+                    userClosed = edge;
+                }
             }
+        }
+        if (userClosed != null && input.source() != Source.USER) {
+            relationConflicts.add((String) userClosed.getProperty(GraphWrite.ID));
+            new ConflictSignals(graph).raise(entity, userClosed, input.source(), seen);
+            return;
         }
         Map<String, Object> props = new LinkedHashMap<>();
         if (input.env() != null) {
@@ -208,5 +226,10 @@ final class RequestWrite {
         props.put("valid_from", seen);
         props.put(OBSERVED_AT, seen);
         graph.edge(entity, input.type(), target, props);
+    }
+
+    private static boolean isSameRelation(Relationship edge, Node target, @Nullable String env) {
+        return edge.getEndNode().equals(target)
+                && Objects.equals(env, edge.getProperty("env", null));
     }
 }

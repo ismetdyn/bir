@@ -44,6 +44,11 @@ public record Fact(
                 batch);
     }
 
+    /** Seen again at {@code at}: observed_at moves forward only, never back (SPEC §6.3). */
+    public Fact seenAt(Instant at) {
+        return at.isAfter(observedAt) ? withObservedAt(at) : this;
+    }
+
     public Fact withValidTo(Instant newValidTo) {
         return new Fact(
                 id,

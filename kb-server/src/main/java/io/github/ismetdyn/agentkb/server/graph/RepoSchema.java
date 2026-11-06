@@ -24,9 +24,18 @@ public class RepoSchema {
      * @throws IllegalStateException if no repo is set or a schema file is missing or broken
      */
     public Schema load() {
+        return Schema.load(directory());
+    }
+
+    /**
+     * The schema directory, where an accepted schema proposal is written (ADR-0025 decision 12).
+     *
+     * @throws IllegalStateException if no repo is set
+     */
+    public Path directory() {
         if (repo.isBlank()) {
             throw new IllegalStateException("agentkb.repo is not set; there is no schema");
         }
-        return Schema.load(Path.of(repo).resolve(SCHEMA_DIRECTORY));
+        return Path.of(repo).resolve(SCHEMA_DIRECTORY);
     }
 }

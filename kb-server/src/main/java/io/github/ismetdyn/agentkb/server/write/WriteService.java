@@ -7,6 +7,7 @@ import io.github.ismetdyn.agentkb.server.write.WriteCheck.Checked;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -18,7 +19,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * The only writer of the graph (invariant 1): new knowledge here, the writes on the graph as a
- * whole through {@link #maintenance()}, which only this class creates.
+ * whole through {@link #maintenance()} and the user's edits of existing records through {@link
+ * #edits()}, which only this class creates.
  */
 @Component
 public class WriteService {
@@ -32,16 +34,23 @@ public class WriteService {
     private final Set<String> constrainedTypes = ConcurrentHashMap.newKeySet();
 
     private final GraphMaintenance maintenance;
+    private final GraphEdits edits;
 
     public WriteService(EmbeddedNeo4jStore store, RepoSchema schema) {
         this.store = store;
         this.schema = schema;
         this.maintenance = new GraphMaintenance(store, schema);
+        this.edits = new GraphEdits(store, schema);
     }
 
     /** Schema, import, revert, restore and sync merge: the writes on the graph as a whole. */
     public GraphMaintenance maintenance() {
         return maintenance;
+    }
+
+    /** The user's edits of existing records from REST (ADR-0025 decisions 9-18). */
+    public GraphEdits edits() {
+        return edits;
     }
 
     /**
@@ -55,10 +64,11 @@ public class WriteService {
     public WriteResult write(WriteRequest request) {
         Checked checked = WriteCheck.check(request, schema.load());
         GraphSchema.ensureTypes(store, constrainedTypes, checked.relationTypes());
-        String batch = request.batch() == null ? Ulid.next() : request.batch();
         Instant at = request.at().truncatedTo(ChronoUnit.SECONDS);
         return store.write(
                 tx -> {
+                    // Made under the writer lock, so batch ids sort in commit order (BatchRevert).
+                    String batch = request.batch() == null ? Ulid.next() : request.batch();
                     SecretWrite.refuseStoredValues(tx, SecretWrite.texts(request));
                     GraphWrite graph =
                             new GraphWrite(
@@ -210,13 +220,15 @@ public class WriteService {
     public boolean raiseSignal(String kind, String key, String payload, Instant at) {
         String seen = Times.format(at);
         return store.write(
-                        tx ->
-                                SignalWrite.raise(
-                                        new GraphWrite(tx, Ulid.next(), Instant.now()),
-                                        kind,
-                                        SecretWrite.maskStoredValues(tx, key, MASK),
-                                        SecretWrite.maskStoredValues(tx, payload, MASK),
-                                        seen))
+                        tx -> {
+                            List<String> stored = SecretWrite.storedValues(tx);
+                            return SignalWrite.raise(
+                                    new GraphWrite(tx, Ulid.next(), Instant.now()),
+                                    kind,
+                                    SecretWrite.maskStoredValues(stored, key, MASK),
+                                    SecretWrite.maskStoredValues(stored, payload, MASK),
+                                    seen);
+                        })
                 != null;
     }
 }
