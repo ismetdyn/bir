@@ -69,7 +69,9 @@ public final class SyncGit {
         Snapshot theirs = SnapshotHistory.read(repo, remote);
         if (!git("merge-base", "--is-ancestor", remote, "HEAD").ok()) {
             git("checkout", "--quiet", "HEAD", "--", NODES, EDGES);
-            if (!git("merge", "--quiet", "--no-commit", "-X", "ours", remote).ok()) {
+            // git asks for a committer identity even for a merge it does not commit.
+            if (!git(SystemGit.asServer("merge", "--quiet", "--no-commit", "-X", "ours", remote))
+                    .ok()) {
                 discard();
                 throw new IOException(
                         "the remote branch cannot be merged into the knowledge repository");

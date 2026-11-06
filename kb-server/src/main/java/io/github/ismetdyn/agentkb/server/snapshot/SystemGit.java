@@ -38,7 +38,7 @@ final class SystemGit {
 
     private SystemGit() {}
 
-    /** {@code args} of a commit (sync, init) after the server's committer options. */
+    /** {@code args} of a commit or merge (sync, init) after the server's committer options. */
     static String[] asServer(String... args) {
         String[] all = new String[COMMITTER.length + args.length];
         System.arraycopy(COMMITTER, 0, all, 0, COMMITTER.length);

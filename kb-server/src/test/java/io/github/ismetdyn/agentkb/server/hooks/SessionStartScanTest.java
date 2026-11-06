@@ -1,10 +1,13 @@
 package io.github.ismetdyn.agentkb.server.hooks;
 
+import static io.github.ismetdyn.agentkb.server.EpisodeProbe.newSessionId;
 import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.HOOK_BUDGET;
 import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.SESSION_START;
 import static io.github.ismetdyn.agentkb.server.hooks.HookHttp.context;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.ismetdyn.agentkb.server.EpisodeProbe;
+import io.github.ismetdyn.agentkb.server.EpisodeProbe.Session;
 import io.github.ismetdyn.agentkb.server.RunningServerTestBase;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
@@ -49,6 +52,7 @@ class SessionStartScanTest extends RunningServerTestBase {
     private static final String REPO_COMMIT =
             "MATCH (r:Repo {id: $id}) WHERE r.commit = $commit RETURN count(r) AS n";
     private static final String ENTITY = "MATCH (e:Entity {id: $id}) RETURN count(e) AS n";
+    private static final String ENTITY_BATCH = "MATCH (e:Entity {id: $id}) RETURN e.batch AS batch";
 
     @Autowired private EmbeddedNeo4jStore store;
 
@@ -158,6 +162,36 @@ class SessionStartScanTest extends RunningServerTestBase {
         Poll.stays(
                 QUIET, () -> scans(output) <= scans + 1, "at most one scan for two SessionStarts");
         assertThat(scans(output)).isEqualTo(scans + 1);
+    }
+
+    /**
+     * ADR-0023 decision 3: a scan with a session uses that session's Episode. The scan SessionStart
+     * starts has the session, so every record its batch opens carries the Episode SessionStart
+     * named, not one of {@code kind=scan}.
+     */
+    @Test
+    void the_scan_a_session_start_starts_stamps_the_sessions_episode() throws Exception {
+        Path repo = project(scanRoot(), "episode");
+        EpisodeProbe probe = new EpisodeProbe(port, store);
+        Session session = probe.start("claude", newSessionId(), repo);
+        String db = repo.getFileName() + "-db";
+        Poll.until(
+                SCAN_WAIT,
+                () -> isEntity(db) && isScannedAtHead(repo),
+                "the background scan wrote the database");
+
+        String batch =
+                (String)
+                        store.read(
+                                tx ->
+                                        tx.execute(ENTITY_BATCH, Map.of("id", db))
+                                                .next()
+                                                .get("batch"));
+
+        assertThat(probe.stamps(batch))
+                .as("episode of every record the scan's batch %s opened", batch)
+                .isNotEmpty()
+                .containsOnly(session.episode());
     }
 
     /** A new session (its own session_id) of Claude Code in {@code cwd}. */

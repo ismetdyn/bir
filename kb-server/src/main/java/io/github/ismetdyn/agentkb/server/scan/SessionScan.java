@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.jspecify.annotations.Nullable;
 import org.neo4j.graphdb.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +44,12 @@ public class SessionScan implements DisposableBean {
         this.store = store;
     }
 
-    /** Starts the check and scan of {@code cwd} apart and returns at once; never throws. */
-    public void afterSessionStart(String cwd) {
+    /**
+     * Starts the check and scan of {@code cwd} apart and returns at once; never throws. The scan is
+     * stamped with {@code episode}, the session's Episode (ADR-0023 decision 3), or with one of its
+     * own if that is null.
+     */
+    public void afterSessionStart(String cwd, @Nullable String episode) {
         Path dir;
         try {
             dir = Path.of(cwd).normalize();
@@ -55,7 +60,7 @@ public class SessionScan implements DisposableBean {
             return;
         }
         try {
-            scans.execute(() -> scan(dir));
+            scans.execute(() -> scan(dir, episode));
         } catch (RuntimeException e) {
             running.remove(dir);
             LOG.warn("event=session_scan_not_started error={}", e.getClass().getName());
@@ -68,9 +73,9 @@ public class SessionScan implements DisposableBean {
         scans.shutdownNow();
     }
 
-    private void scan(Path dir) {
+    private void scan(Path dir, @Nullable String episode) {
         try {
-            scanIfMoved(dir);
+            scanIfMoved(dir, episode);
         } catch (WriteRejectedException e) {
             // Outside the roots, no git working copy: the usual case, not a fault.
             LOG.debug("event=session_scan_skipped");
@@ -88,7 +93,7 @@ public class SessionScan implements DisposableBean {
      *
      * @throws WriteRejectedException if the scanner may not read there
      */
-    private void scanIfMoved(Path dir) {
+    private void scanIfMoved(Path dir, @Nullable String episode) {
         List<Path> roots = scanner.roots();
         LocalGit git = new LocalGit(ScannerService.allowed(dir, roots));
         Optional<Path> top = git.topLevel();
@@ -101,7 +106,7 @@ public class SessionScan implements DisposableBean {
         String repo =
                 RemoteUrl.repoId(atTop.remote().map(RemoteUrl::normalize), RemoteUrl.folder(real));
         if (head.isPresent() && !isScannedAt(repo, head.get())) {
-            scanner.scan(real);
+            scanner.scan(real, episode);
         }
     }
 

@@ -122,6 +122,12 @@ class SyncScopeTest {
         machines = SyncMachines.withSeedRemote(dir);
         Machine a = machines.clone("a");
         Path stranger = SnapshotRepos.repo(dir.resolve("stranger"), SnapshotRepos.seed());
+        // Same tree, identity and message within one second would be the seed's very commit: a
+        // message of its own makes the stranger's root another commit.
+        ScanProjects.git(stranger, "commit", "--quiet", "--amend", "--message", "stranger root");
+        assertThat(ScanProjects.git(stranger, "rev-parse", "HEAD").strip())
+                .as("precondition: the stranger's root is not the seed commit")
+                .isNotEqualTo(machines.seedCommit);
         ScanProjects.git(stranger, "remote", "add", "origin", machines.remote.toString());
         // Test setup only: another history replaces the remote's main.
         ScanProjects.git(stranger, "push", "--quiet", "--force", "origin", "main");

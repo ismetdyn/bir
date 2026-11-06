@@ -7,7 +7,7 @@ import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +56,8 @@ class HookController {
     private final RecallService recall;
     private final CaptureService capture;
     private final WriteService writes;
-    // SessionScan::afterSessionStart; returns at once (SPEC S1).
-    private final Consumer<String> scanAfterSessionStart;
+    // SessionScan::afterSessionStart (cwd, Episode or null); returns at once (SPEC S1).
+    private final BiConsumer<String, @Nullable String> scanAfterSessionStart;
 
     @Autowired
     HookController(
@@ -83,7 +83,7 @@ class HookController {
         this.recall = recall;
         this.capture = capture;
         this.writes = writes;
-        this.scanAfterSessionStart = cwd -> {};
+        this.scanAfterSessionStart = (cwd, episode) -> {};
     }
 
     @PostMapping("/hooks/{event}")
@@ -124,14 +124,15 @@ class HookController {
     /**
      * The brief, then the line naming the session's Episode, which SessionStart opens or refreshes
      * (ADR-0023 decision 3); without a usable session_id the brief alone. The scan of SPEC S1, if
-     * one is due, starts apart after the brief, so the brief does not wait for it.
+     * one is due, starts apart after the brief, so the brief does not wait for it; it is stamped
+     * with the session's Episode, so that is opened first.
      */
     private String sessionStart(String client, JsonNode payload) {
         String cwd = text(payload.path("cwd"));
         String brief = briefs.forCwd(cwd).orElse("");
-        scanAfterSessionStart.accept(cwd);
-        return openSession(client, payload)
-                .map(
+        Optional<String> session = openSession(client, payload);
+        scanAfterSessionStart.accept(cwd, session.orElse(null));
+        return session.map(
                         episode ->
                                 (brief.isEmpty() ? "" : brief + "\n")
                                         + EPISODE_LINE.formatted(episode))
