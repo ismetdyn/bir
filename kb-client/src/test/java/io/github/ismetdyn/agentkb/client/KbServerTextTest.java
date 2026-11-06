@@ -80,17 +80,18 @@ class KbServerTextTest {
     }
 
     @Test
-    void restore_prints_its_answer_without_control_characters() {
+    void sync_prints_its_commit_without_control_characters() {
+        // The restore answer holds numbers only; the sync commit is the text a success answer
+        // prints.
         server.answer(
                 "POST",
-                "/api/v1/restore",
+                "/api/v1/sync",
                 200,
-                "{\"nodes\":\""
+                "{\"commit\":\""
                         + HOSTILE
-                        + "\",\"edges\":1,\"keptSecrets\":0,\"keptSignals\":0,"
-                        + "\"droppedEdges\":0,\"droppedSecretValues\":0}");
+                        + "\",\"pushed\":false,\"nodes\":1,\"edges\":0,\"conflicts\":0}");
 
-        Result result = server.kb(workDir, "restore");
+        Result result = server.kb(workDir, "sync");
 
         assertThat(result.exitCode()).as(result.stderr()).isZero();
         assertStripped(result.stdout());

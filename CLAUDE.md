@@ -31,7 +31,7 @@ Yeni bağımlılık eklemeden önce sor. Sürümleri tahmin etme; Maven Central 
 ./mvnw verify                                   # tüm modüller: derleme + test + ArchUnit + Spotless kontrol
 ./mvnw -pl kb-core test                         # saf çekirdek testleri (hızlı)
 ./mvnw -Peval verify                            # değerlendirme seti (eval/questions.yaml, seed/ ile)
-./mvnw -pl kb-client -Pnative package           # native kb binary
+mise exec java@mandrel-23.1.13.0-Final+java21 -- ./mvnw -pl kb-client -am -Pnative package  # native kb binary (-am: kb-api first)
 java -jar kb-server/target/agentkb-server.jar --agentkb.repo=./seed
 npx @modelcontextprotocol/inspector http://127.0.0.1:7411/mcp
 ```

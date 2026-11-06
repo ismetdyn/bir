@@ -26,10 +26,10 @@ import org.junit.jupiter.params.provider.MethodSource;
  * The native {@code kb} (plan.md H1, ADR-0025 decision 7): {@link KbTerminalScenarios} against the
  * binary, plus its size, its start time and the JSON commands answering exactly as on the JVM. The
  * binary is {@code target/kb} ({@code -Dkb.native=<path>} overrides), built by {@code mise exec
- * java@mandrel-23.1.13.0-Final+java21 -- ./mvnw -pl kb-client -Pnative package}. A missing binary,
- * or one older than the compiled classes, fails every test when the binary was asked for ({@code
- * -Dkb.native}, which the native profile sets), and otherwise aborts it as "not run", never as a
- * pass.
+ * java@mandrel-23.1.13.0-Final+java21 -- ./mvnw -pl kb-client -am -Pnative package}. A missing
+ * binary, or one older than the compiled classes, fails every test when the binary was asked for
+ * ({@code -Dkb.native}, which the native profile sets), and otherwise aborts it as "not run", never
+ * as a pass.
  */
 class KbNativeIT extends KbTerminalScenarios {
 
@@ -82,7 +82,7 @@ class KbNativeIT extends KbTerminalScenarios {
                     "there is no native kb at "
                             + BINARY.toAbsolutePath()
                             + "; build it with: mise exec java@mandrel-23.1.13.0-Final+java21 --"
-                            + " ./mvnw -pl kb-client -Pnative package");
+                            + " ./mvnw -pl kb-client -am -Pnative package");
         }
         if (Files.getLastModifiedTime(BINARY).compareTo(newestClass()) < 0) {
             return Optional.of(BINARY + " is older than target/classes; rebuild it");

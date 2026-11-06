@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.client;
 
+import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -8,7 +9,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
@@ -64,12 +64,15 @@ final class ImportMemoriesCommand implements Callable<Integer> {
                     "no memories found under ~/.claude/projects/*/memory/ or ~/.codex/memories/");
             return 0;
         }
-        Map<?, ?> answer = JsonApi.fromEnvironment().post(PATH, body(memories));
+        MemoryImportAnswer answer =
+                Json.toRecord(
+                        JsonApi.fromEnvironment().post(PATH, body(memories)),
+                        MemoryImportAnswer.class);
         out.println(
                 "sent "
-                        + answer.get("received")
+                        + answer.received()
                         + " memories; "
-                        + answer.get("opened")
+                        + answer.opened()
                         + " opened a new imported-memory signal, the rest were imported before");
         return 0;
     }

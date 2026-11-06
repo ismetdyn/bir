@@ -1,0 +1,7 @@
+{
+  "clean": false,
+  "problems": [
+    {"kind": "orphan-edge", "id": "01KBTESTEDGE", "detail": "points to missing node kbtest-ğhost-İ \"quoted\" \\ /"},
+    {"kind": "git-fsck", "id": "repo", "detail": "error: object file is empty"}
+  ]
+}

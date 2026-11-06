@@ -14,18 +14,24 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
 
 /**
- * A loopback server that answers {@code <METHOD> <path>} with a fixed status and JSON body, and
- * records every request, so a test sees exactly what {@code kb} sent and how it treats the answer.
- * An unknown method and path answers 404.
+ * A loopback server that answers {@code <METHOD> <path>} with a fixed status, JSON body and extra
+ * headers, and records every request with its body as text and as bytes, so a test sees exactly
+ * what {@code kb} sent and how it treats the answer. An unknown method and path answers 404.
  */
 final class ApiStub implements AutoCloseable {
 
     private static final int NOT_FOUND = 404;
     private static final int NO_BODY = -1;
 
-    record Request(String method, String rawPath, Map<String, List<String>> headers, String body) {}
+    /** {@code body} is {@code bytes} read as UTF-8; {@code bytes} is what arrived. */
+    record Request(
+            String method,
+            String rawPath,
+            Map<String, List<String>> headers,
+            String body,
+            byte[] bytes) {}
 
-    private record Answer(int status, String json) {}
+    private record Answer(int status, String json, Map<String, String> headers) {}
 
     private final Map<String, Answer> answers = new ConcurrentHashMap<>();
     private final List<Request> requests = new CopyOnWriteArrayList<>();
@@ -38,7 +44,13 @@ final class ApiStub implements AutoCloseable {
     }
 
     ApiStub answer(String method, String path, int status, String json) {
-        answers.put(method + " " + path, new Answer(status, json));
+        return answer(method, path, status, json, Map.of());
+    }
+
+    /** As above with response {@code headers}, e.g. {@code Upload-Offset}. */
+    ApiStub answer(
+            String method, String path, int status, String json, Map<String, String> headers) {
+        answers.put(method + " " + path, new Answer(status, json, Map.copyOf(headers)));
         return this;
     }
 
@@ -62,15 +74,16 @@ final class ApiStub implements AutoCloseable {
 
     private void handle(HttpExchange exchange) throws IOException {
         try (exchange) {
-            String body =
-                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            byte[] received = exchange.getRequestBody().readAllBytes();
+            String body = new String(received, StandardCharsets.UTF_8);
             String rawPath = exchange.getRequestURI().getRawPath();
             requests.add(
                     new Request(
                             exchange.getRequestMethod(),
                             rawPath,
                             Map.copyOf(exchange.getRequestHeaders()),
-                            body));
+                            body,
+                            received));
             Answer answer = answers.get(exchange.getRequestMethod() + " " + rawPath);
             if (answer == null) {
                 exchange.sendResponseHeaders(NOT_FOUND, NO_BODY);
@@ -78,6 +91,7 @@ final class ApiStub implements AutoCloseable {
             }
             byte[] bytes = answer.json().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
+            answer.headers().forEach(exchange.getResponseHeaders()::add);
             exchange.sendResponseHeaders(
                     answer.status(), bytes.length == 0 ? NO_BODY : bytes.length);
             exchange.getResponseBody().write(bytes);

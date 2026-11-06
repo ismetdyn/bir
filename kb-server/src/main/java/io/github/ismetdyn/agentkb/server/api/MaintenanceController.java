@@ -1,12 +1,13 @@
 package io.github.ismetdyn.agentkb.server.api;
 
+import io.github.ismetdyn.agentkb.api.CheckAnswer;
+import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
+import io.github.ismetdyn.agentkb.api.RestoreAnswer;
+import io.github.ismetdyn.agentkb.api.RevertAnswer;
+import io.github.ismetdyn.agentkb.api.SyncAnswer;
 import io.github.ismetdyn.agentkb.server.hooks.MemoryImport;
-import io.github.ismetdyn.agentkb.server.snapshot.CheckReport;
 import io.github.ismetdyn.agentkb.server.snapshot.CheckService;
-import io.github.ismetdyn.agentkb.server.write.RestoreResult;
-import io.github.ismetdyn.agentkb.server.write.RevertResult;
 import io.github.ismetdyn.agentkb.server.write.SnapshotRestore;
-import io.github.ismetdyn.agentkb.server.write.SyncResult;
 import io.github.ismetdyn.agentkb.server.write.SyncService;
 import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
@@ -27,7 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
  * ignored), {@code POST /api/v1/signals/imported-memories {memories}} and {@code GET
  * /api/v1/check}. JSON in and out, no token: OriginGuard keeps browsers out (ADR-0020). A refusal
  * is 400 {@code {error, hint}} (RestErrorHandler); a batch or commit name beyond the length and
- * charset limits is refused before anything looks it up, and the refusal never repeats it.
+ * charset limits is refused before anything looks it up, and the refusal never repeats it. Each
+ * answer is a kb-api record (ApiAnswers maps the domain result; ADR-0025 decision 6).
  */
 @RestController
 class MaintenanceController {
@@ -35,8 +37,6 @@ class MaintenanceController {
     record RevertRequest(@Nullable String batch) {}
 
     record RestoreRequest(@Nullable String at) {}
-
-    record CheckAnswer(boolean clean, List<CheckReport.Problem> problems) {}
 
     record ImportRequest(@Nullable List<@Nullable ImportedMemory> memories) {}
 
@@ -75,12 +75,12 @@ class MaintenanceController {
     }
 
     @PostMapping("/api/v1/sync")
-    SyncResult sync() {
-        return sync.sync();
+    SyncAnswer sync() {
+        return ApiAnswers.of(sync.sync());
     }
 
     @PostMapping("/api/v1/revert")
-    RevertResult revert(@RequestBody RevertRequest request) {
+    RevertAnswer revert(@RequestBody RevertRequest request) {
         String batch = request.batch();
         if (batch != null && !BATCH.matcher(batch).matches()) {
             throw new WriteRejectedException(
@@ -89,11 +89,11 @@ class MaintenanceController {
                             + " letters, digits, '.', '_', ':' or '-')",
                     "Give the batch id a write returned, e.g. kb revert --batch <id>.");
         }
-        return writes.revert(batch);
+        return ApiAnswers.of(writes.revert(batch));
     }
 
     @PostMapping("/api/v1/restore")
-    RestoreResult restore(@RequestBody RestoreRequest request) {
+    RestoreAnswer restore(@RequestBody RestoreRequest request) {
         String at = request.at();
         if (at != null
                 && (at.length() > AT_LIMIT || at.chars().anyMatch(Character::isISOControl))) {
@@ -104,7 +104,7 @@ class MaintenanceController {
                     "Give a commit of the knowledge repository (git log in it lists them), or"
                             + " none for HEAD.");
         }
-        return restore.restore(at);
+        return ApiAnswers.of(restore.restore(at));
     }
 
     /**
@@ -112,7 +112,7 @@ class MaintenanceController {
      * refusal never repeats a memory's text.
      */
     @PostMapping("/api/v1/signals/imported-memories")
-    MemoryImport.Imported importMemories(@RequestBody ImportRequest request) {
+    MemoryImportAnswer importMemories(@RequestBody ImportRequest request) {
         List<@Nullable ImportedMemory> memories = request.memories();
         if (memories == null) {
             throw new WriteRejectedException("the body has no memories list", IMPORT_HINT);
@@ -134,7 +134,7 @@ class MaintenanceController {
                                                             + " character",
                                                     IMPORT_HINT)));
         }
-        return memoryImport.importAll(checked);
+        return ApiAnswers.of(memoryImport.importAll(checked));
     }
 
     private static Optional<MemoryImport.Memory> checked(@Nullable ImportedMemory memory) {
@@ -156,7 +156,6 @@ class MaintenanceController {
 
     @GetMapping("/api/v1/check")
     CheckAnswer check() {
-        CheckReport report = check.check();
-        return new CheckAnswer(report.clean(), report.problems());
+        return ApiAnswers.of(check.check());
     }
 }

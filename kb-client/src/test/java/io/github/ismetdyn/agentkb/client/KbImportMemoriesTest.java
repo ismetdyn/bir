@@ -73,7 +73,7 @@ class KbImportMemoriesTest {
             throws IOException {
         write(MEMORIES);
         write(NOT_MEMORIES);
-        server.answer("POST", IMPORT, 200, "{\"received\":5,\"opened\":4}");
+        server.answer("POST", IMPORT, 200, "{\"received\":5,\"opened\":4,\"truncated\":0}");
 
         Result result = importMemories(server.url());
 
@@ -104,7 +104,7 @@ class KbImportMemoriesTest {
     @Test
     void a_second_run_sends_the_same_memories_again() throws IOException {
         write(MEMORIES);
-        server.answer("POST", IMPORT, 200, "{\"received\":5,\"opened\":0}");
+        server.answer("POST", IMPORT, 200, "{\"received\":5,\"opened\":0,\"truncated\":0}");
 
         Result first = importMemories(server.url());
         Result second = importMemories(server.url());

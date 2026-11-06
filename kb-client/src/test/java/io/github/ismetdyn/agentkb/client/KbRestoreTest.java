@@ -64,7 +64,8 @@ class KbRestoreTest {
                 "POST",
                 RESTORE,
                 200,
-                "{\"nodes\":1,\"edges\":0,\"keptSecrets\":0,\"keptSignals\":0,\"droppedEdges\":0}");
+                "{\"nodes\":1,\"edges\":0,\"keptSecrets\":0,\"keptSignals\":0,\"droppedEdges\":0,"
+                        + "\"droppedSecretValues\":0}");
 
         Result result = server.kb(workDir, "restore", "--at", "HEAD~3");
 

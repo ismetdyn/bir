@@ -15,6 +15,11 @@
   <dependencies>
     <dependency>
       <groupId>io.github.ismetdyn</groupId>
+      <artifactId>kb-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.ismetdyn</groupId>
       <artifactId>kb-core</artifactId>
       <version>${project.version}</version>
     </dependency>

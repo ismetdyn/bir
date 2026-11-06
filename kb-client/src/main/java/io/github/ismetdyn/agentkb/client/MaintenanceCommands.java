@@ -1,8 +1,10 @@
 package io.github.ismetdyn.agentkb.client;
 
+import io.github.ismetdyn.agentkb.api.CheckAnswer;
+import io.github.ismetdyn.agentkb.api.RestoreAnswer;
+import io.github.ismetdyn.agentkb.api.RevertAnswer;
+import io.github.ismetdyn.agentkb.api.SyncAnswer;
 import java.io.PrintWriter;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -12,7 +14,9 @@ import picocli.CommandLine.Spec;
 /**
  * {@code kb revert --batch <id>}, {@code kb restore [--at <commit>]}, {@code kb sync} and {@code kb
  * check} (docs/CLIENTS.md §2, ADR-0022 decision 3): each one REST call to the local server, which
- * does the work. Exit codes: 0 success, 1 error or problems found, 3 server unreachable.
+ * does the work. Each answer is read into its kb-api record before anything is printed, so an
+ * answer without a field it needs is exit 1, not a "null" in the output. Exit codes: 0 success, 1
+ * error, problems found or such an answer, 3 server unreachable.
  */
 final class MaintenanceCommands {
 
@@ -30,21 +34,25 @@ final class MaintenanceCommands {
 
         @Override
         public Integer call() {
-            Map<?, ?> answer =
-                    JsonApi.fromEnvironment()
-                            .post("/api/v1/revert", "{\"batch\": " + JsonApi.quote(batch) + "}");
+            RevertAnswer answer =
+                    Json.toRecord(
+                            JsonApi.fromEnvironment()
+                                    .post(
+                                            "/api/v1/revert",
+                                            "{\"batch\": " + JsonApi.quote(batch) + "}"),
+                            RevertAnswer.class);
             spec.commandLine()
                     .getOut()
                     .println(
                             "reverted batch "
-                                    + answer.get("batch")
+                                    + answer.batch()
                                     + ": deleted "
-                                    + answer.get("deleted")
+                                    + answer.deleted()
                                     + " records, reopened "
-                                    + answer.get("reopened")
+                                    + answer.reopened()
                                     + "; secret values deleted for good (they live only on this"
                                     + " machine): "
-                                    + answer.get("deletedSecretValues"));
+                                    + answer.deletedSecretValues());
             return 0;
         }
     }
@@ -64,22 +72,25 @@ final class MaintenanceCommands {
         @Override
         public Integer call() {
             String body = at == null ? "{}" : "{\"at\": " + JsonApi.quote(at) + "}";
-            Map<?, ?> answer = JsonApi.fromEnvironment().post("/api/v1/restore", body);
+            RestoreAnswer answer =
+                    Json.toRecord(
+                            JsonApi.fromEnvironment().post("/api/v1/restore", body),
+                            RestoreAnswer.class);
             spec.commandLine()
                     .getOut()
                     .println(
                             "restored "
-                                    + answer.get("nodes")
+                                    + answer.nodes()
                                     + " nodes and "
-                                    + answer.get("edges")
+                                    + answer.edges()
                                     + " edges; kept "
-                                    + answer.get("keptSecrets")
+                                    + answer.keptSecrets()
                                     + " local secrets and "
-                                    + answer.get("keptSignals")
+                                    + answer.keptSignals()
                                     + " signals; dropped "
-                                    + answer.get("droppedEdges")
+                                    + answer.droppedEdges()
                                     + " signal edges to records the snapshot lacks; ignored "
-                                    + answer.get("droppedSecretValues")
+                                    + answer.droppedSecretValues()
                                     + " secret values the snapshot should not carry");
             return 0;
         }
@@ -96,23 +107,25 @@ final class MaintenanceCommands {
 
         @Override
         public Integer call() {
-            Map<?, ?> answer = JsonApi.fromEnvironment().post("/api/v1/sync", "{}");
-            Object commit = answer.get("commit");
+            SyncAnswer answer =
+                    Json.toRecord(
+                            JsonApi.fromEnvironment().post("/api/v1/sync", "{}"), SyncAnswer.class);
+            String commit = answer.commit();
             spec.commandLine()
                     .getOut()
                     .println(
                             (commit == null
                                             ? "no new commit (nothing changed)"
                                             : "commit " + commit)
-                                    + (Boolean.TRUE.equals(answer.get("pushed"))
+                                    + (answer.pushed()
                                             ? ", pushed to the remote"
                                             : ", kept in the local repository only (no remote)")
                                     + "; "
-                                    + answer.get("nodes")
+                                    + answer.nodes()
                                     + " nodes and "
-                                    + answer.get("edges")
+                                    + answer.edges()
                                     + " edges written, "
-                                    + answer.get("conflicts")
+                                    + answer.conflicts()
                                     + " conflicts found (each has a conflict signal)");
             return 0;
         }
@@ -129,24 +142,18 @@ final class MaintenanceCommands {
 
         @Override
         public Integer call() {
-            Map<?, ?> answer = JsonApi.fromEnvironment().get("/api/v1/check");
+            CheckAnswer answer =
+                    Json.toRecord(
+                            JsonApi.fromEnvironment().get("/api/v1/check"), CheckAnswer.class);
             PrintWriter out = spec.commandLine().getOut();
-            List<?> problems = answer.get("problems") instanceof List<?> list ? list : List.of();
-            for (Object item : problems) {
-                if (item instanceof Map<?, ?> problem) {
-                    out.println(
-                            problem.get("kind")
-                                    + " "
-                                    + problem.get("id")
-                                    + ": "
-                                    + problem.get("detail"));
-                }
+            for (CheckAnswer.Problem problem : answer.problems()) {
+                out.println(problem.kind() + " " + problem.id() + ": " + problem.detail());
             }
-            if (Boolean.TRUE.equals(answer.get("clean"))) {
+            if (answer.clean()) {
                 out.println("clean");
                 return 0;
             }
-            out.println(problems.size() + " problems");
+            out.println(answer.problems().size() + " problems");
             return Kb.FAILED;
         }
     }

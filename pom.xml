@@ -17,6 +17,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>kb-api</module>
     <module>kb-core</module>
     <module>kb-server</module>
     <module>kb-client</module>

@@ -32,6 +32,12 @@
   </dependencyManagement>
 
   <dependencies>
+    <!-- The REST records it shares with the server; Json.java maps them by hand (ADR-0025 decision 6). -->
+    <dependency>
+      <groupId>io.github.ismetdyn</groupId>
+      <artifactId>kb-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- plan.md "Yeni bağımlılıklar": approved for G8; 4.7.7 is the latest release on Maven Central (2026-11-05). -->
     <dependency>
       <groupId>info.picocli</groupId>
