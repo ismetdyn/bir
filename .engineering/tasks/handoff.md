@@ -8,8 +8,8 @@ Oturum `agentkb` kökünde. Dal `f2-core`, hiçbir şey commit edilmedi (kullan�
 
 ## Sürüyor
 - G0–G9, CP1–CP4 bitti (verify exit 0; kb-core 3101, kb-server 901 + `SecretLeakIT`, kb-client 38; eval 18/18). F2 bitti. F3 planı onaylandı (kullanıcı 2026-11-07: plan, TamboUI 0.6.0, picocli-codegen, istemcide Jackson, Json.java silme, Mandrel). Dal `f3-client`. Mandrel kuruldu (`mise exec java@mandrel-23.1.13.0-Final+java21 -- …`). `sudo dnf install libstdc++-static git-lfs` kullanıcıda bekliyor.
-H0 commit edildi (`8f2b359`). H1: TamboUI native'de çalışıyor (go); Jackson native'i 55,8 MB yaptı (> 50 MB) → istemcide Json.java kalır (ADR-0025 karar 6 güncellendi, commit'siz). Workflow `f3-cp1-close` (run `wf_2c63cf19-e9c`): Jackson'ı kb-client'tan çıkar, native testleri `-Pnative`'de zorunlu yap, native yeniden derle. Sonra H1+CP1 commit, H2.
-  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f3-cp1-close-wf_2c63cf19-e9c.js, resumeFromRunId: "wf_2c63cf19-e9c"})`.
+H0, H1, CP1 bitti ve commit edildi (son: `5a779fa`; native kb 40,7 MB, istemcide Jackson yok). Workflow `f3-h2-h3-h4-cp2` (run `wf_73a87398-47f`): H2 kb-api + tipli istemci → H3 yükleme staging → H4 doküman tamamlama + blob + sync → CP2 güvenlik/java incelemesi. Bitince her dilimi ayrı commit et.
+  Kesilirse: `Workflow({scriptPath: ~/.claude/projects/-home-ismetdyn-dev-bir-agentkb/93d3cf6a-5cff-4d66-b473-571fc9d941c7/workflows/scripts/f3-h2-h3-h4-cp2-wf_73a87398-47f.js, resumeFromRunId: "wf_73a87398-47f"})`.
 
 ## Kullanıcı kararları (bu turda)
 - `/mcp` gövde sınırı önce 16 MiB, CP2 ölçümünden sonra 1 MiB + `-XX:+ExitOnOutOfMemoryError` (kullanıcı "en optimize seçeneği seç" dedi); F3'te sıra numaralı, sürdürülebilir doküman yüklemesi (ADR-0022 karar 17, 21).
