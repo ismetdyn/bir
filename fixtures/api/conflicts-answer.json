@@ -1,0 +1,7 @@
+{
+  "conflicts": [
+    {"id": "01M61GCWC0YQ7CBPWNDRQC5FX5", "entity": "ornek-app-01", "key": "ip", "env": "prod", "value": "192.0.2.25",
+     "source": "agent", "validFrom": "2026-10-28T15:00:00Z", "current": ["192.0.2.21"]}
+  ],
+  "more": 0
+}

@@ -1,0 +1,9 @@
+{
+  "batches": [
+    {"batch": "01KBTESTBATCH0000000000000Z", "at": "2026-11-10T08:00:00Z", "sources": ["scan"], "opened": 12,
+     "closed": 0, "revised": 0, "entities": ["ornek-db", "ornek-proje"]},
+    {"batch": "01KBTESTBATCH0000000000000Y", "at": "2026-11-09T08:00:00Z", "sources": ["user"], "opened": 0,
+     "closed": 1, "revised": 1, "entities": ["ornek-app-01"]}
+  ],
+  "more": 48
+}

@@ -7,9 +7,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
+import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
 import io.github.ismetdyn.agentkb.api.RestoreAnswer;
 import io.github.ismetdyn.agentkb.api.RevertAnswer;
+import io.github.ismetdyn.agentkb.api.SearchAnswer;
 import io.github.ismetdyn.agentkb.api.SyncAnswer;
 import io.github.ismetdyn.agentkb.core.model.Source;
 import io.github.ismetdyn.agentkb.server.RunningServerTestBase;
@@ -78,7 +80,19 @@ class ApiContractTest extends RunningServerTestBase {
                                                 "repo",
                                                 "error: object file is empty")))),
                 arguments("check-answer-clean.json", new CheckAnswer(true, List.of())),
-                arguments("memory-import-answer.json", new MemoryImportAnswer(4, 3, 1)));
+                arguments("memory-import-answer.json", new MemoryImportAnswer(4, 3, 1)),
+                arguments("search-answer.json", H6Samples.SEARCH),
+                arguments("search-answer-empty.json", new SearchAnswer(List.of(), 0)),
+                arguments("entity-answer.json", H6Samples.ENTITY),
+                arguments("entity-answer-bare.json", H6Samples.BARE_ENTITY),
+                arguments("write-answer.json", H6Samples.WRITE),
+                arguments("edit-answer.json", new EditAnswer(H6Samples.BATCH)),
+                arguments("cypher-answer.json", H6Samples.CYPHER),
+                arguments("conflicts-answer.json", H6Samples.CONFLICTS),
+                arguments("proposals-answer.json", H6Samples.PROPOSALS),
+                arguments("activity-answer.json", H6Samples.ACTIVITY),
+                arguments("secrets-answer.json", H6Samples.SECRETS),
+                arguments("scan-answer.json", H6Samples.SCAN));
     }
 
     @ParameterizedTest

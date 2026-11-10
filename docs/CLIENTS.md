@@ -10,26 +10,27 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 
 | Metot | Yol | Ne |
 |---|---|---|
-| GET | `/search?q=&type=&env=&limit=` | Arama (güncel önce, geçmiş işaretli) |
-| GET | `/entities/{id}` | Varlık (Markdown veya JSON): güncel fact'ler, ilişkiler, secret adları, geçmiş |
-| POST | `/entities` · PATCH `/entities/{id}` | Yeni varlık; alias ve özet |
-| POST | `/entities/{id}/facts` | Fact ekle/değiştir (değişen eski fact kapanır) |
+| GET | `/search?q=&type=&env=&limit=` | Arama (güncel önce, geçmiş işaretli); `limit` 1–20, varsayılan 8 (ADR-0017); yanıtta `more` kesilen sayıyı verir |
+| GET | `/entities/{id}` | Varlık: `Accept`'te kalitesi 0'dan büyük ve JSON'unkinden düşük olmayan `text/markdown` → `MarkdownView`, değilse JSON (fact ve ilişki id'leriyle): güncel fact'ler, ilişkiler, secret adları, geçmiş. Bilinmeyen id 404 |
+| POST | `/entities` `{id,type,facts?,relations?}` · PATCH `/entities/{id}` `{aliases?,summary?}` | Yeni varlık (fact'siz de olur: `kb add <tür> <id>`; yeni 201, bilinen 200); alias (en çok 20) ve özet |
+| POST | `/entities/{id}/facts` `{facts}` | Fact ekle/değiştir (değişen eski fact kapanır) |
 | POST | `/facts/{id}/close` | Fact'i kapat (silme yok) |
-| POST | `/entities/{id}/relations` · POST `/relations/{id}/close` | İlişki |
-| POST | `/cypher` | Salt okunur sorgu |
-| GET | `/conflicts` · POST `/conflicts/{id}/resolve` | Çelişkiler (`accept-new` / `keep-old`) |
-| GET | `/proposals` · POST `/proposals/{id}/accept` · POST `/proposals/{id}/reject` | Öneriler (karar, kural, arşiv, şema) |
+| POST | `/entities/{id}/relations` `{relations}` · POST `/relations/{id}/close` | İlişki |
+| POST | `/entities/{id}/archive` · POST `/entities/{id}/unarchive` | Arşivle, arşivden çıkar (geri alınabilir; tekrarı ipuçlu ret) |
+| POST | `/cypher` `{query}` | Salt okunur sorgu (`CypherGuard`; `kb_cypher` gibi en çok 200 satır ve 8.000 karakter, `truncated`; çalışırken hata veren ya da 5 sn'yi aşan sorgu 400) |
+| GET | `/conflicts?limit=` · POST `/conflicts/{id}/resolve` `{resolution}` | Çelişkiler (`accept-new` / `keep-old`) |
+| GET | `/proposals?limit=` · POST `/proposals/{id}/accept` · POST `/proposals/{id}/reject` `{note?}` | Öneriler (karar, kural, arşiv, şema); açıklar önce |
 | GET | `/signals?status=&kind=` · POST `/signals/{id}/reopen` | Sinyaller; atılanlar (hiçbir şey üretmeden kapananlar) ve yeniden açma |
-| GET | `/activity?source=&batch=&since=` | Son yazmalar |
+| GET | `/activity?source=&batch=&since=&limit=` | Son yazmalar, parti başına bir satır, yeniden eskiye; `limit` varsayılan 50, en çok 500 |
 | POST | `/revert` | `{batch}` |
-| GET | `/secrets?prefix=` | Secret listesi (ad, ortam, placeholder, bu bilgisayarda değeri var mı; değer yok) |
+| GET | `/secrets?prefix=&limit=` | Secret listesi (ad, ortam, placeholder, bu bilgisayarda değeri var mı; değer yok); `limit` varsayılan 50, en çok 500 |
 | PUT | `/secrets/{id}` | Değeri yaz (`kb secret set`); değer bu bilgisayardan çıkmaz |
 | GET | `/secrets/{id}` | Değer; sadece `kb run` ve `kb secret show` kullanır |
 | PUT · PATCH · DELETE | `/uploads/{sha}` | Sürdürülebilir yükleme (ADR-0025 karar 1): `PUT` + `Upload-Length` başlatır/offset verir, `PATCH` (`application/offset+octet-stream`, ≤ 1 MiB) `Upload-Offset`'ten devam eder, `DELETE` iptal eder |
 | POST | `/documents` `{sha256,name,about?,origin?,replaces?}` | Yüklemeyi tamamla: hash ve secret taraması, `blobs/`'a yazar, `Document` düğümü |
 | GET | `/documents` · `/documents/{id}` | Doküman listesi · üst bilgi ve yol |
-| POST | `/scan` | `{path}` tarama |
-| GET | `/stale?days=` | Bayat liste |
+| POST | `/scan` | `{path}` tarama (yalnız `allowed-roots` altı). Yazma kuralının istisnası: kaynak `scan`, kendi `kind=scan` Episode'u (ADR-0023 #3; ADR-0025 karar 9), çünkü USER kaynaklı tarama yüksek güvenli değerleri ezebilirdi |
+| GET | `/stale?days=&limit=` | Bayat liste |
 | POST | `/sync` · POST `/restore` · GET `/doctor` · GET `/eval` · GET `/check` | Bakım |
 | GET | `/curator/should-run` · GET `/curator/runs` | Küratör |
 

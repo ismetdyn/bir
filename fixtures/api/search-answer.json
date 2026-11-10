@@ -1,0 +1,8 @@
+{
+  "hits": [
+    {"id": "ornek-app-01", "type": "Server", "tier": "current", "archived": false, "snippet": "ip @prod: 192.0.2.21"},
+    {"id": "ornek-app-00", "type": "Server", "tier": "history", "archived": true, "snippet": null},
+    {"id": "01KBTESTSIGNAL", "type": "Signal", "tier": "raw", "archived": false, "snippet": "kbtest-ğhost-İ \"quoted\" \\ /"}
+  ],
+  "more": 4
+}

@@ -5,15 +5,21 @@ import static io.github.ismetdyn.agentkb.server.mcp.worker.ToolOutput.section;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ismetdyn.agentkb.core.Ids;
+import io.github.ismetdyn.agentkb.core.model.Source;
 import io.github.ismetdyn.agentkb.server.RunningServerTestBase;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.mcp.McpClient;
 import io.github.ismetdyn.agentkb.server.signals.PromptRing;
+import io.github.ismetdyn.agentkb.server.write.WriteRequest;
+import io.github.ismetdyn.agentkb.server.write.WriteRequest.FactInput;
+import io.github.ismetdyn.agentkb.server.write.WriteRequest.RelationInput;
+import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +37,7 @@ class RememberToolTest extends RunningServerTestBase {
                     + " f.source AS source, f.status AS status, f.evidence AS evidence";
 
     @Autowired private EmbeddedNeo4jStore store;
+    @Autowired private WriteService writes;
     @Autowired private PromptRing promptRing;
 
     private McpClient mcp;
@@ -131,6 +138,62 @@ class RememberToolTest extends RunningServerTestBase {
                                 line.contains("zz-g7-elsewhere.ornek.example")
                                         && line.contains(
                                                 "ÇELİŞKİ (zz-g7-disputed.ornek.example korunuyor)"));
+    }
+
+    /**
+     * ADR-0025 decision 16: a relation the user closed, written again by the agent, waits as a
+     * conflict too, so the reply counts records, not facts.
+     */
+    @Test
+    void a_relation_the_user_closed_is_reported_as_a_waiting_record() throws Exception {
+        String entity = "zz-h6-closed-rel-" + UUID.randomUUID();
+        String target = entity + "-lb";
+        writes.write(
+                new WriteRequest(
+                        Source.USER,
+                        target,
+                        "server",
+                        List.of(new FactInput("os", "rhel 9", "prod", null)),
+                        List.of(),
+                        null,
+                        null,
+                        Instant.now()));
+        String relation =
+                writes.write(
+                                new WriteRequest(
+                                        Source.USER,
+                                        entity,
+                                        "server",
+                                        List.of(),
+                                        List.of(new RelationInput("behind", target, "prod")),
+                                        null,
+                                        null,
+                                        Instant.now()))
+                        .entity();
+        String edge =
+                store.read(
+                        tx ->
+                                (String)
+                                        tx.execute(
+                                                        "MATCH (:Entity {id: $id})-[r:BEHIND]->()"
+                                                                + " RETURN r.id AS id",
+                                                        Map.of("id", relation))
+                                                .next()
+                                                .get("id"));
+        writes.edits().closeRelation(edge);
+
+        String reply =
+                mcp.text(
+                        "kb_remember",
+                        Map.of(
+                                "entity",
+                                entity,
+                                "relations",
+                                List.of(Map.of("type", "behind", "target", target, "env", "prod")),
+                                "source",
+                                Map.of("kind", "doc", "ref", "docs/runbook.md")));
+
+        assertThat(reply).contains("1 record(s) contradict").doesNotContain("fact(s)");
     }
 
     private String remember(String entity, String hostname, Map<String, String> source)

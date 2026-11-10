@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ismetdyn.agentkb.server.api.DocumentHttp;
 import io.github.ismetdyn.agentkb.server.api.MaintenanceHttp;
+import io.github.ismetdyn.agentkb.server.api.RestReadProbe;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.hooks.HookHttp;
 import io.github.ismetdyn.agentkb.server.mcp.McpClient;
@@ -48,6 +49,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
  * <p>H4 (ADR-0025 decisions 3 and 4) adds documents: one holding a fake secret is uploaded and
  * refused at completion, a clean one is refused for a secret name or origin and then added. The
  * refusal bodies, the staging directory, blobs/ and .gitattributes join the ways out.
+ *
+ * <p>H6 adds the REST reads and writes of docs/CLIENTS.md §1 (RestReadProbe): the secret list,
+ * search, entity JSON and Markdown, Cypher, activity, conflicts, proposals, stale, and refusals
+ * carrying the value.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class SecretLeakIT extends RunningServerTestBase {
@@ -104,6 +109,7 @@ class SecretLeakIT extends RunningServerTestBase {
         paths.putAll(hookAnswers());
         paths.putAll(restErrorBodies(secrets));
         paths.putAll(documentAnswers());
+        paths.putAll(RestReadProbe.answers(port, VALUE, ENTITY));
         paths.putAll(snapshotAndGitHistory());
         // G12 (ADR-0022 decision 38): the Secret under the agent's entity is not in HEAD, so the
         // restore keeps it without its entity and check lists it as a local record. The unknown
@@ -131,6 +137,8 @@ class SecretLeakIT extends RunningServerTestBase {
         assertThat(paths.get("kb_read ornek-app-01")).contains("kb:secret/" + NEW_ID);
         assertThat(paths.get("snapshot")).contains(SEED_ID).contains(NEW_ID);
         assertThat(paths.get("kb_scan")).contains("kb:secret/" + SCANNED_PROD_ID);
+        assertThat(paths.get("GET /api/v1/secrets")).contains(NEW_ID).contains("\"hasValue\":true");
+        assertThat(paths.get("GET entity json ornek-lb")).contains("kb:secret/" + SEED_ID);
         assertThat(paths.get("snapshot")).contains(SCANNED_LOCAL_ID);
         assertThat(paths.get("git history")).contains(NEW_ID);
         assertThat(paths.get("remote git history")).contains(NEW_ID).contains(ORPHANED_ID);

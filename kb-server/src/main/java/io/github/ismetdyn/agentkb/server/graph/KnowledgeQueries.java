@@ -94,7 +94,8 @@ public class KnowledgeQueries {
     private static final String RELATIONS =
             """
             MATCH (e:Entity {id: $id})-[r]-(o:Entity)
-            RETURN type(r) AS type, startNode(r) = e AS outgoing, o.id AS other, r.env AS env,
+            RETURN r.id AS id, type(r) AS type, startNode(r) = e AS outgoing, o.id AS other,
+                   r.env AS env,
                    r.source AS source, r.valid_from AS validFrom,
                    coalesce(r.observed_at, r.valid_from) AS observedAt, r.valid_to AS validTo
             ORDER BY r.valid_from, type(r), o.id
@@ -304,7 +305,8 @@ public class KnowledgeQueries {
                                         String.valueOf(row.get("env")))));
     }
 
-    private static <T> List<T> rows(
+    /** Each row of {@code query} mapped; ListQueries reads the same way. */
+    static <T> List<T> rows(
             Transaction tx,
             String query,
             Map<String, Object> params,

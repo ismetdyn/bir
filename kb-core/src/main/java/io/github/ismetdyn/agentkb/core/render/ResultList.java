@@ -137,9 +137,17 @@ public final class ResultList {
             line.append(RAW);
         }
         if (hit.snippet() != null && !hit.snippet().isBlank()) {
-            line.append(DASH).append(capped(LINE_BREAKS.matcher(hit.snippet()).replaceAll(" ")));
+            line.append(DASH).append(snippet(hit.snippet()));
         }
         return line.toString();
+    }
+
+    /**
+     * A snippet as a result line shows it, for every reader of a hit (kb_search, REST search): one
+     * line of at most 300 characters, every mark whole.
+     */
+    public static String snippet(String snippet) {
+        return capped(LINE_BREAKS.matcher(snippet).replaceAll(" "));
     }
 
     /**

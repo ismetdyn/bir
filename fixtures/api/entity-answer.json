@@ -1,0 +1,25 @@
+{
+  "id": "ornek-app-01",
+  "type": "Server",
+  "status": "current",
+  "summary": "Uygulama sunucusu \"prod\"",
+  "aliases": ["app01", "ornek-app-01.ornek.example"],
+  "facts": [
+    {"id": "01KBTESTFACT1", "key": "ip", "value": "192.0.2.21", "env": "prod", "source": "user", "status": "ok",
+     "validFrom": "2026-05-10T09:00:00Z", "observedAt": "2026-10-01T09:00:00Z", "validTo": null, "target": null,
+     "origin": "ornek-proje:src/main/resources/application-prod.yml:2"},
+    {"id": "01KBTESTFACT2", "key": "port", "value": "8080", "env": "default", "source": "scan", "status": "conflict",
+     "validFrom": "2026-01-15T09:00:00Z", "observedAt": "2026-01-15T09:00:00Z", "validTo": "2026-05-10T09:00:00Z",
+     "target": "ornek-proje", "origin": null}
+  ],
+  "relations": [
+    {"id": "01KBTESTREL1", "type": "BEHIND", "outgoing": true, "other": "ornek-lb", "env": "prod", "source": "user",
+     "validFrom": "2026-05-10T09:00:00Z", "observedAt": "2026-05-10T09:00:00Z", "validTo": null},
+    {"id": null, "type": "RUNS", "outgoing": false, "other": "ornek-proje", "env": null, "source": "agent",
+     "validFrom": "2026-01-15T09:00:00Z", "observedAt": "2026-01-15T09:00:00Z", "validTo": "2026-05-10T09:00:00Z"}
+  ],
+  "secrets": [
+    {"id": "ornek-app-01/prod/deploy-ssh-key", "name": "deploy-ssh-key", "env": "prod",
+     "placeholder": "kb:secret/ornek-app-01/prod/deploy-ssh-key"}
+  ]
+}

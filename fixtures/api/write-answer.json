@@ -1,0 +1,2 @@
+{"entity": "ornek-app-01", "created": false, "batch": "01KBTESTBATCH0000000000000Z", "added": ["01KBTESTFACT3"],
+ "refreshed": [], "closed": ["01KBTESTFACT1"], "conflicts": ["01KBTESTREL1"]}

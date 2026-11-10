@@ -49,6 +49,8 @@ araçlar kabul edildi: TamboUI 0.6.0 BOM + `tamboui-toolkit` + `tamboui-jline3-b
 8. **TUI:** TamboUI 0.6.0, BOM ile sabit. Backend jline3 (Panama Java 22 ister). `kb tui` bir `TuiCommand` alt sınıfıdır.
    TamboUI yalnız `client.tui` paketinde kullanılır (ArchUnit); B planı (ADR-0012, Go/Bubble Tea) ucuz kalsın diye.
 9. **REST yazmaları:** `Source.USER`, istek başına bir parti, Episode yok (ADR-0023: episode'suz yazma hata değil).
+   `/scan` istisnadır — kaynak `scan`, kendi `kind=scan` Episode'u (ADR-0023 #3), çünkü USER kaynaklı tarama yüksek
+   güvenli değerleri ezebilirdi.
 10. **Kapatmalar geri alınabilir:** kapatılan Fact ve ilişkiye `closed_batch` alanı yazılır; `BatchRevert` bunu da açar
     (karar 22–23 ile tutarlı; `valid_from` değişmez, silme yok).
 11. **Çelişki çözümü:** `accept-new` = bekleyen değer USER olarak yeniden yazılır (ADR-0022 #23). `keep-old` = bekleyen fact

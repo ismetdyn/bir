@@ -105,7 +105,11 @@ final class WriteCheck {
                     "The curator changes records only through its own tools (docs/CURATOR.md).");
         }
         text("entity", request.entity(), ID_LIMIT);
-        if (request.facts().isEmpty() && request.relations().isEmpty()) {
+        // Only the user opens an entity with nothing in it (kb add <type> <id>, lead H6 review 8);
+        // an agent's empty write is no knowledge.
+        if (request.source() != Source.USER
+                && request.facts().isEmpty()
+                && request.relations().isEmpty()) {
             throw new WriteRejectedException(
                     "nothing to write", "Pass at least one fact or one relation.");
         }

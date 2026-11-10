@@ -1,0 +1,9 @@
+{
+  "proposals": [
+    {"id": "01KBTESTPROP1", "kind": "archive", "status": "open", "by": "agent", "target": "ornek-app-00",
+     "content": "ornek-app-00 kapandı\n\n\"eski\" sunucu", "evidence": "ornek-proje README.md", "reviewNote": null},
+    {"id": "01KBTESTPROP0", "kind": "schema", "status": "rejected", "by": "curator", "target": null,
+     "content": "name: rack", "evidence": null, "reviewNote": "gerek yok"}
+  ],
+  "more": 2
+}

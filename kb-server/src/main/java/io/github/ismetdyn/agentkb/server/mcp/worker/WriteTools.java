@@ -270,7 +270,7 @@ public class WriteTools {
             reply.append(
                     "\nConflict: "
                             + result.conflicts().size()
-                            + " fact(s) contradict more trusted knowledge; they wait with status"
+                            + " record(s) contradict more trusted knowledge; they wait with status"
                             + " conflict and the current value is kept. Tell the user if it"
                             + " matters.");
         }

@@ -89,6 +89,14 @@ class WriteRejectionTest {
                         relation(Source.USER, HOST, T2, "likes", TARGET),
                         "kb_schema"),
                 arguments(
+                        "an agent write with nothing in it",
+                        request(Source.AGENT, HOST, T2),
+                        "fact"),
+                arguments(
+                        "a user_stated write with nothing in it",
+                        request(Source.USER_STATED, HOST, T2),
+                        "fact"),
+                arguments(
                         "relation to a missing entity",
                         relation(Source.USER, HOST, T2, "depends_on", "zz-nowhere"),
                         "kb_search"));

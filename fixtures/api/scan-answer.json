@@ -1,0 +1,4 @@
+{"project": "ornek-proje", "repo": "git.ornek.example/ornek-grup/ornek-proje", "batch": "01KBTESTBATCH0000000000000Z",
+ "files": 5, "newEntities": ["ornek-db"], "added": 9, "refreshed": 2, "closed": 1, "conflicts": 1,
+ "secrets": ["kb:secret/ornek-proje/prod/spring.datasource.password"], "findings": ["ornek-db.ornek.example"],
+ "skipped": ["src/x.yml:3: the value looks like a secret"]}

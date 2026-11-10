@@ -76,7 +76,9 @@ final class KnowledgeQueriesRows {
                 Source.valueOf(upper(row.get("source"))),
                 Instant.parse((String) row.get("validFrom")),
                 Instant.parse((String) row.get("observedAt")),
-                instant(row.get("validTo")));
+                instant(row.get("validTo")),
+                // A path step (RELATED) has no id; the RELATIONS of one entity have.
+                (String) row.get("id"));
     }
 
     static Step step(Map<?, ?> row) {

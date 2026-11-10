@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,9 +48,6 @@ class MaintenanceController {
             "Send {\"memories\": [{\"source\": \"claude-code\" or \"codex\", \"path\": <path under"
                     + " HOME>, \"text\": <content>}]}, as kb import-memories does.";
 
-    // A batch is a ULID (26) the server made; 64 leaves room for a test or tool prefix.
-    private static final int BATCH_LIMIT = 64;
-    private static final Pattern BATCH = Pattern.compile("[A-Za-z0-9._:-]{0," + BATCH_LIMIT + "}");
     // A sha-256 commit hash is 64; a ref name or rev expression rarely passes 100.
     private static final int AT_LIMIT = 256;
 
@@ -81,15 +77,7 @@ class MaintenanceController {
 
     @PostMapping("/api/v1/revert")
     RevertAnswer revert(@RequestBody RevertRequest request) {
-        String batch = request.batch();
-        if (batch != null && !BATCH.matcher(batch).matches()) {
-            throw new WriteRejectedException(
-                    "the batch is not a batch id (at most "
-                            + BATCH_LIMIT
-                            + " letters, digits, '.', '_', ':' or '-')",
-                    "Give the batch id a write returned, e.g. kb revert --batch <id>.");
-        }
-        return ApiAnswers.of(writes.maintenance().revert(batch));
+        return ApiAnswers.of(writes.maintenance().revert(RequestChecks.batch(request.batch())));
     }
 
     @PostMapping("/api/v1/restore")
