@@ -1,13 +1,16 @@
 package io.github.ismetdyn.agentkb.server.api;
 
+import static io.github.ismetdyn.agentkb.server.security.ErrorBodyAssertions.assertNoLeak;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * A document over 20 MB goes to git-lfs (ADR-0017 decision 2, ADR-0025 decision 5): {@code git lfs
@@ -24,6 +27,7 @@ class DocumentLfsTest extends DocumentControllerTestBase {
     // Over 20 MB read as either 20,000,000 or 20 MiB (UploadControllerPutTest).
     private static final int OVER_LFS_THRESHOLD = 25 * MIB;
     private static final String NAME = "zz-h4-large.bin";
+    private static final String VICTIM = "the user's own file\n";
 
     @Test
     void a_document_over_20_mb_is_tracked_by_git_lfs_in_the_repo_only() throws Exception {
@@ -78,6 +82,47 @@ class DocumentLfsTest extends DocumentControllerTestBase {
             assertThat(documentNodes(sha)).isEmpty();
         } finally {
             Files.move(aside, git);
+        }
+    }
+
+    /**
+     * A sync remote can commit {@code .gitattributes} as a link, and {@code git lfs track} appends
+     * through it (CWE-59): the add is refused before git lfs runs, the upload stays staged.
+     */
+    @Test
+    void a_linked_gitattributes_is_refused_and_its_target_is_untouched(@TempDir Path elsewhere)
+            throws Exception {
+        Assumptions.assumeTrue(UploadControllerHttp.gitLfsPresent(), "not run: git-lfs missing");
+        Path repo = committedRepo();
+        byte[] content = new byte[OVER_LFS_THRESHOLD];
+        byte[] text = uniqueText();
+        System.arraycopy(text, 0, content, 0, text.length);
+        String sha = documents.upload(content);
+        Path victim = Files.writeString(elsewhere.resolve("victim"), VICTIM);
+        Path attributes = repo.resolve(".gitattributes");
+        Path aside = repo.resolve(".gitattributes-aside");
+        boolean hadAttributes = Files.exists(attributes, LinkOption.NOFOLLOW_LINKS);
+        if (hadAttributes) {
+            Files.move(attributes, aside);
+        }
+        Files.createSymbolicLink(attributes, victim);
+        try {
+            HttpResponse<String> reply = documents.complete(sha, NAME);
+
+            assertThat(Files.readString(victim))
+                    .as("the link target is untouched")
+                    .isEqualTo(VICTIM);
+            assertThat(reply.statusCode()).as(reply.body()).isEqualTo(400);
+            assertThat(reply.body()).contains("hint");
+            assertNoLeak(reply.body());
+            assertThat(blobFiles(sha)).as("nothing under blobs/").isEmpty();
+            assertThat(stagedFiles(sha)).as("the upload is kept for a retry").hasSize(1);
+            assertThat(documentNodes(sha)).isEmpty();
+        } finally {
+            Files.delete(attributes);
+            if (hadAttributes) {
+                Files.move(aside, attributes);
+            }
         }
     }
 

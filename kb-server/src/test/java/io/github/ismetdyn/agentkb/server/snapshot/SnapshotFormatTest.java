@@ -133,6 +133,25 @@ class SnapshotFormatTest {
         }
     }
 
+    /**
+     * A freshly cloned repo can hold {@code snapshot} as a link (CWE-59): nothing is written
+     * through it, and the message names no path.
+     */
+    @Test
+    void a_linked_snapshot_directory_is_refused_and_nothing_is_written_through_it(
+            @TempDir Path elsewhere) throws IOException {
+        Path snapshot = Files.createSymbolicLink(out.resolve("snapshot"), elsewhere);
+
+        assertThatThrownBy(() -> SnapshotFormat.write(snapshot, new Snapshot(List.of(), List.of())))
+                .isInstanceOf(IOException.class)
+                .hasMessageNotContaining(elsewhere.toString())
+                .hasMessageNotContaining(out.toString());
+
+        try (Stream<Path> files = Files.list(elsewhere)) {
+            assertThat(files).as("nothing written through the link").isEmpty();
+        }
+    }
+
     static void assertSameFiles(Path expectedDir, Path actualDir) throws IOException {
         for (String file : List.of(NODES, EDGES)) {
             // String comparison first: on failure it shows the differing line.

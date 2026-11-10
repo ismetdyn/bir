@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -108,6 +110,39 @@ class StartupImportTest {
 
         assertThat(failure).as("the server started instead of refusing").isNotNull();
         assertThat(messagesOf(failure)).contains(ORPHAN_EDGE_ID);
+    }
+
+    /**
+     * A sync remote can commit {@code snapshot/nodes.jsonl}, or {@code snapshot} itself, as a link
+     * to another local knowledge base (CWE-59): the start is refused, nothing of it is imported,
+     * and no path is named.
+     */
+    @ParameterizedTest(name = "whole directory linked: {0}")
+    @ValueSource(booleans = {false, true})
+    void a_linked_snapshot_stops_startup_and_imports_nothing(
+            boolean wholeDirectory, @TempDir Path elsewhere) throws IOException {
+        Path other = Files.createDirectories(elsewhere.resolve("snapshot"));
+        Files.copy(SEED_SNAPSHOT.resolve(NODES), other.resolve(NODES));
+        Files.copy(SEED_SNAPSHOT.resolve(EDGES), other.resolve(EDGES));
+        if (wholeDirectory) {
+            Files.createSymbolicLink(repo.resolve("snapshot"), other);
+        } else {
+            Path snapshot = Files.createDirectories(repo.resolve("snapshot"));
+            Files.createSymbolicLink(snapshot.resolve(NODES), other.resolve(NODES));
+            Files.copy(SEED_SNAPSHOT.resolve(EDGES), snapshot.resolve(EDGES));
+        }
+
+        Throwable failure = catchThrowable(() -> start().close());
+
+        assertThat(failure).as("the server started instead of refusing").isNotNull();
+        assertThat(messagesOf(failure)).contains("link").doesNotContain(elsewhere.toString());
+        try (ConfigurableApplicationContext context =
+                new SpringApplication(AgentkbServerApplication.class)
+                        .run("--server.port=0", "--agentkb.data-dir=" + dataDir)) {
+            EmbeddedNeo4jStore store = context.getBean(EmbeddedNeo4jStore.class);
+
+            assertThat(count(store, "MATCH (n) WHERE NOT n:Signal RETURN count(n) AS v")).isZero();
+        }
     }
 
     private ConfigurableApplicationContext start() {

@@ -3,6 +3,7 @@ package io.github.ismetdyn.agentkb.server.snapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -78,13 +79,17 @@ final class DocumentStoreGit {
      * would be committed raw. Set in {@code $GIT_DIR/info/attributes}, so it holds for whatever
      * wrote {@code .gitattributes} and changes no tracked file. The file may hold the user's own
      * lines in any encoding: it is read as ISO-8859-1, which maps every byte, and the line is only
-     * appended, so a crash cannot lose what was there.
+     * appended, so a crash cannot lose what was there. A link there is refused, never written
+     * through (CWE-59).
      */
     void mergeByUnion() throws IOException {
         // SystemGit pins GIT_DIR to <repo>/.git.
         Path file = repo.resolve(".git").resolve("info").resolve("attributes");
-        String present =
-                Files.exists(file) ? Files.readString(file, StandardCharsets.ISO_8859_1) : "";
+        boolean exists = Files.exists(file, LinkOption.NOFOLLOW_LINKS);
+        if (exists && !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(".git/info/attributes is a link or no plain file");
+        }
+        String present = exists ? Files.readString(file, StandardCharsets.ISO_8859_1) : "";
         if (present.lines().anyMatch(UNION_ATTRIBUTES::equals)) {
             return;
         }

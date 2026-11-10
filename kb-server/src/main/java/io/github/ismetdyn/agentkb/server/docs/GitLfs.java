@@ -1,7 +1,10 @@
 package io.github.ismetdyn.agentkb.server.docs;
 
+import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,11 +36,23 @@ final class GitLfs {
 
     /**
      * {@code git lfs install --local} and {@code git lfs track <path>} in {@code repo}; the second
-     * writes {@code .gitattributes}, which kb sync commits.
+     * writes {@code .gitattributes}, which kb sync commits. A sync remote can commit {@code
+     * .gitattributes} as a link, and git lfs appends through it (CWE-59), so only a plain file or
+     * none is accepted.
      *
+     * @throws WriteRejectedException if {@code .gitattributes} is a link or no plain file; git lfs
+     *     did not run
      * @throws IOException if either fails
      */
     static void track(Path repo, String path) throws IOException {
+        Path attributes = repo.resolve(".gitattributes");
+        if (Files.exists(attributes, LinkOption.NOFOLLOW_LINKS)
+                && !Files.isRegularFile(attributes, LinkOption.NOFOLLOW_LINKS)) {
+            throw new WriteRejectedException(
+                    ".gitattributes in the knowledge repository is a link or no plain file",
+                    "Make .gitattributes a file of the repo, not a link, then add the document"
+                            + " again.");
+        }
         if (!run(repo, "install", "--local") || !run(repo, "track", path)) {
             throw new IOException("git lfs could not track the blob in the knowledge repository");
         }

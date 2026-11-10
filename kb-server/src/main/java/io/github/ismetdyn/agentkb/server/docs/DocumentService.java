@@ -83,7 +83,10 @@ public class DocumentService {
 
     /**
      * @throws WriteRejectedException if there is no knowledge repo or name or origin is refused,
-     *     and nothing was stored; or about or replaces is refused, and only the blob was stored
+     *     and nothing was stored; or about or replaces is refused, and only the blob was stored; or
+     *     .gitattributes is a link and the blob is over the threshold; no node was written, a new
+     *     upload stays staged, and the staging of a blob already intact in blobs/ was already
+     *     removed
      * @throws IOException if the blob cannot be written or git-lfs fails; no node was written
      */
     // ponytail: one completion at a time, so two completions of one sha256 cannot race on its

@@ -3,6 +3,7 @@ package io.github.ismetdyn.agentkb.server.snapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ public final class SnapshotFormat {
 
     private static final JsonMapper JSON = JsonMapper.shared();
     private static final int FIRST_PRINTABLE = 0x20;
+    private static final String LINKED_DIRECTORY =
+            "the snapshot directory is a link or no directory";
     // Python's escape table for ensure_ascii=False: quote, backslash and control characters only.
     private static final Map<Character, String> SHORT_ESCAPES =
             Map.of(
@@ -49,10 +52,28 @@ public final class SnapshotFormat {
 
     public record Snapshot(List<Node> nodes, List<Edge> edges) {}
 
+    /**
+     * A sync remote can commit {@code snapshot/} or either file as a link to another local
+     * knowledge base (CWE-59): a link is refused, never read through. A missing file is an error
+     * that names it.
+     */
     public static Snapshot read(Path dir) throws IOException {
+        if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS)
+                && !Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(LINKED_DIRECTORY);
+        }
+        Path nodes = dir.resolve(NODES_FILE);
+        Path edges = dir.resolve(EDGES_FILE);
+        for (Path file : List.of(nodes, edges)) {
+            if (Files.exists(file, LinkOption.NOFOLLOW_LINKS)
+                    && !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException(
+                        "snapshot/" + file.getFileName() + " is a link or no plain file");
+            }
+        }
         return parse(
-                Files.readString(dir.resolve(NODES_FILE), StandardCharsets.UTF_8),
-                Files.readString(dir.resolve(EDGES_FILE), StandardCharsets.UTF_8));
+                Files.readString(nodes, StandardCharsets.UTF_8),
+                Files.readString(edges, StandardCharsets.UTF_8));
     }
 
     /** The two files' text, as git gives a committed version of them (SnapshotHistory). */
@@ -65,9 +86,14 @@ public final class SnapshotFormat {
      * ADR-0022 decision 43: both texts are built first, so a row with no JSON form fails before
      * either file changes; each file is then written to a temporary file and renamed over the old
      * one. A crash between the two renames can still leave a new nodes.jsonl next to an old
-     * edges.jsonl.
+     * edges.jsonl. A freshly cloned repo can hold {@code dir} as a link (CWE-59): only a directory
+     * of its own, or none, is written to.
      */
     public static void write(Path dir, Snapshot snapshot) throws IOException {
+        if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS)
+                && !Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(LINKED_DIRECTORY);
+        }
         Files.createDirectories(dir);
         String nodes =
                 snapshot.nodes().stream()

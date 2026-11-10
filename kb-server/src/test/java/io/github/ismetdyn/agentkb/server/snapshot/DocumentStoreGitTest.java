@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.snapshot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +42,20 @@ class DocumentStoreGitTest {
         new DocumentStoreGit(repo).mergeByUnion();
 
         assertThat(Files.readAllBytes(repo.resolve(".git/info/attributes"))).isEqualTo(UNION_LINE);
+    }
+
+    @Test
+    void a_linked_attributes_file_is_refused_and_its_target_is_untouched(@TempDir Path elsewhere)
+            throws IOException {
+        Path victim = Files.writeString(elsewhere.resolve("victim"), "the user's own file\n");
+        Path info = Files.createDirectories(repo.resolve(".git/info"));
+        Files.createSymbolicLink(info.resolve("attributes"), victim);
+
+        assertThatThrownBy(() -> new DocumentStoreGit(repo).mergeByUnion())
+                .isInstanceOf(IOException.class)
+                .hasMessageNotContaining(elsewhere.toString());
+
+        assertThat(Files.readString(victim)).isEqualTo("the user's own file\n");
     }
 
     private static byte[] concat(byte[] head, String separator, byte[] tail) {
