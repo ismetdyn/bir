@@ -11,7 +11,8 @@ dosyalarını da veri dizinini de okuyabilirler. Token bu ortamda ajanı durdurm
 
 Tek gerçek dış tehdit tarayıcıdır: açık bir web sitesi DNS rebinding ile `127.0.0.1:7411`'e istek atabilir. Sunucunun loopback'te
 dinlemesi bunu engellemez, çünkü istek aynı bilgisayardan çıkar. F1'de sahte `Host` ve `Origin` ile iki uçta `initialize` HTTP
-200 döndü (ADR-0018).
+200 döndü (ADR-0018). `kb sync`'in uzak deposu da güvenilmezdir: içeri alınan satırlar kayıpsız alınır, ama sunucu yazarken
+uzaktan gelen dosyaları bağlantı (symlink) olarak asla izlemez.
 
 ## Karar
 1. **Token ve kapsamlar v2'ye kalır.** `~/.config/agentkb/tokens/`, `TokenScopeFilter` ve `Authorization` başlığı yok.

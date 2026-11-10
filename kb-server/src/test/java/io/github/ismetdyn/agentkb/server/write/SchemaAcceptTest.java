@@ -8,7 +8,9 @@ import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
 import io.github.ismetdyn.agentkb.server.graph.Schema.FactKey;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * The accept of a {@code kind=schema} proposal writes one facts.yaml entry (ADR-0025 decision 12).
@@ -29,6 +32,7 @@ class SchemaAcceptTest {
 
     private static final Path SEED_SCHEMA = Path.of("..", "seed", "schema");
     private static final String KEY = "rack_slot";
+    private static final String VICTIM = "a user file outside the repo\n";
 
     @TempDir Path dir;
 
@@ -125,6 +129,61 @@ class SchemaAcceptTest {
 
         assertThat(rejected).isNotNull();
         assertThat(Files.readString(facts)).isEqualTo(before);
+    }
+
+    /** A sync remote can commit {@code schema/facts.yaml.tmp -> ~/.bashrc} (CWE-59). */
+    @Test
+    void a_planted_tmp_link_is_not_followed(@TempDir Path elsewhere) throws IOException {
+        Path victim = Files.writeString(elsewhere.resolve("victim"), VICTIM);
+        Path planted = facts.resolveSibling("facts.yaml.tmp");
+        Files.createSymbolicLink(planted, victim);
+
+        SchemaAccept.add(repo, KEY + ": {multi: false}");
+
+        assertThat(Files.readString(victim)).as("the link target is untouched").isEqualTo(VICTIM);
+        assertThat(Files.isRegularFile(facts, LinkOption.NOFOLLOW_LINKS))
+                .as("facts.yaml is a file of its own, no link")
+                .isTrue();
+        assertThat(rulesOf(KEY)).isEqualTo(Map.of("multi", "false"));
+        try (Stream<Path> files = Files.list(facts.getParent())) {
+            assertThat(files.map(Path::getFileName).map(Path::toString))
+                    .as("no temp file left")
+                    .containsExactlyInAnyOrder(
+                            "types.yaml", "relations.yaml", "facts.yaml", "facts.yaml.tmp");
+        }
+    }
+
+    /** {@code schema/facts.yaml} or {@code schema/} moved outside the repo and linked back. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"schema/facts.yaml", "schema"})
+    void a_linked_schema_path_is_refused_and_nothing_is_written_through_it(
+            String linked, @TempDir Path elsewhere) throws IOException {
+        Path link = dir.resolve(linked);
+        Path target = elsewhere.resolve(link.getFileName());
+        Files.move(link, target);
+        Files.createSymbolicLink(link, target);
+        String before = Files.readString(facts);
+        List<Path> outside;
+        try (Stream<Path> files = Files.walk(elsewhere)) {
+            outside = files.toList();
+        }
+
+        WriteRejectedException rejected =
+                catchThrowableOfType(
+                        WriteRejectedException.class,
+                        () -> SchemaAccept.add(repo, KEY + ": {multi: false}"));
+
+        assertThat(rejected).isNotNull();
+        assertThat(rejected.hint()).isNotBlank();
+        assertThat(Files.readString(facts)).as("the link target is untouched").isEqualTo(before);
+        assertThat(Files.isSymbolicLink(link)).as("the link is left as it was").isTrue();
+        try (Stream<Path> files = Files.walk(elsewhere)) {
+            assertThat(files.toList()).as("nothing written through the link").isEqualTo(outside);
+        }
+        try (Stream<Path> files = Files.list(facts.getParent())) {
+            assertThat(files.map(Path::getFileName).map(Path::toString))
+                    .containsExactlyInAnyOrder("types.yaml", "relations.yaml", "facts.yaml");
+        }
     }
 
     @Test

@@ -6,6 +6,7 @@ import io.github.ismetdyn.agentkb.server.graph.Schema.FactKey;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -31,7 +32,8 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
  * one (lead decision CP3 S6). RepoSchema reads the files on every call, so the key applies at once.
  *
  * <p>The file is written before the graph commits the accept. A key already there with the same
- * rules is left alone, so an accept whose commit failed can be repeated (CP3 J3). The temp file
+ * rules is left alone, so an accept whose commit failed can be repeated (CP3 J3). A link at schema/
+ * or facts.yaml, which a sync remote can commit, is refused, never written through. The temp file
  * next to facts.yaml is never committed: {@code kb sync} stages only the snapshot and the document
  * store (SyncGit).
  */
@@ -47,6 +49,9 @@ final class SchemaAccept {
                     + " false}, with the rules validator, multi, kind, target or enum.";
     private static final String HAND_HINT =
             "Add the key to schema/facts.yaml by hand, then reject the proposal.";
+    private static final String LINK_HINT =
+            "Make schema/ a directory and schema/facts.yaml a file of the repo, not links, then"
+                    + " accept again.";
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
 
     private SchemaAccept() {}
@@ -72,29 +77,42 @@ final class SchemaAccept {
                     "Reject it; the key is there to use.");
         }
         Path file = repo.directory().resolve(FACTS_FILE);
-        Path temp = file.resolveSibling(FACTS_FILE + ".tmp");
+        // A sync remote is untrusted (ADR-0020): it can commit schema/ or facts.yaml as a link.
+        if (!Files.isDirectory(file.getParent(), LinkOption.NOFOLLOW_LINKS)
+                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new WriteRejectedException(
+                    "schema/ or schema/" + FACTS_FILE + " is a link or no plain file", LINK_HINT);
+        }
+        String line =
+                String.join(
+                        ", ",
+                        rules.entrySet().stream()
+                                .map(rule -> rule.getKey() + ": " + rule.getValue())
+                                .toList());
         try {
-            String line =
-                    String.join(
-                            ", ",
-                            rules.entrySet().stream()
-                                    .map(rule -> rule.getKey() + ": " + rule.getValue())
-                                    .toList());
             String text = withEntry(Files.readString(file), key + ": {" + line + "}");
             requireOneMoreKey(schema.factKeys(), text, new FactKey(key, loaded(rules)));
+            replace(file, text);
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot write schema/" + FACTS_FILE, e);
+        }
+    }
+
+    /**
+     * A temp file of a new random name (O_EXCL, so no planted link is followed), then ATOMIC_MOVE;
+     * the temp file is removed on any failure.
+     */
+    private static void replace(Path file, String text) throws IOException {
+        Path temp = Files.createTempFile(file.getParent(), "." + FACTS_FILE + "-", ".tmp");
+        try {
             Files.writeString(temp, text);
             Files.move(
                     temp,
                     file,
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            try {
-                Files.deleteIfExists(temp);
-            } catch (IOException cleanup) {
-                e.addSuppressed(cleanup);
-            }
-            throw new UncheckedIOException("cannot write schema/" + FACTS_FILE, e);
+        } finally {
+            Files.deleteIfExists(temp);
         }
     }
 
