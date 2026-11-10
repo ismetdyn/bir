@@ -31,6 +31,8 @@ uzaktan gelen dosyaları bağlantı (symlink) olarak asla izlemez.
 - (−) Bu bilgisayarda çalışan her program sunucuyu okuyup yazabilir.
 - (+) Kurulum sadeleşir; istemci ayarlarında başlık ve ortam değişkeni gerekmez.
 - `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale F2'de getirilir.
+- Sunucunun senkronlanan ağaçta verdiği yollar (ör. `kb_read`'in doküman yolu) asla bir link üzerinden gitmez; link ya da eksik
+  dosya varsa yol verilmez (H7 CP4 S1, CWE-59).
 
 ## v2 koşulu
 Başka bir kullanıcı veya makine erişecekse ya da ajanların secret değerine erişimi gerçekten engellenecekse token gelir. O durumda

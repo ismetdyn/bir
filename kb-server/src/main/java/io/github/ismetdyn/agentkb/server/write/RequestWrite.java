@@ -64,12 +64,18 @@ final class RequestWrite {
     }
 
     WriteResult apply() {
+        DocumentSource document =
+                request.document() == null ? null : new DocumentSource(graph, request.document());
         Node existing = resolve(request.entity()).or(this::byAddress).orElse(null);
         Node entity = existing == null ? create() : existing;
         FactWrites facts = new FactWrites(graph);
         for (CheckedFact input : checked.facts()) {
             Node target = input.target() == null ? null : target(input.target());
-            written.add(facts.write(entity, input, incoming(input), target));
+            Node fact = facts.write(entity, input, incoming(input), target);
+            written.add(fact);
+            if (document != null) {
+                document.link(fact, input);
+            }
         }
         for (CheckedRelation relation : checked.relations()) {
             relate(entity, relation);

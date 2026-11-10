@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.core.BlobPaths;
 import io.github.ismetdyn.agentkb.core.Times;
 import io.github.ismetdyn.agentkb.core.secret.SecretPatterns;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
@@ -61,7 +62,9 @@ public record DocumentWrite(
 
     /** The blob's path in the knowledge repo, {@code blobs/<first 2>/<sha256>} (SPEC §6.7). */
     public static String path(String sha256) {
-        return "blobs/" + sha256.substring(0, 2) + "/" + sha256;
+        return BlobPaths.of(sha256)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("a document id is a lowercase sha256"));
     }
 
     /**
@@ -169,6 +172,18 @@ public record DocumentWrite(
         if (value.codePointCount(0, value.length()) > limit) {
             throw new WriteRejectedException(
                     what + " is longer than " + limit + " characters", FIELD_HINT);
+        }
+        text(what, value);
+    }
+
+    /**
+     * A line break would start a line of its own in kb_read (CP4 J1). New writes only: an import
+     * takes a snapshot row as it is (invariant 11).
+     */
+    private static void text(String what, String value) {
+        if (value.chars().anyMatch(Character::isISOControl)) {
+            throw new WriteRejectedException(
+                    what + " holds a line break or another control character", FIELD_HINT);
         }
         if (SecretPatterns.looksLikeSecret(value)) {
             throw new WriteRejectedException(what + " looks like a secret value", FIELD_HINT);

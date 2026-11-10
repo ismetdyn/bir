@@ -60,7 +60,7 @@ public final class ResultList {
     private static final Pattern BEFORE_SEP = Pattern.compile("(?=" + Pattern.quote(SEP) + ")");
     // A snippet is one line: a line break in stored text (a raw signal is untrusted) would render
     // the rest as a result line of its own, without the hit's marks (invariant 12).
-    private static final Pattern LINE_BREAKS = Pattern.compile("\\R+");
+    static final Pattern LINE_BREAKS = Pattern.compile("\\R+");
     private static final Pattern BEFORE_ARROW =
             Pattern.compile(
                     "(?=" + Pattern.quote(ARROW) + "|" + Pattern.quote(MarkdownView.BACK) + ")");

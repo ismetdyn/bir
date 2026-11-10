@@ -153,6 +153,7 @@ class CheckServiceTest {
 
     /** The graph loaded from the repo's snapshot, as on a start with this repo, and its check. */
     private CheckService open(Path repo) throws IOException {
+        SnapshotRepos.copySeedBlobs(repo);
         store = new EmbeddedNeo4jStore(dir.resolve("data"));
         WriteService writes = new WriteService(store, new RepoSchema(repo.toString()));
         writes.maintenance().ensureSchema();

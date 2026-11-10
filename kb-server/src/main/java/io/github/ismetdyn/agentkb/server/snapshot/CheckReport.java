@@ -15,9 +15,9 @@ public record CheckReport(List<Problem> problems) {
 
     /**
      * One finding. {@code kind} is one of orphan-edge, orphan-fact, unknown-relation,
-     * open-conflict, duplicate-id, local-record, git-fsck, unreadable; {@code id} names the record
-     * (the repository for git-fsck, the file for unreadable). No part ever holds a value (invariant
-     * 2).
+     * open-conflict, duplicate-id, local-record, missing-blob, blob-hash-mismatch, git-fsck,
+     * unreadable; {@code id} names the record (the repository for git-fsck, the file or document
+     * for unreadable). No part ever holds a value (invariant 2).
      */
     public record Problem(String kind, String id, String detail) {}
 }

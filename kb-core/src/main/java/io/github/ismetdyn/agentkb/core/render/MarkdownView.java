@@ -7,8 +7,10 @@ import io.github.ismetdyn.agentkb.core.model.Fact;
 import io.github.ismetdyn.agentkb.core.model.FactStatus;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The record view of SPEC §6.6: heading, summary, then Bilgiler, İlişkiler, Secret'lar, Geçmiş.
@@ -27,6 +29,12 @@ public final class MarkdownView {
     private static final String ALIASES = "Alias: ";
     private static final String PLACEHOLDER = "kb:secret/";
     private static final String SECRET_USE = "kullan: kb run --file KEY=… -- <komut>";
+    private static final String DOCUMENT = "Document";
+    private static final String BYTES = " bayt";
+    private static final String FILE = "Dosya: ";
+    private static final String ORIGIN = "Kaynak: ";
+    private static final String ADDED = "Eklendi: ";
+    private static final String ABOUT = "Hakkında";
 
     private MarkdownView() {}
 
@@ -65,6 +73,69 @@ public final class MarkdownView {
                                         .map(MarkdownView::endedRelation))
                         .toList());
         return String.join("\n", lines) + "\n";
+    }
+
+    /**
+     * A document (docs/MCP-TOOLS.md kb_read): heading, name, kind and size, sha256, the absolute
+     * path of the blob, the origin and when it was added, then Hakkında (its ABOUT targets) and the
+     * facts that came from it, current ones under Bilgiler and closed ones under Geçmiş, each after
+     * the entity that has it. A property the record lacks is left out.
+     */
+    public static String render(DocumentView document, List<DocumentView.Derived> facts) {
+        List<String> lines = new ArrayList<>();
+        lines.add("# " + oneLine(document.id()) + SEP + DOCUMENT);
+        String kind =
+                Stream.of(
+                                document.name(),
+                                document.mime(),
+                                document.size() == null ? null : document.size() + BYTES)
+                        .filter(Objects::nonNull)
+                        .map(MarkdownView::oneLine)
+                        .collect(Collectors.joining(SEP));
+        if (!kind.isEmpty()) {
+            lines.add(kind);
+        }
+        labelled(lines, "sha256: ", document.sha256());
+        labelled(lines, FILE, document.path());
+        labelled(lines, ORIGIN, document.origin());
+        labelled(lines, ADDED, document.addedAt());
+        section(lines, ABOUT, document.about().stream().map(MarkdownView::oneLine).toList());
+        section(
+                lines,
+                FACTS,
+                facts.stream()
+                        .filter(derived -> derived.fact().fact().validTo() == null)
+                        .map(
+                                derived ->
+                                        owner(derived)
+                                                + FactLine.current(derived.fact(), List.of()))
+                        .toList());
+        section(
+                lines,
+                HISTORY,
+                facts.stream()
+                        .filter(derived -> derived.fact().fact().validTo() != null)
+                        .map(derived -> owner(derived) + FactLine.closed(derived.fact()))
+                        .toList());
+        return String.join("\n", lines) + "\n";
+    }
+
+    /**
+     * A document's values came with a snapshot or from a person (CP4 J1): a line break in one would
+     * open a forged section, so it reads as a space.
+     */
+    private static String oneLine(String value) {
+        return ResultList.LINE_BREAKS.matcher(value).replaceAll(" ");
+    }
+
+    private static String owner(DocumentView.Derived derived) {
+        return derived.entity() == null ? "" : oneLine(derived.entity()) + SEP;
+    }
+
+    private static void labelled(List<String> lines, String label, @Nullable String value) {
+        if (value != null) {
+            lines.add(label + oneLine(value));
+        }
     }
 
     /** {@code DEPLOYED_ON → ornek-app-01 @prod}; an incoming relation points back with ←. */

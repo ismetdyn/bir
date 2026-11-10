@@ -13,25 +13,35 @@ import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 
 /**
- * git-lfs for documents over the threshold (ADR-0025 decision 5): whether it is installed, and
- * tracking a blob in the knowledge repo. It is set up with {@code --local} in that repo only, never
- * in the user's global git config. git's output is discarded; messages here are our own.
+ * git-lfs for documents over the threshold (ADR-0025 decision 5): whether git and git-lfs are
+ * installed and the filter is set in the knowledge repo (kb doctor), and tracking a blob there. It
+ * is set up with {@code --local} in that repo only, never in the user's global git config. git's
+ * output is discarded; messages here are our own.
  */
 final class GitLfs {
 
     // Only stops a hung git; each of these runs locally and writes at most two small files.
     private static final long TIMEOUT_SECONDS = 10;
+    private static final String LFS = "lfs";
 
     private GitLfs() {}
 
     /** {@code git lfs version} runs; it writes no git config. */
     static boolean present() throws IOException {
-        try {
-            return run(null, "version");
-        } catch (IOException e) {
-            // No git on PATH: then there is no git-lfs either.
-            return false;
-        }
+        return runs(LFS, "version");
+    }
+
+    /** {@code git --version} runs. */
+    static boolean gitPresent() throws IOException {
+        return runs("--version");
+    }
+
+    /**
+     * The git-lfs filter is set in {@code repo}'s own config, as {@code git lfs install --local}
+     * leaves it; the user's global config does not count.
+     */
+    static boolean localFilterSet(Path repo) throws IOException {
+        return run(repo, "config", "--local", "--get", "filter.lfs.clean");
     }
 
     /**
@@ -53,13 +63,23 @@ final class GitLfs {
                     "Make .gitattributes a file of the repo, not a link, then add the document"
                             + " again.");
         }
-        if (!run(repo, "install", "--local") || !run(repo, "track", path)) {
+        if (!run(repo, LFS, "install", "--local") || !run(repo, LFS, "track", path)) {
             throw new IOException("git lfs could not track the blob in the knowledge repository");
         }
     }
 
+    /** Outside any repository; false also when there is no git on PATH. */
+    private static boolean runs(String... args) throws IOException {
+        try {
+            return run(null, args);
+        } catch (IOException e) {
+            // No git on PATH: then there is no git-lfs either.
+            return false;
+        }
+    }
+
     private static boolean run(@Nullable Path repo, String... args) throws IOException {
-        List<String> command = new ArrayList<>(List.of("git", "lfs"));
+        List<String> command = new ArrayList<>(List.of("git"));
         command.addAll(Arrays.asList(args));
         ProcessBuilder builder =
                 new ProcessBuilder(command)

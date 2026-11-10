@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.docs;
 
+import io.github.ismetdyn.agentkb.core.BlobPaths;
 import io.github.ismetdyn.agentkb.server.write.DocumentWrite;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +17,6 @@ import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -64,7 +64,6 @@ public class UploadStore {
     public record Answer<O>(O outcome, long offset) {}
 
     private static final Logger LOG = LoggerFactory.getLogger(UploadStore.class);
-    private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
     private static final Duration IDLE_LIMIT = Duration.ofDays(7);
     // "MB" in ADR-0025 decision 5 and ARCHITECTURE §14 read as SI megabytes.
     private static final long BYTES_PER_MB = 1_000_000L;
@@ -86,7 +85,7 @@ public class UploadStore {
     }
 
     public static boolean isSha256(String id) {
-        return SHA256.matcher(id).matches();
+        return BlobPaths.of(id).isPresent();
     }
 
     /**

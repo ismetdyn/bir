@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "checks": [
+    {"name": "git", "ok": true, "hint": null},
+    {"name": "git-lfs", "ok": false, "hint": "Install git-lfs; documents over the LFS threshold need it."},
+    {"name": "repo", "ok": true, "hint": null},
+    {"name": "lfs-filter", "ok": true, "hint": null},
+    {"name": "data-dir", "ok": false, "hint": "Make the data directory (agentkb.data-dir) owner-only: chmod 700."}
+  ]
+}

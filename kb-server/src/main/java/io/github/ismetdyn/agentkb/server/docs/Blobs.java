@@ -1,9 +1,8 @@
 package io.github.ismetdyn.agentkb.server.docs;
 
+import io.github.ismetdyn.agentkb.server.snapshot.BlobFiles;
 import io.github.ismetdyn.agentkb.server.write.DocumentWrite;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -11,10 +10,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,23 +31,11 @@ final class Blobs {
      * that does not hash to its name counts as absent, and storing the upload replaces it.
      */
     static boolean intact(Path repo, String sha) throws IOException {
-        Path blob = repo.resolve(DocumentWrite.path(sha));
-        if (!Files.isDirectory(blob.getParent().getParent(), LinkOption.NOFOLLOW_LINKS)
-                || !Files.isDirectory(blob.getParent(), LinkOption.NOFOLLOW_LINKS)
-                || !Files.isRegularFile(blob, LinkOption.NOFOLLOW_LINKS)) {
-            return false;
+        BlobFiles.State state = BlobFiles.state(repo, sha);
+        if (state == BlobFiles.State.MISMATCH) {
+            LOG.warn("event=blob_mismatch id={}", DocumentWrite.id(sha));
         }
-        MessageDigest digest = sha256();
-        try (InputStream bytes =
-                new DigestInputStream(
-                        Files.newInputStream(blob, LinkOption.NOFOLLOW_LINKS), digest)) {
-            bytes.transferTo(OutputStream.nullOutputStream());
-        }
-        if (HexFormat.of().formatHex(digest.digest()).equals(sha)) {
-            return true;
-        }
-        LOG.warn("event=blob_mismatch id={}", DocumentWrite.id(sha));
-        return false;
+        return state == BlobFiles.State.INTACT;
     }
 
     /**
@@ -103,10 +87,6 @@ final class Blobs {
     }
 
     static MessageDigest sha256() {
-        try {
-            return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("every JDK has SHA-256", e);
-        }
+        return BlobFiles.sha256();
     }
 }

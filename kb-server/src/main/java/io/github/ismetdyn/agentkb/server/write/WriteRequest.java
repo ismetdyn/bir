@@ -9,8 +9,10 @@ import org.jspecify.annotations.Nullable;
  * A new write from MCP or REST (ARCHITECTURE §5). {@code entity} is an id or alias; {@code type} is
  * needed only to create an entity. Without {@code batch} the write gets a batch of its own. {@code
  * episode} is stamped on what the write opens if it names an Episode (ADR-0023); otherwise the
- * records have none. Nothing here is trusted: {@link WriteService#write} checks it all before it
- * writes.
+ * records have none. {@code document} is the id of a Document the knowledge came from: each fact
+ * the write stores gets a FROM edge to it, and an id that names no Document refuses the write
+ * (docs/MCP-TOOLS.md kb_remember). Nothing here is trusted: {@link WriteService#write} checks it
+ * all before it writes.
  */
 public record WriteRequest(
         Source source,
@@ -21,11 +23,26 @@ public record WriteRequest(
         @Nullable String evidence,
         @Nullable String batch,
         @Nullable String episode,
-        Instant at) {
+        Instant at,
+        @Nullable String document) {
 
     public WriteRequest {
         facts = facts == null ? List.of() : List.copyOf(facts);
         relations = relations == null ? List.of() : List.copyOf(relations);
+    }
+
+    /** A write that came from no document. */
+    public WriteRequest(
+            Source source,
+            String entity,
+            @Nullable String type,
+            List<FactInput> facts,
+            List<RelationInput> relations,
+            @Nullable String evidence,
+            @Nullable String batch,
+            @Nullable String episode,
+            Instant at) {
+        this(source, entity, type, facts, relations, evidence, batch, episode, at, null);
     }
 
     /** A write of no known episode. */

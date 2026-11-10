@@ -28,10 +28,10 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | GET | `/secrets/{id}` | Değer; sadece `kb run` ve `kb secret show` kullanır |
 | PUT · PATCH · DELETE | `/uploads/{sha}` | Sürdürülebilir yükleme (ADR-0025 karar 1): `PUT` + `Upload-Length` başlatır/offset verir, `PATCH` (`application/offset+octet-stream`, ≤ 1 MiB) `Upload-Offset`'ten devam eder, `DELETE` iptal eder |
 | POST | `/documents` `{sha256,name,about?,origin?,replaces?}` | Yüklemeyi tamamla: hash ve secret taraması, `blobs/`'a yazar, `Document` düğümü |
-| GET | `/documents` · `/documents/{id}` | Doküman listesi · üst bilgi ve yol |
+| GET | `/documents?limit=` · `/documents/{id}` | Doküman listesi (en yeni önce, `limit` varsayılan 50, en çok 500; `{documents, more}`) · üst bilgi, blob'un mutlak yolu ve `about` (bilinmeyen id → 404 `{error, hint}`) |
 | POST | `/scan` | `{path}` tarama (yalnız `allowed-roots` altı). Yazma kuralının istisnası: kaynak `scan`, kendi `kind=scan` Episode'u (ADR-0023 #3; ADR-0025 karar 9), çünkü USER kaynaklı tarama yüksek güvenli değerleri ezebilirdi |
 | GET | `/stale?days=&limit=` | Bayat liste |
-| POST | `/sync` · POST `/restore` · GET `/doctor` · GET `/eval` · GET `/check` | Bakım |
+| POST | `/sync` · POST `/restore` · GET `/doctor` · GET `/eval` · GET `/check` | Bakım. `/doctor` → `{ok, checks: [{name, ok, hint}]}`: `git`, `git-lfs`, `repo`, `lfs-filter`, `data-dir`; ipucu yalnız başarısızda, yol vermez |
 | GET | `/curator/should-run` · GET `/curator/runs` | Küratör |
 
 ## 2. CLI (`kb`)

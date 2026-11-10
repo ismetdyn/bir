@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.snapshot;
 
+import io.github.ismetdyn.agentkb.core.BlobPaths;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
 import io.github.ismetdyn.agentkb.server.graph.Schema;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -23,10 +25,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code kb check} in F2 (ARCHITECTURE §13, ADR-0022 decisions 6 and 38): reads the graph, the
- * snapshot files in the working tree of {@code <repo>/snapshot} (only there can an edge point to a
- * missing node) and runs {@code git fsck}. Nothing is changed. Without a repo only the graph is
- * checked. Details name ids, keys and types, never a value (invariants 2 and 10).
+ * {@code kb check} (ARCHITECTURE §13, ADR-0022 decisions 6 and 38): reads the graph, the snapshot
+ * files in the working tree of {@code <repo>/snapshot} (only there can an edge point to a missing
+ * node), hashes each Document's blob (F3) and runs {@code git fsck}. Nothing is changed. Without a
+ * repo only the graph is checked. Details name ids, keys and types, never a value (invariants 2 and
+ * 10).
  */
 @Component
 public class CheckService {
@@ -61,6 +64,10 @@ public class CheckService {
             MATCH (s:Signal {kind: 'conflict'}) WHERE NOT (s)-[:ABOUT]->()
             RETURN s.id AS id, s.key AS key ORDER BY id
             """;
+    private static final String DOCUMENTS =
+            "MATCH (d:Document) RETURN d.id AS id, d.sha256 AS sha256 ORDER BY id";
+    private static final String MISSING_BLOB = "missing-blob";
+    private static final String BLOB_HASH_MISMATCH = "blob-hash-mismatch";
     private static final String SNAPSHOT_DIRECTORY = "snapshot";
     private static final int FSCK_LINES = 5;
 
@@ -88,6 +95,7 @@ public class CheckService {
         }
         problems.addAll(orphanEdges(root.resolve(SNAPSHOT_DIRECTORY)));
         problems.addAll(store.read(tx -> graph(tx, allowed)));
+        problems.addAll(blobs(root));
         problems.addAll(fsck(root));
         return new CheckReport(problems);
     }
@@ -206,6 +214,55 @@ public class CheckService {
                                                             + missing)));
         }
         return problems;
+    }
+
+    /**
+     * F3 (docs/CLIENTS.md §2): each Document's blob, hashed outside the read transaction. A problem
+     * names the document and the kind, never a byte of the content (invariants 2 and 10).
+     */
+    private List<Problem> blobs(Path root) {
+        List<Map<String, Object>> documents =
+                store.read(
+                        tx -> {
+                            try (Result result = tx.execute(DOCUMENTS)) {
+                                return result.stream().toList();
+                            }
+                        });
+        List<Problem> problems = new ArrayList<>();
+        for (Map<String, Object> document : documents) {
+            String id = String.valueOf(document.get("id"));
+            if (document.get("sha256") instanceof String sha && BlobPaths.of(sha).isPresent()) {
+                blobProblem(root, id, sha).ifPresent(problems::add);
+            } else {
+                problems.add(new Problem(MISSING_BLOB, id, "no valid sha256 to find its blob by"));
+            }
+        }
+        return problems;
+    }
+
+    private static Optional<Problem> blobProblem(Path root, String id, String sha) {
+        BlobFiles.State state;
+        try {
+            state = BlobFiles.state(root, sha);
+        } catch (IOException e) {
+            return Optional.of(new Problem("unreadable", id, "its blob could not be read"));
+        }
+        return switch (state) {
+            case INTACT -> Optional.empty();
+            case MISSING -> Optional.of(new Problem(MISSING_BLOB, id, "its blob is not in blobs/"));
+            case NOT_A_FILE ->
+                    Optional.of(
+                            new Problem(
+                                    BLOB_HASH_MISMATCH,
+                                    id,
+                                    "a link or directory stands in place of its blob"));
+            case MISMATCH ->
+                    Optional.of(
+                            new Problem(
+                                    BLOB_HASH_MISMATCH,
+                                    id,
+                                    "its blob's bytes do not hash to its sha256"));
+        };
     }
 
     private static List<Problem> fsck(Path root) {

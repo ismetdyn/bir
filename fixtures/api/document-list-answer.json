@@ -1,0 +1,6 @@
+{
+  "documents": [
+    {"id": "doc:0a1b2c3d4e5f", "name": "zz-big.bin", "sha256": "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9", "mime": "application/octet-stream", "size": 26214400, "origin": null, "addedAt": "2026-11-10T09:30:00Z", "path": "/home/kbtest/kb/blobs/0a/0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9", "about": []}
+  ],
+  "more": true
+}

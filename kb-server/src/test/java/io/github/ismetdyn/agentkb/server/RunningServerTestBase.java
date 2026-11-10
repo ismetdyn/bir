@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ismetdyn.agentkb.server.api.MaintenanceHttp;
 import io.github.ismetdyn.agentkb.server.scan.ScanProjects;
+import io.github.ismetdyn.agentkb.server.snapshot.SnapshotRepos;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpResponse;
@@ -95,6 +96,8 @@ public abstract class RunningServerTestBase {
             for (String file : SCHEMA_FILES) {
                 Files.copy(SEED_SCHEMA.resolve(file), schema.resolve(file));
             }
+            // The seed's Document has its blob, as in seed/, so its path is handed out (CP4 S1).
+            SnapshotRepos.copySeedBlobs(work.resolve("repo"));
             return work;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

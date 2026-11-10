@@ -73,6 +73,23 @@ public final class SnapshotRepos {
         return repo;
     }
 
+    /**
+     * Copies seed/blobs into {@code repo/blobs}, uncommitted: the seed's Document then has its blob
+     * and kb check finds no missing-blob.
+     */
+    public static void copySeedBlobs(Path repo) {
+        Path seedBlobs = Path.of("..", "seed", "blobs");
+        try (Stream<Path> files = Files.walk(seedBlobs)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) {
+                Path copy = repo.resolve("blobs").resolve(seedBlobs.relativize(file).toString());
+                Files.createDirectories(copy.getParent());
+                Files.copy(file, copy);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** Writes {@code snapshot} into {@code repo/snapshot} and commits it. */
     public static void commit(Path repo, Snapshot snapshot, String message) {
         write(repo, snapshot);

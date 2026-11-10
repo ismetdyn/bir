@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.mcp.worker;
 
 import io.github.ismetdyn.agentkb.core.model.Source;
+import io.github.ismetdyn.agentkb.server.graph.DocumentQueries;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
 import io.github.ismetdyn.agentkb.server.signals.PromptRing;
 import io.github.ismetdyn.agentkb.server.write.ProposalRequest;
@@ -46,7 +47,11 @@ public class WriteTools {
             (for new entities), `facts` [{key, value, env?, target?}], `relations` [{type, \
             target, env?}], `source` {kind: `user_stated` | `code` | `doc` | `command`, ref?, \
             evidence?, episode? (the episode id from the briefing; an unknown or missing id is \
-            not an error)}. Free-text knowledge goes into facts with text keys such as `role`, \
+            not an error), document? (a `doc:…` id you extracted this from; the facts get a \
+            `FROM` edge to it, an unknown id returns `{error, hint}`; a fact a higher-trust \
+            source already holds keeps its own source, gets no `FROM` and the result says \
+            so)}. Free-text knowledge goes \
+            into facts with text keys such as `role`, \
             `constraint`, `access`, `convention`, or `note` for any short statement that has no \
             key; keep each to one short statement (max 500 characters). An unknown key is \
             rejected with a hint: write it as `note` or propose the key with \
@@ -81,11 +86,17 @@ public class WriteTools {
     private final WriteService writes;
     private final PromptRing prompts;
     private final KnowledgeQueries queries;
+    private final DocumentQueries documents;
 
-    public WriteTools(WriteService writes, PromptRing prompts, KnowledgeQueries queries) {
+    public WriteTools(
+            WriteService writes,
+            PromptRing prompts,
+            KnowledgeQueries queries,
+            DocumentQueries documents) {
         this.writes = writes;
         this.prompts = prompts;
         this.queries = queries;
+        this.documents = documents;
     }
 
     public record FactArg(
@@ -110,7 +121,11 @@ public class WriteTools {
                     @Nullable String ref,
             @McpToolParam(required = false, description = "The user's exact words.")
                     @Nullable String evidence,
-            @McpToolParam(required = false, description = EPISODE) @Nullable String episode) {}
+            @McpToolParam(required = false, description = EPISODE) @Nullable String episode,
+            @McpToolParam(
+                            required = false,
+                            description = "Id (doc:…) of the document you extracted this from.")
+                    @Nullable String document) {}
 
     @McpTool(
             name = "kb_remember",
@@ -160,9 +175,22 @@ public class WriteTools {
                                             RememberInputs.evidence(source),
                                             null,
                                             episode(heard, now, meta, source.episode()),
-                                            now));
-                    return stored(result, downgraded(source, trusted, factInputs, relationInputs));
+                                            now,
+                                            document(source)));
+                    String document = document(source);
+                    return stored(
+                            result,
+                            downgraded(source, trusted, factInputs, relationInputs),
+                            document == null
+                                    ? 0
+                                    : documents.factsNotFrom(document, result.refreshed()));
                 });
+    }
+
+    /** The document id the knowledge came from; an empty one is none. */
+    private static @Nullable String document(SourceArg source) {
+        String document = source.document();
+        return document == null || document.isBlank() ? null : document.strip();
     }
 
     /** ADR-0023 decision 3: the session the user said it in comes first. */
@@ -251,7 +279,7 @@ public class WriteTools {
         return heard ? Source.USER_STATED : Source.AGENT;
     }
 
-    private static String stored(WriteResult result, boolean downgraded) {
+    private static String stored(WriteResult result, boolean downgraded, long notFrom) {
         StringBuilder reply =
                 new StringBuilder(
                         "Stored on "
@@ -280,6 +308,13 @@ public class WriteTools {
                             + " hold the written value, so those facts are stored as agent"
                             + " knowledge (unverified). Put the user's exact words, value"
                             + " included, in evidence.");
+        }
+        if (notFrom > 0) {
+            // SPEC §7 rule 1: the more trusted fact keeps its own provenance (CP4 J2).
+            reply.append(
+                    "\nFROM not added for "
+                            + notFrom
+                            + " fact(s): a higher-trust source holds them.");
         }
         return reply.toString();
     }

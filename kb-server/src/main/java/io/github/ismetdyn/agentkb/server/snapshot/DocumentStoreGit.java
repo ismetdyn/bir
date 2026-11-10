@@ -1,6 +1,8 @@
 package io.github.ismetdyn.agentkb.server.snapshot;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -8,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * The document store in the git of {@code kb sync} (ADR-0025 decision 5): {@code blobs/} and {@code
@@ -82,6 +85,20 @@ final class DocumentStoreGit {
      * appended, so a crash cannot lose what was there. A link there is refused, never written
      * through (CWE-59).
      */
+    /** An empty file counts as ending with a line break: nothing goes before the new line. */
+    private static boolean endsWithLineBreak(Path file) throws IOException {
+        try (SeekableByteChannel channel =
+                Files.newByteChannel(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            long size = channel.size();
+            if (size == 0) {
+                return true;
+            }
+            ByteBuffer last = ByteBuffer.allocate(1);
+            channel.position(size - 1).read(last);
+            return last.get(0) == '\n';
+        }
+    }
+
     void mergeByUnion() throws IOException {
         // SystemGit pins GIT_DIR to <repo>/.git.
         Path file = repo.resolve(".git").resolve("info").resolve("attributes");
@@ -89,12 +106,16 @@ final class DocumentStoreGit {
         if (exists && !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(".git/info/attributes is a link or no plain file");
         }
-        String present = exists ? Files.readString(file, StandardCharsets.ISO_8859_1) : "";
-        if (present.lines().anyMatch(UNION_ATTRIBUTES::equals)) {
-            return;
+        // Line by line, not whole (CP4 S3); only the last byte decides the separator.
+        if (exists) {
+            try (Stream<String> lines = Files.lines(file, StandardCharsets.ISO_8859_1)) {
+                if (lines.anyMatch(UNION_ATTRIBUTES::equals)) {
+                    return;
+                }
+            }
         }
         Files.createDirectories(file.getParent());
-        String separator = present.isEmpty() || present.endsWith("\n") ? "" : "\n";
+        String separator = exists && !endsWithLineBreak(file) ? "\n" : "";
         Files.writeString(
                 file,
                 separator + UNION_ATTRIBUTES + "\n",

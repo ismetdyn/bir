@@ -28,7 +28,7 @@ konudaki bilgisi. Kalıcı bilginin tek yeri burası.
   geçmezse bilgi doğrulanmamış (`agent`) olarak saklanır.
 - Koddan veya dokümandan bilgi bankasında olmayan kalıcı bir şey öğrenirsen `kb_remember` (`source.kind = code|doc`).
   Bilgiyi kaydet, konuşmayı değil: her fact kısa tek bir cümle. Bilgi bankasındaki bir dokümandan (`doc:…`)
-  öğrendiysen `document` alanına onu yaz.
+  öğrendiysen `source.document` alanına onu yaz.
 - Anahtar sözlüğüne uymayan kısa bilgiyi `note` anahtarıyla yaz. Sözlükte olmayan anahtar reddedilir; yeni anahtar
   gerekiyorsa `kb_propose(kind=schema)`.
 
