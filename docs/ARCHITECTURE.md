@@ -22,6 +22,14 @@
 
 İlke: **Sunucu deterministiktir ve tek yazıcıdır; LLM'ler (çalışan ajanlar ve küratör) sunucunun dışındadır.**
 
+İlke: **CLI, TUI ve GUI yalnız arayüzdür; merkezdeki uygulama sunucudur (kullanıcı kararı, 2026-11-11).** İş kuralı,
+doğrulama, yazma politikası, Markdown render'ı ve arama sunucuda (`kb-core` + `kb-server`) durur. Arayüz modülleri
+(`kb-client`, `kb-gui`) yalnız `kb-api` sözleşmesine bağlıdır ve `/api/v1`'i çağırır; `kb-core`'a veya `kb-server`'a
+bağımlılık eklenmez (Maven bağımlılığı bunu derlemede zorlar). Arayüzde kalan tek iş, işletim sistemine dokunan
+kısımdır: dosyanın sha256'sı ve parça parça yüklenmesi (`kb doc add`), `kb run`'ın alt süreci ve çıktı maskelemesi,
+ekran çizimi. Bu, "core kütüphane + arayüzler" modelinin karşılığıdır; fark, core'un bir kütüphane değil süreç
+olmasıdır: gömülü Neo4j'yi tek süreç açabilir ve ajanlar MCP için aynı sürece bağlanır.
+
 ## 2. Modüller ve teknoloji
 
 ```
