@@ -2,23 +2,14 @@ package io.github.ismetdyn.agentkb.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import io.github.ismetdyn.agentkb.client.KbProcess.Result;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -29,74 +20,21 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * {@code kb hook <event> [client]} (ADR-0027 decision 4) carries a Claude Code or Codex hook to
  * {@code POST /hooks/<event>?client=} exactly as integrations/kb-hook.sh did with curl: stdin as
- * the JSON body, the server's answer on stdout. It never blocks a session: server down, slow,
- * failing, hooks off, an unknown event or an address off this machine give no output and exit 0
- * (fail-open) within the 2 s budget.
+ * the JSON body, the server's answer on stdout. It never blocks a session: a server that is down,
+ * slow or failing, or stdin that never ends, give no output and exit 0 (fail-open) within the 2 s
+ * budget. What it never sends, and where, is KbHookSafetyTest's.
  */
 class KbHookTest {
 
-    private static final String ANSWER =
-            "{\"hookSpecificOutput\":{\"additionalContext\":\"brief: ornek-proje\"}}";
+    private static final String ANSWER = HookStub.ANSWER;
     private static final String PAYLOAD = "{\"session_id\":\"s1\",\"cwd\":\"/tmp/x\"}";
     private static final Map<String, String> HOOKS_ON = Map.of("KB_HOOKS", "on");
     private static final Result SILENT = new Result(0, "", "");
     // The 2 s budget plus a JVM start on a loaded test machine; far below the stub's delay.
     private static final Duration WITHIN_BUDGET = Duration.ofSeconds(6);
     private static final Duration STUB_DELAY = Duration.ofSeconds(20);
-    private static final int STUB_WAIT_MILLIS = 200;
 
     @TempDir Path workDir;
-
-    private record Request(String method, String path, String query, String type, String body) {}
-
-    /** The server side of /hooks/, recording every request. */
-    private static final class HookStub implements AutoCloseable {
-        final List<Request> requests = new CopyOnWriteArrayList<>();
-        private final HttpServer server;
-        private final int status;
-        private final Duration delay;
-
-        HookStub(int status, Duration delay) throws IOException {
-            this.status = status;
-            this.delay = delay;
-            server =
-                    HttpServer.create(
-                            new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-            server.createContext("/hooks/", this::handle);
-            server.start();
-        }
-
-        String url() {
-            return "http://127.0.0.1:" + server.getAddress().getPort();
-        }
-
-        private void handle(HttpExchange exchange) throws IOException {
-            try (exchange) {
-                requests.add(
-                        new Request(
-                                exchange.getRequestMethod(),
-                                exchange.getRequestURI().getRawPath(),
-                                exchange.getRequestURI().getRawQuery(),
-                                exchange.getRequestHeaders().getFirst("Content-Type"),
-                                new String(
-                                        exchange.getRequestBody().readAllBytes(),
-                                        StandardCharsets.UTF_8)));
-                Thread.sleep(delay);
-                byte[] body = ANSWER.getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(status, body.length);
-                try (OutputStream out = exchange.getResponseBody()) {
-                    out.write(body);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        @Override
-        public void close() {
-            server.stop(0);
-        }
-    }
 
     private HookStub stub;
 
@@ -118,7 +56,7 @@ class KbHookTest {
         assertThat(result).isEqualTo(new Result(0, ANSWER, ""));
         assertThat(stub.requests)
                 .containsExactly(
-                        new Request(
+                        new HookStub.Request(
                                 "POST",
                                 "/hooks/session-start",
                                 "client=codex",
@@ -132,7 +70,9 @@ class KbHookTest {
 
         KbProcess.run(stub.url(), HOOKS_ON, PAYLOAD, workDir, "hook", "user-prompt-submit");
 
-        assertThat(stub.requests).extracting(Request::query).containsExactly("client=claude");
+        assertThat(stub.requests)
+                .extracting(HookStub.Request::query)
+                .containsExactly("client=claude");
     }
 
     @ParameterizedTest(name = "{0}")
@@ -177,57 +117,6 @@ class KbHookTest {
         assertThat(result).isEqualTo(SILENT);
     }
 
-    @Test
-    void hooks_off_an_unknown_event_or_no_event_send_nothing() throws IOException {
-        stub = new HookStub(200, Duration.ZERO);
-
-        assertThat(
-                        KbProcess.run(
-                                stub.url(),
-                                Map.of("KB_HOOKS", "off"),
-                                PAYLOAD,
-                                workDir,
-                                "hook",
-                                "session-start"))
-                .isEqualTo(SILENT);
-        assertThat(KbProcess.run(stub.url(), HOOKS_ON, PAYLOAD, workDir, "hook", "stop"))
-                .isEqualTo(SILENT);
-        assertThat(KbProcess.run(stub.url(), HOOKS_ON, PAYLOAD, workDir, "hook")).isEqualTo(SILENT);
-        assertThat(stub.requests).isEmpty();
-    }
-
-    /**
-     * A proxy the JVM is told to use for every host, loopback included, gets nothing: the request
-     * goes straight to the server (the curl script's {@code --noproxy '*'}).
-     */
-    @Test
-    void a_proxy_from_the_jvm_options_is_not_used() throws IOException {
-        stub = new HookStub(200, Duration.ZERO);
-        try (ServerSocket proxy = new ServerSocket(0)) {
-            List<String> launcher = new ArrayList<>(KbProcess.jvm(Map.of()));
-            launcher.addAll(
-                    1,
-                    List.of(
-                            "-Dhttp.proxyHost=127.0.0.1",
-                            "-Dhttp.proxyPort=" + proxy.getLocalPort(),
-                            "-Dhttp.nonProxyHosts="));
-
-            Result result =
-                    KbProcess.run(
-                            launcher,
-                            stub.url(),
-                            HOOKS_ON,
-                            PAYLOAD,
-                            workDir,
-                            "hook",
-                            "session-start");
-
-            assertThat(connected(proxy)).as("the proxy").isFalse();
-            assertThat(result).isEqualTo(new Result(0, ANSWER, ""));
-            assertThat(stub.requests).hasSize(1);
-        }
-    }
-
     /** A client that never closes stdin still gets kb's exit within the budget, and no request. */
     @Test
     void stdin_that_never_ends_is_given_up_within_the_budget() throws Exception {
@@ -254,40 +143,6 @@ class KbHookTest {
             assertThat(stub.requests).isEmpty();
         } finally {
             kb.destroyForcibly();
-        }
-    }
-
-    /**
-     * Invariants 3 and 4, ADR-0020: the hook carries prompts and answers, so it talks to this
-     * machine only.
-     */
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(
-            strings = {
-                "http://0.0.0.0:%d",
-                "http://127.0.0.1:%d@0.0.0.0:%d",
-                "http://127.0.0.1.%d.example:%d",
-                "http://localhost.example:%d"
-            })
-    void an_address_off_this_machine_gets_no_request(String url) throws IOException {
-        try (ServerSocket listener = new ServerSocket(0)) {
-            String target = url.replace("%d", String.valueOf(listener.getLocalPort()));
-
-            Result result =
-                    KbProcess.run(target, HOOKS_ON, PAYLOAD, workDir, "hook", "session-start");
-
-            assertThat(result).isEqualTo(SILENT);
-            assertThat(connected(listener)).as(target).isFalse();
-        }
-    }
-
-    /** A connection kb made waits in the backlog even after kb has ended. */
-    private static boolean connected(ServerSocket listener) throws IOException {
-        listener.setSoTimeout(STUB_WAIT_MILLIS);
-        try (Socket ignored = listener.accept()) {
-            return true;
-        } catch (SocketTimeoutException e) {
-            return false;
         }
     }
 
