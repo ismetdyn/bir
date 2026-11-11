@@ -103,7 +103,7 @@ public class ListQueries {
     // value is secret_value, which no column names (invariant 2).
     private static final String NODE_COLUMNS =
             """
-            %1$s.id AS id, CASE WHEN %1$s:Entity THEN 'Entity' ELSE head(labels(%1$s)) END AS kind,
+            %1$s.id AS record, CASE WHEN %1$s:Entity THEN 'Entity' ELSE head(labels(%1$s)) END AS kind,
             CASE WHEN %1$s:Entity THEN %2$s
                  ELSE coalesce(%1$s.key, %1$s.name, %1$s.kind) END AS key,
             %1$s.env AS env,
@@ -111,7 +111,7 @@ public class ListQueries {
                  ELSE coalesce(%1$s.value, %1$s.summary, %1$s.content, %1$s.rule, %1$s.title)
             END AS value""";
     private static final String EDGE_COLUMNS =
-            "r.id AS id, 'Relation' AS kind, type(r) AS key, r.env AS env, b.id AS value";
+            "r.id AS record, 'Relation' AS kind, type(r) AS key, r.env AS env, b.id AS value";
     // Every record of a batch, a row per way it changed it: what it opened (batch), what it closed,
     // and what it revised (Revision, ADR-0025 decision 15). A close is a user edit's closed_batch
     // (decision 10) or a fact the batch superseded (SUPERSEDES from one of its records), as
@@ -148,7 +148,7 @@ public class ListQueries {
               MATCH (rv:Revision)-[:REVISES]->(x)
               RETURN rv.batch AS batch, 'user' AS source, rv.updated_at AS at,
                      'revised' AS change, elementId(rv) AS rec,
-                     CASE WHEN x:Entity THEN x.id END AS entity, x.id AS id,
+                     CASE WHEN x:Entity THEN x.id END AS entity, x.id AS record,
                      CASE WHEN x:Entity THEN 'Entity' ELSE head(labels(x)) END AS kind,
                      reduce(s = '', f IN coalesce(rv.fields, [])
                             | s + CASE WHEN s = '' THEN '' ELSE ', ' END + f) AS key,
@@ -181,17 +181,17 @@ public class ListQueries {
             CALL () {
             %s}
             WITH * WHERE batch = $batch
-            WITH change, rec, id, kind, entity, key, env, value, min(source) AS source
-            RETURN change, id, kind, entity, key, env, value, source
+            WITH change, rec, record, kind, entity, key, env, value, min(source) AS source
+            RETURN change, record, kind, entity, key, env, value, source
             ORDER BY CASE change WHEN 'opened' THEN 0 WHEN 'closed' THEN 1 ELSE 2 END,
-                     entity, kind, key, id
+                     entity, kind, key, record
             """
                     .formatted(BATCH_RECORDS);
     // Archived entities last (invariant 12: ordered and marked, never left out).
     private static final String ENTITIES =
             """
             MATCH (e:Entity)
-            RETURN e.id AS id, %s AS type, e.status AS status, e.summary AS summary,
+            RETURN e.id AS entity, %s AS type, e.status AS status, e.summary AS summary,
                    e.updated_at AS updatedAt
             ORDER BY CASE WHEN e.status = 'archived' THEN 1 ELSE 0 END, e.id
             """
@@ -199,7 +199,7 @@ public class ListQueries {
     private static final String SECRETS =
             """
             MATCH (s:Secret) WHERE s.id STARTS WITH $prefix
-            RETURN s.id AS id, coalesce(s.name, '') AS name, coalesce(s.env, 'default') AS env,
+            RETURN s.id AS secret, coalesce(s.name, '') AS name, coalesce(s.env, 'default') AS env,
                    s.secret_value IS NOT NULL AS hasValue
             ORDER BY s.id
             """;
@@ -280,7 +280,7 @@ public class ListQueries {
                         new Change(
                                 text(row, "change"),
                                 text(row, "kind"),
-                                Objects.toString(row.get("id"), null),
+                                Objects.toString(row.get("record"), null),
                                 Objects.toString(row.get("entity"), null),
                                 Objects.toString(row.get("key"), null),
                                 Objects.toString(row.get("env"), null),
@@ -298,7 +298,7 @@ public class ListQueries {
                         Map.of(),
                         row ->
                                 new EntityEntry(
-                                        text(row, "id"),
+                                        text(row, "entity"),
                                         text(row, "type"),
                                         text(row, "status"),
                                         Objects.toString(row.get("summary"), null),
@@ -315,7 +315,7 @@ public class ListQueries {
                 Map.of("prefix", prefix),
                 row ->
                         new SecretEntry(
-                                text(row, "id"),
+                                text(row, "secret"),
                                 text(row, "name"),
                                 text(row, "env"),
                                 Boolean.TRUE.equals(row.get("hasValue"))));
@@ -323,7 +323,7 @@ public class ListQueries {
 
     private <T> List<T> read(
             String query, Map<String, Object> params, Function<Map<String, Object>, T> mapper) {
-        return store.read(tx -> KnowledgeQueries.rows(tx, query, params, mapper));
+        return store.read(tx -> ReadRows.in(tx).rows(query, params, mapper));
     }
 
     // An imported record is taken as it is (invariant 11), so a missing property reads as empty.

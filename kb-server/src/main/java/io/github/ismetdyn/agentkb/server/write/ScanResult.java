@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import java.util.List;
 
 /**
@@ -26,5 +27,22 @@ public record ScanResult(
         secrets = List.copyOf(secrets);
         findings = List.copyOf(findings);
         skipped = List.copyOf(skipped);
+    }
+
+    /** ADR-0026: the ids and texts as an answer shows them; the batch is a ULID. */
+    ScanResult masked(SecretMask mask) {
+        return new ScanResult(
+                mask.text(project),
+                mask.text(repo),
+                batch,
+                files,
+                newEntities.stream().map(mask::text).toList(),
+                added,
+                refreshed,
+                closed,
+                conflicts,
+                secrets.stream().map(mask::text).toList(),
+                findings.stream().map(mask::text).toList(),
+                skipped.stream().map(mask::text).toList());
     }
 }

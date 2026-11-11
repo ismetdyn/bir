@@ -52,7 +52,13 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
  *
  * <p>H6 adds the REST reads and writes of docs/CLIENTS.md §1 (RestReadProbe): the secret list,
  * search, entity JSON and Markdown, Cypher, activity, conflicts, proposals, stale, and refusals
- * carrying the value.
+ * carrying the value. H8 adds the TUI/GUI reads to it: the schema, the entity list and the detail
+ * of every batch.
+ *
+ * <p>A write refuses a stored value only once it is stored, so a value written as plain text first
+ * and stored on a Secret later is in the graph: every read answer (REST, MCP, hooks) masks it, in
+ * its written and its normalized form (LateSecretLeakIT). The snapshot keeps that text as the user
+ * wrote it, so that value is not searched for in the ways out above.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class SecretLeakIT extends RunningServerTestBase {

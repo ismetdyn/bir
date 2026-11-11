@@ -69,6 +69,25 @@ class KbSecretTest {
                         });
     }
 
+    /**
+     * ADR-0026: the value was already in records, so the server stores it and answers 200 with a
+     * note to rotate it; kb prints the note to stderr, without its control characters, and
+     * succeeds.
+     */
+    @Test
+    void set_prints_the_servers_note_and_succeeds() {
+        server.noteOnPut("The value is stored. It was already in 2 records: rotate it.\u001b[2J\n");
+
+        Result result = KbProcess.run(server.url(), VALUE + "\n", workDir, "secret", "set", ID);
+
+        assertThat(result.exitCode()).as(result.stderr()).isZero();
+        assertThat(server.stored(ID)).isEqualTo(VALUE);
+        assertThat(result.stderr())
+                .contains("already in 2 records: rotate it.")
+                .doesNotContain("\u001b");
+        assertThat(result.stdout()).contains("stored; use it as kb:secret/" + ID);
+    }
+
     @Test
     void set_with_no_value_sends_nothing() {
         Result result = KbProcess.run(server.url(), "\n", workDir, "secret", "set", ID);

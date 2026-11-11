@@ -48,7 +48,9 @@ final class SecretCommand {
                 spec.commandLine().getErr().println("kb: no value given; nothing was sent");
                 return Kb.FAILED;
             }
-            SecretApi.fromEnvironment().put(id, value);
+            SecretApi.fromEnvironment()
+                    .put(id, value)
+                    .ifPresent(note -> spec.commandLine().getErr().println("kb: " + note));
             spec.commandLine().getOut().println("stored; use it as kb:secret/" + id);
             return 0;
         }

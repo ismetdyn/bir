@@ -6,6 +6,7 @@ import io.github.ismetdyn.agentkb.core.render.ResultList.Hit;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries.Direction;
+import io.github.ismetdyn.agentkb.server.graph.ReadRows;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -13,11 +14,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -71,10 +70,14 @@ public class BriefService implements DisposableBean {
     private static final String IS_PROJECT = "MATCH (p:Project {id: $id}) RETURN p.id AS id";
     private static final String PROJECT =
             """
-            MATCH (p:Project {id: $id})
-            RETURN p.summary AS summary,
-                   [(p)-[:HAS_FACT]->(f:Fact) WHERE f.key = 'stack' AND f.valid_to IS NULL
-                     | f.value] AS stacks
+            MATCH (p:Project {id: $id}) RETURN p.id AS project, p.summary AS summary
+            """;
+    // Raw, for the decision look-up only; never shown.
+    private static final String STACKS =
+            """
+            MATCH (:Project {id: $id})-[:HAS_FACT]->(f:Fact)
+            WHERE f.key = 'stack' AND f.valid_to IS NULL
+            RETURN f.value AS stack
             """;
     // A decision without APPLIES_TO applies everywhere (SPEC §6.4); those come first.
     private static final String DECISIONS =
@@ -82,7 +85,7 @@ public class BriefService implements DisposableBean {
             MATCH (d:Decision) WHERE d.rule IS NOT NULL
             WITH d, [(d)-[:APPLIES_TO]->(t) | t.id] AS targets
             WHERE size(targets) = 0 OR any(t IN targets WHERE t IN $targets)
-            RETURN d.id AS id, d.rule AS rule, d.status AS status
+            RETURN d.id AS decision, d.rule AS rule, d.status AS status
             ORDER BY size(targets), d.id
             """;
 
@@ -167,16 +170,23 @@ public class BriefService implements DisposableBean {
             out.append("\n\nBu dizin için kayıtlı proje yok; kayıtları kb_search ile ara.\n");
         } else {
             Map<String, Object> project =
-                    store.read(tx -> rows(tx, PROJECT, Map.of("id", projectId)).getFirst());
-            out.append(" — ").append(projectId).append("\n\n").append(projectId).append(" · ");
+                    store.read(
+                            tx ->
+                                    ReadRows.in(tx)
+                                            .rows(PROJECT, Map.of("id", projectId), row -> row)
+                                            .getFirst());
+            // The id as the answer shows it, masked like the rest; projectId finds records.
+            Object shownId = project.get("project");
+            out.append(" — ").append(shownId).append("\n\n").append(shownId).append(" · ");
             out.append(PROJECT_LABEL);
             if (project.get("summary") instanceof String summary && !summary.isBlank()) {
                 out.append(" — ").append(summary.strip());
             }
             out.append('\n');
             targets.add(projectId);
-            for (Object stack : (List<?>) project.get("stacks")) {
-                targets.add(STACK_PREFIX + Ids.normalize((String) stack));
+            for (Map<String, Object> stack :
+                    store.read(tx -> rows(tx, STACKS, Map.of("id", projectId)))) {
+                targets.add(STACK_PREFIX + Ids.normalize((String) stack.get("stack")));
             }
             neighbours = queries.related(projectId, null, Direction.BOTH, 1).orElse(List.of());
         }
@@ -187,7 +197,9 @@ public class BriefService implements DisposableBean {
             out.append("\n## Çelişkiler ve bayat bilgiler\n")
                     .append(
                             ResultList.render(
-                                    findings(projectId, neighbours), MAX_FINDINGS, SECTION_CHARS));
+                                    queries.staleNear(projectId, Instant.now().minus(STALE_AFTER)),
+                                    MAX_FINDINGS,
+                                    SECTION_CHARS));
             out.append("\nAyrıntı ve geçmiş: kb_read <id>.\n");
         }
         return capped(out.toString());
@@ -196,37 +208,21 @@ public class BriefService implements DisposableBean {
     private void rules(StringBuilder out, List<String> targets) {
         out.append("\n## Kurallar\n");
         List<Map<String, Object>> decisions =
-                store.read(tx -> rows(tx, DECISIONS, Map.of("targets", targets)));
+                store.read(
+                        tx ->
+                                ReadRows.in(tx)
+                                        .rows(DECISIONS, Map.of("targets", targets), row -> row));
         if (decisions.isEmpty()) {
             out.append("Kural yok.\n");
         }
         for (Map<String, Object> decision : decisions) {
             out.append("- ").append(((String) decision.get("rule")).strip());
-            out.append(" (").append(decision.get("id"));
+            out.append(" (").append(decision.get("decision"));
             if (decision.get("status") instanceof String status && !"accepted".equals(status)) {
                 out.append(", ").append(status);
             }
             out.append(")\n");
         }
-    }
-
-    /**
-     * Facts of the project and its neighbours that are in conflict, unverified or not seen for
-     * {@link #STALE_AFTER}, as kb_stale finds them.
-     */
-    private List<Hit> findings(String projectId, List<Hit> neighbours) {
-        Set<String> ids = new LinkedHashSet<>();
-        Set<String> labels = new LinkedHashSet<>();
-        ids.add(projectId);
-        labels.add(PROJECT_LABEL);
-        for (Hit neighbour : neighbours) {
-            ids.add(neighbour.id());
-            labels.add(neighbour.type());
-        }
-        // ponytail: kb_stale's query by label, filtered here; an id-scoped query if it grows slow.
-        return queries.stale(List.copyOf(labels), Instant.now().minus(STALE_AFTER)).stream()
-                .filter(hit -> ids.contains(hit.id()))
-                .toList();
     }
 
     /** Cut at a line, saying so, rather than lose the end mid-line. */
@@ -238,6 +234,7 @@ public class BriefService implements DisposableBean {
                 + "\n(kısaltıldı; ayrıntı için kb_read)\n";
     }
 
+    /** Rows that only find records (remotes, ids); never text of the brief. */
     private static List<Map<String, Object>> rows(
             Transaction tx, String query, Map<String, Object> params) {
         try (Result result = tx.execute(query, params)) {

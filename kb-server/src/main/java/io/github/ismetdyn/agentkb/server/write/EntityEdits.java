@@ -2,8 +2,8 @@ package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.core.Ids;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,22 +57,11 @@ final class EntityEdits {
             texts.add(text);
             changes.put(SUMMARY, text);
         }
-        List<String> stored = SecretWrite.storedValues(graph.tx);
-        SecretWrite.refuseStoredValues(stored, texts);
-        // An alias is kept normalized, so a stored value is looked for in that form too (CP3 S1).
-        SecretWrite.refuseStoredValues(
-                normalized(stored), Arrays.<@Nullable String>asList(normalized));
+        // An alias is kept normalized; the refusal looks at that form too (CP3 S1, ADR-0026).
+        SecretWrite.refuseStoredValues(SecretMask.in(graph.tx), texts);
         refuseOtherIds(graph, entity, normalized);
         Revisions.keep(graph, entity, changes.keySet().toArray(String[]::new));
         changes.forEach((field, value) -> graph.set(entity, field, value));
-    }
-
-    /**
-     * {@code texts} in the form an alias is kept in (Ids.normalize); a text that normalizes to
-     * nothing is left out, as an empty stored value is (SecretWrite.storedValues).
-     */
-    static List<String> normalized(List<String> texts) {
-        return texts.stream().map(Ids::normalize).filter(text -> !text.isEmpty()).toList();
     }
 
     /** An alias that is another entity's id would make that id name two entities (CP3 J7). */

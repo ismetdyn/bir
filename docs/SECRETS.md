@@ -80,8 +80,10 @@ yolunu kapatan bir savunma olduğunu belirtir.
 | Katman | Ne yapar |
 |---|---|
 | Sunucu | Değeri MCP, Cypher, UI ve anlık görüntüye vermez; tek çıkışı `GET /api/v1/secrets/{id}`. Ajanın değeri görmemesi kuraldır, zorlanan bir sınır değil (ADR-0020). `kb_remember` secret görünümlü değeri reddeder; hook yakalaması sinyale yazmadan maskeler |
-| `kb_cypher` | `secret_value` geçen sorguyu reddeder, sonuçlardaki Secret düğümlerinden bu alanı çıkarır |
-| Anlık görüntü | `secret_value` yazılmaz (test: sahte değer `~/kb` altında ve git geçmişinde aranır) |
+| Okuma cevapları | REST, MCP ve hook cevaplarının her satırı tek bir maskeden geçer (`ReadRows` → `SecretMask`): saklı değer yazıldığı ve normalize biçimiyle `****` olur. Önce düz metin yazılıp sonra saklanan değer de böylece görünmez. Yalnız harften oluşan 4–7 karakterlik değer yalnız bütün sözcük olarak maskelenir, rakam ya da sembol içeren her yerde, 4'ten kısası hiç; yazma reddi ve PUT notu aynı kuralı metnin yazıldığı ve normalize biçimine uygular (ADR-0026) |
+| `kb_cypher` | `secret_value` geçen sorguyu reddeder, sonuçlardaki Secret düğümlerinden bu alanı çıkarır, metinlerdeki saklı değerleri `****` ile maskeler |
+| Anlık görüntü | `secret_value` yazılmaz (test: sahte değer `~/kb` altında ve git geçmişinde aranır). Kullanıcının düz metni maskelenmez; değer saklanmadan önce yazılmışsa `PUT` cevabı kaç kayıtta geçtiğini söyler, yüklenmiş dokümanlara bakılmadığını belirtir ve değiştirilmesini ister (ADR-0026) |
+| Tarayıcı | İyi bilinen yer tutucuları (`postgres`, `changeme`, …; `kb-core` `Placeholders`), 4 karakterden kısa değerleri ve tek karakter sınıfından oluşan düşük entropili değerleri (yalnız harf, yalnız rakam; ör. `keycloak`) saklamaz: Secret ve adı kalır, değer boş kalır; tarama cevabı `placeholder, not stored` der (ADR-0026) |
 | Veri dizini | `~/.local/share/agentkb` 0700 |
 | `kb run` | Değer sadece alt süreçte; çıktı maskeleme |
 
@@ -96,6 +98,10 @@ olarak UTF-16 çözülerek taranır. Sıkıştırılmış içerik (PDF stream, z
   aynı kullanıcıyla çalışan kararlı bir süreç dosyayı okuyabilir. Bu bir sızıntı önleyicidir, kasa değildir.
 - Ajan bir dosyayı okuduğu anda içerik modele gitmiştir; geri alınamaz. Asıl çözüm secret'ları repolardan çıkarmaktır
   (ortam değişkenleri).
+- Okuma maskesi yalnız birebir kopyayı bilir: `kb_cypher` ile düz metin bir değeri yeniden biçimlendiren sorgu
+  (`toUpper`, `split`, `substring`) onu atlatır. Yalnız harften oluşan 4–7 karakterlik bir değer bir sözcüğün içinde geçiyorsa
+  görünür kalır ve yazma onu reddetmez; 4 karakterden kısa değer secret sayılmaz. Doküman taraması 4 karakter ve
+  üstündeki saklı değerleri düz içerme ile arar (ADR-0026).
 - Kararlı ve kötü niyetli bir ajan `kb run` maskelemesini atlatabilir (ör. değeri başka bir kodlamayla yazdırarak).
   Önlem: `kb run` kullanımını audit'te izle.
 - Değerler bilgisayarlar arasında senkronlanmaz. Aynı secret'lar birden fazla bilgisayarda gerçekten gerekirse, yerleşik

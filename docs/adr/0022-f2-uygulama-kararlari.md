@@ -88,9 +88,12 @@ diğer belgeler buraya bağlanır.
     (ADR-0020: aynı kullanıcının programları güvenilirdir, dosyaları okuyabilir ve `GET /api/v1/secrets` çağırabilir).
     Sorgu metni üzerinde çalışır (yorumlar ve CR satır sonları dahil, Unicode boşluk, değişken adı olarak kullanılan
     anahtar sözcükler, dinamik özellik erişimi, `LOAD CSV`, prosedürler, `SHOW`) ve ayrıca `EXPLAIN`'in sorguyu salt okunur
-    bildirmesini şart koşar. Çıktı süzgeci ikinci hattır: yalnız bilinen secret değerlerinin birebir kopyalarını maskeler
-    (örtüşen değerler tek parça). Bilinen özelliği: `RETURN '<tahmin>'` tahmin bir secret değerine eşitse `*****` döner;
-    bu tehdit modelinin dışındadır, çünkü aynı süreç değeri `GET /api/v1/secrets/{id}` ile zaten alabilir.
+    bildirmesini şart koşar. Çıktı süzgeci ikinci hattır: yalnız bilinen secret değerlerinin birebir kopyalarını, yazıldığı
+    ve normalize (`Ids.normalize`) biçimiyle maskeler (örtüşen değerler tek parça; 4–7 karakterlik değer yalnız bütün
+    sözcük olarak, 4'ten kısası hiç, ADR-0026). Maske `****`. Bilinen özelliği: `RETURN '<tahmin>'` tahmin bir secret değerine eşitse `****`
+    döner; bu tehdit modelinin dışındadır, çünkü aynı süreç değeri `GET /api/v1/secrets/{id}` ile zaten alabilir. Kabul
+    edilen sınır: saklanmadan önce düz metin yazılmış bir değeri yeniden biçimlendiren sorgu (`toUpper`, `split`,
+    `substring`) süzgeci atlatır (ADR-0026; `LateSecretReadTest` bunu belgeler).
 25. **Kabul edilen risk:** tek bir `kb_cypher` sorgusu (örnek: `RETURN range(1, 200000000)`) heap'i Neo4j'in içinde
     tüketebilir; Neo4j'in bellek sınırı orada işlemez (ölçüldü: `db.memory.transaction.max` 64 MiB durdurmadı). JVM
     `ExitOnOutOfMemoryError` ile çıkar, systemd 5 sn içinde yeniden başlatır. Düzeltilmedi: sorguyu yalnız güvenilir bir

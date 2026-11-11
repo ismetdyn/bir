@@ -4,6 +4,7 @@ import io.github.ismetdyn.agentkb.core.BlobPaths;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
 import io.github.ismetdyn.agentkb.server.graph.Schema;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import io.github.ismetdyn.agentkb.server.snapshot.CheckReport.Problem;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Edge;
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotFormat.Node;
@@ -83,7 +84,7 @@ public class CheckService {
         List<Problem> problems = new ArrayList<>();
         if (repo.isBlank()) {
             problems.addAll(store.read(tx -> graph(tx, List.of())));
-            return new CheckReport(problems);
+            return masked(problems);
         }
         Path root = Path.of(repo);
         List<String> allowed = new ArrayList<>(Schema.FIXED_EDGE_TYPES);
@@ -97,7 +98,11 @@ public class CheckService {
         problems.addAll(store.read(tx -> graph(tx, allowed)));
         problems.addAll(blobs(root));
         problems.addAll(fsck(root));
-        return new CheckReport(problems);
+        return masked(problems);
+    }
+
+    private CheckReport masked(List<Problem> problems) {
+        return store.read(tx -> new CheckReport(problems).masked(SecretMask.in(tx)));
     }
 
     /** {@code allowed} empty: the vocabulary is unknown, so relation types are not checked. */

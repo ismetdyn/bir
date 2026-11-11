@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.core.model.Source;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import io.github.ismetdyn.agentkb.server.write.ScanWrite.Found;
 import io.github.ismetdyn.agentkb.server.write.ScanWrite.ScannedFile;
 import io.github.ismetdyn.agentkb.server.write.ScanWrites.Outcome;
@@ -31,7 +32,7 @@ final class ScanFileWrite {
     private final Node source;
     // The writer lock keeps every other write out and this file writes no Secret, so the values
     // stored on Secrets are read once per file, not per fact (CP6 profile).
-    private final List<String> stored;
+    private final SecretMask stored;
     private final Outcome outcome = new Outcome();
 
     ScanFileWrite(ScanWrites scan, GraphWrite graph, ScannedFile file) {
@@ -43,7 +44,7 @@ final class ScanFileWrite {
                         graph,
                         graph.tx.findNode(ScanGraph.REPO, GraphWrite.ID, scan.scan.repo()),
                         file.path());
-        this.stored = SecretWrite.storedValues(graph.tx);
+        this.stored = SecretMask.in(graph.tx);
     }
 
     Outcome apply() {

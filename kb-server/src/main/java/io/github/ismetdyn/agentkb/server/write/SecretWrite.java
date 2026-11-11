@@ -1,15 +1,15 @@
 package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.core.Times;
+import io.github.ismetdyn.agentkb.core.secret.Placeholders;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 
 /**
@@ -27,8 +27,6 @@ public final class SecretWrite {
     private static final String USER = "user";
     private static final String SOURCE = "source";
     private static final String OBSERVED_AT = "observed_at";
-    private static final String STORED_VALUES =
-            "MATCH (s:Secret) WHERE s.secret_value IS NOT NULL RETURN s.secret_value AS v";
     private static final int ID_PARTS = 3;
     private static final String ID_HINT =
             "A secret id is <entity>/<env>/<name>, e.g. ornek-db/prod/app-password; the entity"
@@ -89,7 +87,8 @@ public final class SecretWrite {
             graph.set(secret, OBSERVED_AT, seen);
         }
         Object stored = secret.getProperty(SECRET_VALUE, null);
-        if (value.equals(stored)) {
+        // A well-known placeholder (ADR-0026) is no secret value: the Secret and its name only.
+        if (value.equals(stored) || Placeholders.isPlaceholder(value)) {
             return secret;
         }
         if (stored == null || SCAN.equals(secret.getProperty(SOURCE, null))) {
@@ -162,44 +161,24 @@ public final class SecretWrite {
 
     /** Refuses the write when any of {@code texts} holds a value stored on a Secret. */
     static void refuseStoredValues(Transaction tx, List<@Nullable String> texts) {
-        refuseStoredValues(storedValues(tx), texts);
+        refuseStoredValues(SecretMask.in(tx), texts);
     }
 
-    /** {@link #refuseStoredValues(Transaction, List)} with the values already read. */
-    static void refuseStoredValues(List<String> stored, List<@Nullable String> texts) {
+    /**
+     * {@link #refuseStoredValues(Transaction, List)} with the values already read (SecretMask#in:
+     * as written and normalized); a text counts as written and normalized too (ADR-0026).
+     */
+    static void refuseStoredValues(SecretMask stored, List<@Nullable String> texts) {
         for (String text : texts) {
-            if (text != null && stored.stream().anyMatch(text::contains)) {
+            if (text != null && stored.holds(text)) {
                 throw new WriteRejectedException("a value is a stored secret value", STORED_HINT);
             }
         }
     }
 
-    /**
-     * {@code text} with every value stored on a Secret replaced by {@code mask}; the longest value
-     * first, so no part of a longer value is left behind a shorter one inside it.
-     */
-    static String maskStoredValues(List<String> stored, String text, String mask) {
-        String masked = text;
-        for (String value :
-                stored.stream()
-                        .sorted(Comparator.comparingInt(String::length).reversed())
-                        .toList()) {
-            masked = masked.replace(value, mask);
-        }
-        return masked;
-    }
-
-    /**
-     * Every value stored on this machine, for a check that must refuse or mask them; never for an
-     * answer. An empty value is left out, as it is in every text.
-     */
+    /** Every value stored on this machine (SecretMask#storedValues); never for an answer. */
     public static List<String> storedValues(Transaction tx) {
-        try (Result result = tx.execute(STORED_VALUES)) {
-            return result.stream()
-                    .map(row -> String.valueOf(row.get("v")))
-                    .filter(value -> !value.isEmpty())
-                    .toList();
-        }
+        return SecretMask.storedValues(tx);
     }
 
     /** Every free text of a write request: what could end up in a record. */

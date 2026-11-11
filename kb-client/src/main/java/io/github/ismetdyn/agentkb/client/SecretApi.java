@@ -106,7 +106,12 @@ final class SecretApi {
         };
     }
 
-    void put(String id, String value) {
+    /**
+     * Empty after 204. After 200 the server's note, without control characters: the value was
+     * already in records as plain text, so it should be rotated (ADR-0026); it never holds the
+     * value.
+     */
+    Optional<String> put(String id, String value) {
         HttpResponse<String> reply =
                 send(
                         request(id)
@@ -114,9 +119,11 @@ final class SecretApi {
                                 .PUT(
                                         HttpRequest.BodyPublishers.ofString(
                                                 value, StandardCharsets.UTF_8)));
-        if (reply.statusCode() != NO_CONTENT) {
-            throw refused(reply);
-        }
+        return switch (reply.statusCode()) {
+            case NO_CONTENT -> Optional.empty();
+            case OK -> Optional.of((String) ServerText.printable(reply.body().strip()));
+            default -> throw refused(reply);
+        };
     }
 
     private HttpRequest.Builder request(String id) {

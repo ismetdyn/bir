@@ -3,11 +3,11 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.core.Times;
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import io.github.ismetdyn.agentkb.server.write.WriteCheck.Checked;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class WriteService {
 
     /** What stands for a secret value in a raw signal (docs/SECRETS.md). */
-    public static final String MASK = "****";
+    public static final String MASK = SecretMask.MASK;
 
     private final EmbeddedNeo4jStore store;
     private final RepoSchema schema;
@@ -76,7 +76,13 @@ public class WriteService {
                                     batch,
                                     EpisodeWrite.known(tx, request.episode()).orElse(null),
                                     Instant.now());
-                    return new RequestWrite(graph, request, checked, at).apply();
+                    try {
+                        return new RequestWrite(graph, request, checked, at)
+                                .apply()
+                                .masked(SecretMask.in(tx));
+                    } catch (WriteRejectedException e) {
+                        throw e.masked(SecretMask.in(tx));
+                    }
                 });
     }
 
@@ -144,7 +150,8 @@ public class WriteService {
             }
         }
         writes.merge(store.write(tx -> writes.unreported(graph.apply(tx))));
-        return writes.result();
+        ScanResult result = writes.result();
+        return store.read(tx -> result.masked(SecretMask.in(tx)));
     }
 
     /**
@@ -221,12 +228,12 @@ public class WriteService {
         String seen = Times.format(at);
         return store.write(
                         tx -> {
-                            List<String> stored = SecretWrite.storedValues(tx);
+                            SecretMask stored = SecretMask.of(SecretWrite.storedValues(tx));
                             return SignalWrite.raise(
                                     new GraphWrite(tx, Ulid.next(), Instant.now()),
                                     kind,
-                                    SecretWrite.maskStoredValues(stored, key, MASK),
-                                    SecretWrite.maskStoredValues(stored, payload, MASK),
+                                    stored.text(key),
+                                    stored.text(payload),
                                     seen);
                         })
                 != null;

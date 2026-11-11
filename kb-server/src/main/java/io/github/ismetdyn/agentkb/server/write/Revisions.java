@@ -1,12 +1,12 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Result;
@@ -46,12 +46,8 @@ final class Revisions {
      * The field names are the record's own and never id, batch, episode, updated_at or fields.
      */
     static void keep(GraphWrite graph, Node record, String... fields) {
-        List<String> stored = SecretWrite.storedValues(graph.tx);
-        // An alias holds a stored value in its normalized form (EntityEdits).
-        List<String> masked =
-                Stream.concat(stored.stream(), EntityEdits.normalized(stored).stream())
-                        .distinct()
-                        .toList();
+        // An alias holds a stored value in its normalized form (EntityEdits), which this masks too.
+        SecretMask masked = SecretMask.in(graph.tx);
         Map<String, Object> props = new LinkedHashMap<>();
         props.put(FIELDS, fields);
         for (String field : fields) {
@@ -63,16 +59,10 @@ final class Revisions {
         graph.edge(revision, REVISES, record, Map.of());
     }
 
-    private static Object masked(Object value, List<String> stored) {
+    private static Object masked(Object value, SecretMask stored) {
         return switch (value) {
-            case String text -> SecretWrite.maskStoredValues(stored, text, WriteService.MASK);
-            case String[] texts ->
-                    Arrays.stream(texts)
-                            .map(
-                                    text ->
-                                            SecretWrite.maskStoredValues(
-                                                    stored, text, WriteService.MASK))
-                            .toArray(String[]::new);
+            case String text -> stored.text(text);
+            case String[] texts -> Arrays.stream(texts).map(stored::text).toArray(String[]::new);
             default -> value;
         };
     }

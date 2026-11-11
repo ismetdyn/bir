@@ -8,16 +8,13 @@ import io.github.ismetdyn.agentkb.core.render.ResultList.Hit;
 import io.github.ismetdyn.agentkb.core.render.SecretView;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
-import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +22,7 @@ import org.springframework.stereotype.Component;
  * The read side of the graph for the read tools, always through {@link EmbeddedNeo4jStore#read}.
  * Queries project the properties they need; none returns a whole node, so {@code secret_value}
  * cannot ride along (invariant 2). The agent's own query ({@link #cypher}) can, so its rows are
- * filtered.
+ * filtered. Every answer row comes through ReadRows, which masks a stored value in it.
  */
 @Component
 public class KnowledgeQueries {
@@ -64,7 +61,7 @@ public class KnowledgeQueries {
     private static final String ENTITY =
             """
             MATCH (e:Entity {id: $id})
-            RETURN e.id AS id, %s AS type, e.status AS status, e.summary AS summary,
+            RETURN e.id AS entity, %s AS type, e.status AS status, e.summary AS summary,
                    [a IN coalesce(e.aliases, []) | a] AS aliases
             """
                     .formatted(TYPE_OF.formatted("e"));
@@ -103,7 +100,7 @@ public class KnowledgeQueries {
     private static final String SECRETS =
             """
             MATCH (:Entity {id: $id})-[:HAS_SECRET]->(s:Secret)
-            RETURN s.id AS id, s.name AS name, s.env AS env ORDER BY s.id
+            RETURN s.id AS secret, s.name AS name, s.env AS env ORDER BY s.id
             """;
     private static final String SEARCH =
             """
@@ -111,7 +108,7 @@ public class KnowledgeQueries {
             WHERE $env IS NULL OR NOT node:Fact OR node.env = $env
             OPTIONAL MATCH (owner:Entity)-[:HAS_FACT]->(node)
             WITH node, score, coalesce(owner, node) AS record
-            RETURN score, record.id AS id, %s AS type, record:Entity AS isEntity,
+            RETURN score, record.id AS id, record.id AS record, %s AS type, record:Entity AS isEntity,
                    record.status AS status, node:Signal AS isSignal,
                    coalesce(record.summary, record.rule, record.title, record.name, record.payload)
                      AS text,
@@ -139,17 +136,17 @@ public class KnowledgeQueries {
                      validTo: rs[i].valid_to}] AS steps
             """;
 
-    // Current facts of the given entity labels last seen before $before, or not ok (conflict,
-    // unverified) whatever their age. Rows have the shape of SEARCH, so they read as search hits;
-    // a fact that is not ok ranks first.
-    private static final String STALE =
+    // Current facts last seen before $before, or not ok (conflict, unverified) whatever their age.
+    // Rows have the shape of SEARCH, so they read as search hits; a fact that is not ok ranks
+    // first. STALE takes the owners by label (kb_stale), STALE_NEAR an entity and its neighbours
+    // by raw id (the brief).
+    private static final String STALE_ROWS =
             """
-            MATCH (e:Entity)-[:HAS_FACT]->(f:Fact)
-            WHERE f.valid_to IS NULL AND any(l IN labels(e) WHERE l IN $labels)
-              AND (f.observed_at < $before OR f.status <> 'ok')
+            MATCH (e)-[:HAS_FACT]->(f:Fact)
+            WHERE f.valid_to IS NULL AND (f.observed_at < $before OR f.status <> 'ok')
             RETURN CASE WHEN f.status <> 'ok' THEN 1.0 ELSE 0.0 END AS score, e.id AS id,
-                   %s AS type, true AS isEntity, e.status AS status, false AS isSignal,
-                   e.summary AS text,
+                   e.id AS record, %s AS type, true AS isEntity, e.status AS status,
+                   false AS isSignal, e.summary AS text,
                    f {.id, .key, .value, .env, .source, .valid_from, .observed_at, .valid_to,
                      .status} AS fact,
                    [(f)-[:TARGET]->(t) | t.id][0] AS target,
@@ -159,6 +156,15 @@ public class KnowledgeQueries {
             ORDER BY e.id, f.key, f.env, f.valid_from, f.id
             """
                     .formatted(TYPE_OF.formatted("e"));
+    private static final String STALE =
+            "MATCH (e:Entity) WHERE any(l IN labels(e) WHERE l IN $labels) WITH e " + STALE_ROWS;
+    private static final String STALE_NEAR =
+            """
+            MATCH (p:Entity {id: $id})
+            MATCH (e:Entity) WHERE e = p OR EXISTS { (e)--(p) }
+            WITH e
+            """
+                    + STALE_ROWS;
 
     /** SPEC §13.5: kb_cypher rows; {@link #cypher} returns one more to show the cut. */
     public static final int CYPHER_ROWS = 200;
@@ -174,10 +180,7 @@ public class KnowledgeQueries {
     /** The id of the Episode SessionStart opened for {@code (client, sessionId)} (ADR-0023). */
     public Optional<String> episode(String client, String sessionId) {
         Map<String, Object> params = Map.of("client", client, "session", sessionId);
-        return store.read(
-                tx ->
-                        rows(tx, EPISODE_OF, params, row -> (String) row.get("id")).stream()
-                                .findFirst());
+        return store.read(tx -> ReadRows.ids(tx, EPISODE_OF, params).stream().findFirst());
     }
 
     /** The entity with this id or alias, in any case (Ids.normalize). */
@@ -194,12 +197,26 @@ public class KnowledgeQueries {
         params.put("index", FULLTEXT_INDEX);
         params.put("query", LUCENE_SPECIAL.matcher(Ids.normalize(text)).replaceAll("\\\\$0"));
         params.put("env", env == null ? null : Ids.normalize(env));
-        List<Hit> hits =
-                store.read(tx -> rows(tx, SEARCH, params, KnowledgeQueriesRows::searchHit));
+        // Keyed by the raw id: two records whose ids differ only inside a masked value stay two.
+        List<Map.Entry<String, Hit>> hits =
+                store.read(
+                        tx ->
+                                ReadRows.in(tx)
+                                        .rows(
+                                                SEARCH,
+                                                params,
+                                                row ->
+                                                        Map.entry(
+                                                                (String) row.get("id"),
+                                                                KnowledgeQueriesRows.searchHit(
+                                                                        row))));
         Map<String, Hit> best = new LinkedHashMap<>();
-        for (Hit hit : hits) {
-            if (type == null || Ids.normalize(type).equals(Ids.normalize(hit.type()))) {
-                best.merge(hit.id(), hit, (a, b) -> ResultList.ORDER.compare(a, b) <= 0 ? a : b);
+        for (Map.Entry<String, Hit> hit : hits) {
+            if (type == null || Ids.normalize(type).equals(Ids.normalize(hit.getValue().type()))) {
+                best.merge(
+                        hit.getKey(),
+                        hit.getValue(),
+                        (a, b) -> ResultList.ORDER.compare(a, b) <= 0 ? a : b);
             }
         }
         return List.copyOf(best.values());
@@ -225,7 +242,11 @@ public class KnowledgeQueries {
                                             Map<String, Object> params = new HashMap<>();
                                             params.put("id", id);
                                             params.put("rel", rel);
-                                            return rows(tx, query, params, row -> path(id, row));
+                                            ReadRows read = ReadRows.in(tx);
+                                            return read.rows(
+                                                    query,
+                                                    params,
+                                                    row -> path(read.shown(id), row));
                                         }));
     }
 
@@ -237,7 +258,18 @@ public class KnowledgeQueries {
     public List<Hit> stale(List<String> labels, Instant observedBefore) {
         Map<String, Object> params =
                 Map.of("labels", List.copyOf(labels), "before", Times.format(observedBefore));
-        return store.read(tx -> rows(tx, STALE, params, KnowledgeQueriesRows::searchHit));
+        return store.read(
+                tx -> ReadRows.in(tx).rows(STALE, params, KnowledgeQueriesRows::searchHit));
+    }
+
+    /**
+     * {@link #stale} of the entity {@code id} and its direct neighbours, found by the raw id (the
+     * brief, SPEC §6.4).
+     */
+    public List<Hit> staleNear(String id, Instant observedBefore) {
+        Map<String, Object> params = Map.of("id", id, "before", Times.format(observedBefore));
+        return store.read(
+                tx -> ReadRows.in(tx).rows(STALE_NEAR, params, KnowledgeQueriesRows::searchHit));
     }
 
     /**
@@ -247,14 +279,7 @@ public class KnowledgeQueries {
      * there were more.
      */
     public List<Map<String, Object>> cypher(String query) {
-        return store.read(
-                CYPHER_TIMEOUT,
-                tx -> {
-                    CypherRows filter = CypherRows.in(tx);
-                    try (Result result = tx.execute(query)) {
-                        return filter.rows(result, CYPHER_ROWS + 1);
-                    }
-                });
+        return store.read(CYPHER_TIMEOUT, tx -> ReadRows.in(tx).cypher(query, CYPHER_ROWS + 1));
     }
 
     private static Hit path(String startId, Map<String, Object> row) {
@@ -275,46 +300,31 @@ public class KnowledgeQueries {
         List<String> ids = List.of(raw, Ids.normalize(raw)).stream().distinct().toList();
         Map<String, Object> params = Map.of("ids", ids);
         // An id wins over an alias (RESOLVE's order), so RESOLVE runs only when no id matches.
-        return rows(tx, RESOLVE_ID, params, row -> (String) row.get("id")).stream()
+        return ReadRows.ids(tx, RESOLVE_ID, params).stream()
                 .findFirst()
-                .or(
-                        () ->
-                                rows(tx, RESOLVE, params, row -> (String) row.get("id")).stream()
-                                        .findFirst());
+                .or(() -> ReadRows.ids(tx, RESOLVE, params).stream().findFirst());
     }
 
     private static EntityView view(Transaction tx, String id) {
         Map<String, Object> params = Map.of("id", id);
-        Map<String, Object> entity = rows(tx, ENTITY, params, row -> row).getFirst();
+        ReadRows read = ReadRows.in(tx);
+        Map<String, Object> entity = read.rows(ENTITY, params, row -> row).getFirst();
+        // The id from the row, masked like every text of it; the parameter only finds records.
         return new EntityView(
-                id,
+                (String) entity.get("entity"),
                 (String) entity.get("type"),
                 String.valueOf(entity.get("status")),
                 (String) entity.get("summary"),
                 KnowledgeQueriesRows.strings(entity.get("aliases")),
-                rows(tx, FACTS, params, KnowledgeQueriesRows::factView),
-                rows(tx, RELATIONS, params, KnowledgeQueriesRows::relation),
-                rows(
-                        tx,
+                read.rows(FACTS, params, KnowledgeQueriesRows::factView),
+                read.rows(RELATIONS, params, KnowledgeQueriesRows::relation),
+                read.rows(
                         SECRETS,
                         params,
                         row ->
                                 new SecretView(
-                                        (String) row.get("id"),
+                                        (String) row.get("secret"),
                                         (String) row.get("name"),
                                         String.valueOf(row.get("env")))));
-    }
-
-    /** Each row of {@code query} mapped; ListQueries reads the same way. */
-    static <T> List<T> rows(
-            Transaction tx,
-            String query,
-            Map<String, Object> params,
-            Function<Map<String, Object>, T> mapper) {
-        List<T> mapped = new ArrayList<>();
-        try (Result result = tx.execute(query, params)) {
-            result.forEachRemaining(row -> mapped.add(mapper.apply(row)));
-        }
-        return mapped;
     }
 }

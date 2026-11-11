@@ -31,6 +31,9 @@ class SecretController {
 
     // A secret id is <entity>/<env>/<name>, each part an id of at most 200 characters (WriteCheck).
     private static final int PREFIX_CHARS = 602;
+    private static final String ALREADY_STORED =
+            "The value is stored. It was already in %d records as plain text, so it is possibly in"
+                    + " the snapshot and the git history too: rotate it. Uploaded documents are not checked.\n";
 
     private final SecretService secrets;
     private final ListQueries lists;
@@ -61,13 +64,20 @@ class SecretController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    /** The body is read as bytes and decoded as UTF-8, whatever charset the request names. */
+    /**
+     * The body is read as bytes and decoded as UTF-8, whatever charset the request names. 204 when
+     * no record held the value yet; else 200 and a note to rotate it, which never holds the value
+     * (ADR-0026).
+     */
     @PutMapping(PATH)
-    ResponseEntity<Void> put(
+    ResponseEntity<String> put(
             @PathVariable String id, @RequestBody(required = false) byte @Nullable [] body) {
         String value = body == null ? "" : new String(body, StandardCharsets.UTF_8);
-        secrets.set(id(id), value);
-        return ResponseEntity.noContent().build();
+        int holding = secrets.set(id(id), value);
+        if (holding == 0) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok().contentType(TEXT_UTF8).body(ALREADY_STORED.formatted(holding));
     }
 
     /** A capture-the-rest variable starts with the slash before it; it is empty without one. */

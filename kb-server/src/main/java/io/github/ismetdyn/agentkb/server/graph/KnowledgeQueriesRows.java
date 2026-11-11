@@ -91,7 +91,8 @@ final class KnowledgeQueriesRows {
      * closed fact or an archived entity is history, a signal is raw (SPEC §6.3).
      */
     static Hit searchHit(Map<?, ?> row) {
-        String id = (String) row.get("id");
+        // The masked id; the raw one (column id) only keys search's best hit per record.
+        String id = (String) row.get("record");
         String type = (String) row.get("type");
         double score = ((Number) row.get("score")).doubleValue();
         String text = (String) row.get("text");

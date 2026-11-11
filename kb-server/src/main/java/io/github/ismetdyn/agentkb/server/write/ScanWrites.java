@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.core.Times;
+import io.github.ismetdyn.agentkb.core.secret.Placeholders;
 import io.github.ismetdyn.agentkb.server.graph.Schema;
 import io.github.ismetdyn.agentkb.server.write.ScanWrite.FoundSecret;
 import io.github.ismetdyn.agentkb.server.write.ScanWrite.ScannedFile;
@@ -184,6 +185,17 @@ final class ScanWrites {
     ScanResult result() {
         List<String> skipped = new ArrayList<>(scan.skipped());
         skipped.addAll(total.skipped);
+        // ADR-0026: SecretWrite#scanned keeps a well-known placeholder's Secret without a value.
+        scan.files().stream()
+                .flatMap(file -> file.secrets().stream().map(secret -> Map.entry(file, secret)))
+                .filter(found -> Placeholders.isPlaceholder(found.getValue().value()))
+                .forEach(
+                        found ->
+                                skipped.add(
+                                        found.getKey().path()
+                                                + ":"
+                                                + found.getValue().line()
+                                                + ": placeholder, not stored"));
         return new ScanResult(
                 projectId,
                 scan.repo(),

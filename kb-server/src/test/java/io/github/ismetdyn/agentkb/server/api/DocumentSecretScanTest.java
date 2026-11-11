@@ -106,6 +106,20 @@ class DocumentSecretScanTest extends DocumentControllerTestBase {
         assertThat(documentNodes(sha)).isEmpty();
     }
 
+    /** F4: a stored value under four characters is no secret, so a document holding it passes. */
+    @Test
+    void a_stored_value_under_four_characters_does_not_refuse_a_document() throws Exception {
+        writes.putSecret(ENTITY + "/zz-h4/doc-short", "42");
+        String sha =
+                documents.upload(
+                        ("zz-h4 short\n" + UUID.randomUUID() + "\nport 42 and 4242\n")
+                                .getBytes(StandardCharsets.UTF_8));
+
+        HttpResponse<String> reply = documents.complete(sha, NAME);
+
+        assertThat(reply.statusCode()).as(reply.body()).isEqualTo(201);
+    }
+
     /**
      * UTF-16 text, as PowerShell's {@code >} writes it, is scanned as UTF-16 (lead decision F3).
      */

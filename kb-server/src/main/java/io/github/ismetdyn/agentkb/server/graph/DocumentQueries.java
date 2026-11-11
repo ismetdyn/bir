@@ -7,10 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
-import org.neo4j.graphdb.Result;
-import org.neo4j.graphdb.Transaction;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -63,35 +60,38 @@ public class DocumentQueries {
 
     /** The Document with exactly this id. */
     public Optional<DocumentView> document(String id) {
-        return store.read(tx -> rows(tx, DOCUMENT, Map.of("id", id), this::view)).stream()
+        return store
+                .read(tx -> ReadRows.in(tx).rows(DOCUMENT, Map.of("id", id), this::view))
+                .stream()
                 .findFirst();
     }
 
     /** At most {@code limit} Documents, newest first. */
     public List<DocumentView> documents(int limit) {
-        return store.read(tx -> rows(tx, DOCUMENTS, Map.of("limit", limit), this::view));
+        return store.read(
+                tx -> ReadRows.in(tx).rows(DOCUMENTS, Map.of("limit", limit), this::view));
     }
 
     /** The facts with a FROM edge to the Document, current and closed alike (invariant 12). */
     public List<DocumentView.Derived> facts(String id) {
         return store.read(
                 tx ->
-                        rows(
-                                tx,
-                                FACTS,
-                                Map.of("id", id),
-                                row ->
-                                        new DocumentView.Derived(
-                                                (String) row.get("entity"),
-                                                KnowledgeQueriesRows.factView(row))));
+                        ReadRows.in(tx)
+                                .rows(
+                                        FACTS,
+                                        Map.of("id", id),
+                                        row ->
+                                                new DocumentView.Derived(
+                                                        (String) row.get("entity"),
+                                                        KnowledgeQueriesRows.factView(row))));
     }
 
     /** How many of {@code facts} (ids) have no FROM edge to the Document {@code id}. */
     public long factsNotFrom(String id, List<String> facts) {
         return store.read(
                 tx ->
-                        rows(
-                                        tx,
+                        ReadRows.in(tx)
+                                .rows(
                                         NOT_FROM,
                                         Map.of("id", id, "facts", facts),
                                         row -> ((Number) row.get("n")).longValue())
@@ -129,17 +129,5 @@ public class DocumentQueries {
 
     private static @Nullable String text(@Nullable Object value) {
         return value instanceof String text ? text : null;
-    }
-
-    private static <T> List<T> rows(
-            Transaction tx,
-            String query,
-            Map<String, Object> params,
-            Function<Map<String, Object>, T> mapper) {
-        List<T> mapped = new ArrayList<>();
-        try (Result result = tx.execute(query, params)) {
-            result.forEachRemaining(row -> mapped.add(mapper.apply(row)));
-        }
-        return mapped;
     }
 }

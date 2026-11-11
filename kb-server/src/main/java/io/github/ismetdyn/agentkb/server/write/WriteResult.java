@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.write;
 
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import java.util.List;
 
 /**
@@ -21,5 +22,14 @@ public record WriteResult(
         refreshed = List.copyOf(refreshed);
         closed = List.copyOf(closed);
         conflicts = List.copyOf(conflicts);
+    }
+
+    /**
+     * ADR-0026: the entity a write found by alias or address may hold a stored value in its id. The
+     * other ids are ULIDs the server made.
+     */
+    WriteResult masked(SecretMask mask) {
+        return new WriteResult(
+                mask.text(entity), created, batch, added, refreshed, closed, conflicts);
     }
 }

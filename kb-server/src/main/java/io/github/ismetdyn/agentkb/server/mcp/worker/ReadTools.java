@@ -205,7 +205,8 @@ public class ReadTools {
     private String document(String id) {
         return documents
                 .document(id)
-                .map(view -> Answers.content(MarkdownView.render(view, documents.facts(view.id()))))
+                // The raw id finds the facts; the view's id is the masked one shown.
+                .map(view -> Answers.content(MarkdownView.render(view, documents.facts(id))))
                 .orElseGet(
                         () ->
                                 Answers.error(

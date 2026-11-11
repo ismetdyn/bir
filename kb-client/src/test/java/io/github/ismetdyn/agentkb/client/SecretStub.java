@@ -14,8 +14,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * The server side of the secret contract the client relies on, on a loopback socket: {@code GET
  * /api/v1/secrets/<id>} answers the value as UTF-8 text or 404 with an empty body, {@code PUT}
- * stores the request body and answers 204. Ids keep their slashes in the path. Every request is
- * recorded, so a test can check what the client sent.
+ * stores the request body and answers 204, or 200 and a note (ADR-0026, {@link #noteOnPut}). Ids
+ * keep their slashes in the path. Every request is recorded, so a test can check what the client
+ * sent.
  */
 final class SecretStub implements AutoCloseable {
 
@@ -29,6 +30,8 @@ final class SecretStub implements AutoCloseable {
     record Request(String method, String rawPath, Map<String, List<String>> headers, String body) {}
 
     private final Map<String, String> values = new ConcurrentHashMap<>();
+    // ADR-0026: what PUT answers with 200 when the value was already in records; null for 204.
+    private volatile String putNote;
     private final List<Request> requests = new CopyOnWriteArrayList<>();
     private final HttpServer server;
 
@@ -40,6 +43,11 @@ final class SecretStub implements AutoCloseable {
 
     SecretStub with(String id, String value) {
         values.put(id, value);
+        return this;
+    }
+
+    SecretStub noteOnPut(String note) {
+        putNote = note;
         return this;
     }
 
@@ -72,7 +80,11 @@ final class SecretStub implements AutoCloseable {
                 case "GET" -> answer(exchange, values.get(id));
                 case "PUT" -> {
                     values.put(id, body);
-                    exchange.sendResponseHeaders(NO_CONTENT, NO_BODY);
+                    if (putNote == null) {
+                        exchange.sendResponseHeaders(NO_CONTENT, NO_BODY);
+                    } else {
+                        answer(exchange, putNote);
+                    }
                 }
                 default -> exchange.sendResponseHeaders(METHOD_NOT_ALLOWED, NO_BODY);
             }

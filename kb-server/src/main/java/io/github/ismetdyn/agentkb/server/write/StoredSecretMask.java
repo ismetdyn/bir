@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.server.graph.EmbeddedNeo4jStore;
+import io.github.ismetdyn.agentkb.server.graph.SecretMask;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,9 +19,6 @@ public class StoredSecretMask {
     }
 
     public String mask(String text) {
-        return store.read(
-                tx ->
-                        SecretWrite.maskStoredValues(
-                                SecretWrite.storedValues(tx), text, WriteService.MASK));
+        return store.read(tx -> SecretMask.of(SecretWrite.storedValues(tx)).text(text));
     }
 }
