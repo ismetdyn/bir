@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
@@ -23,10 +24,14 @@ final class ApiStub implements AutoCloseable {
     private static final int NOT_FOUND = 404;
     private static final int NO_BODY = -1;
 
-    /** {@code body} is {@code bytes} read as UTF-8; {@code bytes} is what arrived. */
+    /**
+     * {@code body} is {@code bytes} read as UTF-8; {@code bytes} is what arrived; {@code rawQuery}
+     * is the query as sent, empty if none.
+     */
     record Request(
             String method,
             String rawPath,
+            String rawQuery,
             Map<String, List<String>> headers,
             String body,
             byte[] bytes) {}
@@ -81,6 +86,7 @@ final class ApiStub implements AutoCloseable {
                     new Request(
                             exchange.getRequestMethod(),
                             rawPath,
+                            Objects.requireNonNullElse(exchange.getRequestURI().getRawQuery(), ""),
                             Map.copyOf(exchange.getRequestHeaders()),
                             body,
                             received));

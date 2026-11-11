@@ -39,7 +39,7 @@ final class MaintenanceCommands {
                             JsonApi.fromEnvironment()
                                     .post(
                                             "/api/v1/revert",
-                                            "{\"batch\": " + JsonApi.quote(batch) + "}"),
+                                            "{\"batch\": " + RequestText.quote(batch) + "}"),
                             RevertAnswer.class);
             spec.commandLine()
                     .getOut()
@@ -71,7 +71,7 @@ final class MaintenanceCommands {
 
         @Override
         public Integer call() {
-            String body = at == null ? "{}" : "{\"at\": " + JsonApi.quote(at) + "}";
+            String body = at == null ? "{}" : "{\"at\": " + RequestText.quote(at) + "}";
             RestoreAnswer answer =
                     Json.toRecord(
                             JsonApi.fromEnvironment().post("/api/v1/restore", body),

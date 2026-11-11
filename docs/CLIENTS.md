@@ -40,23 +40,26 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 |---|---|
 | `kb init` | Dizinler (veri dizini 0700), `~/kb` reposu (oluştur ya da klonla), şema |
 | `kb ? <sorgu>` | Hızlı kontrol: var mı, tek satırda ana bilgiler |
-| `kb find <sorgu>` · `kb show <id>` | Arama, kayıt detayı (Markdown) |
-| `kb add <tür> <id>` · `kb edit <id>` · `kb archive <id>` | Varlık |
+| `kb search <sorgu> [--type] [--env] [--limit]` (takma ad `kb find`) · `kb show <id> [--json]` · `kb cypher <sorgu>` | Arama, kayıt detayı (sunucunun Markdown'ı olduğu gibi; `--json` fact ve ilişki id'leriyle JSON görünümü), salt okunur sorgu (sütunlar sekmeyle ayrılır; hücredeki `\`, sekme ve satır sonu `\\`, `\t`, `\n` yazılır; kesilme notu stderr'e) |
+| `kb add <tür> <id>` · `kb edit <id> [--alias <ad>]… \| [--clear-aliases] [--summary <metin>]` · `kb archive <id>` · `kb unarchive <id>` | Varlık (`--alias` verilirse listenin yerini alır, `--clear-aliases` listeyi boşaltır; ikisi birlikte verilemez) |
 | `kb fact set <id> <anahtar> <değer> [--env]` · `kb fact close <factId>` | Fact |
 | `kb rel add <id> <tür> <hedef>` · `kb rel close <relId>` | İlişki |
-| `kb conflicts` · `kb resolve <id> --accept-new\|--keep-old` | Çelişkiler |
+| `kb conflicts` · `kb resolve <id> accept-new\|keep-old` | Çelişkiler |
 | `kb proposals` · `kb accept <id>` · `kb reject <id> -m "..."` | Öneriler |
-| `kb activity [--source agent\|scan\|curator]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı ve hâlâ ona ait Secret değeriyle silinir, çıktı sayısını verir. `kb secret set` ile değer yazılan Secret kullanıcıya geçer ve geri almada kalır (ADR-0022 karar 39) |
+| `kb activity [--source agent\|scan\|curator] [--batch <id>] [--since <zaman>] [--limit <n>]` · `kb revert --batch <id>` | Aktivite ve geri alma. Partinin açtığı ve hâlâ ona ait Secret değeriyle silinir, çıktı sayısını verir. `kb secret set` ile değer yazılan Secret kullanıcıya geçer ve geri almada kalır (ADR-0022 karar 39) |
 | `kb scan <yol>` | Tarama |
 | `kb doc add <dosya> [--about <id>] [--origin <url>] [--replaces <docId>]` · `kb doc list` | Doküman deposu (bkz. SPEC §6.7). Yükleme byte offset'li ve sürdürülebilir; yeniden çalıştırma kaldığı yerden devam eder, istemci durum tutmaz. Protokol: ADR-0025 karar 1. `--replaces` yeni dokümanı eskisine `SUPERSEDES` ile bağlar. Sıkıştırılmış dosyada secret taraması yapılamaz, komut uyarır |
-| `kb secret set <id>` · `kb secret show <id>` | Secret (set maskeli giriş; show sadece insan için). F2'de yalnız bu ikisi çıkar (`GET/PUT /secrets/{id}`). `kb secret list` `GET /secrets?prefix=` ister, F3'tedir. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |
+| `kb secret set <id>` · `kb secret show <id>` · `kb secret list [--prefix <id>] [--limit <n>]` | Secret (set maskeli giriş; show sadece insan için; list id, placeholder ve bu bilgisayarda değer olup olmadığını verir, değeri asla). F2'de set ve show çıktı (`GET/PUT /secrets/{id}`); `kb secret list` (`GET /secrets?prefix=`) F3 H6'da. `rm` için uç ve silme politikası tanımlı değil (SPEC değişmez 5); tanımlanana kadar yok |
 | `kb run --env AD=kb:secret/<id> [--file AD=…] -- <komut>` | Placeholder'ı ortam değişkenine çözüp komutu çalıştırır (bkz. SECRETS.md) |
 | `kb sync` · `kb restore [--at <commit>]` | Anlık görüntü, senkron, geri yükleme. Anlık görüntü satırındaki `secret_value` ve `props.id` yüklenmez (değişmez 2); çıktı yok sayılan değer sayısını verir |
 | `kb stale` · `kb check` · `kb doctor` · `kb eval` | Bakım; `kb check` tutarlılık sorunlarını ve büyüme raporunu verir (F2: yalnız tutarlılık + `git fsck`; F3: `missing-blob`, `blob-hash-mismatch`). `kb doctor` (`GET /doctor`): git, git-lfs, repo ve LFS `--local` filtresi, veri dizini 0700 |
 | `kb curator run [--if-needed]` · `kb import-memories` | Küratör |
 | `kb tui` · `kb gui` | Arayüzler. `kb tui` TamboUI 0.6.0 (F3; `--no-alt-screen` destekler); `kb gui` F5 |
 
-Çıkış kodları: 0 başarı, 1 hata/bulgu, 3 sunucuya ulaşılamıyor.
+Çıkış kodları: 0 başarı, 1 hata/bulgu/sunucu reddi ya da hatalı komut satırı, 3 sunucuya ulaşılamıyor.
+
+`-` ile başlayan bir değer (negatif sayı hariç) seçenek sanılır ve komut 1 ile reddedilir; önüne `--` koy:
+`kb fact set <id> flags -- -x`. `kb run` komut adından sonrasını zaten komuta verir. `.` ve `..` id olarak reddedilir.
 
 F2'de `kb-client` JVM jar'dır; native-image ve TUI F3'tedir. `kb init` sunucu jar'ında, Neo4j açılmadan çalışır; `revert`,
 `sync`, `restore`, `check`, `import-memories`, `run`, `secret` REST üzerinden gider. (ADR-0022).

@@ -61,11 +61,12 @@ final class JsonTree {
     static String write(Object value) {
         return switch (value) {
             case null -> "null";
-            case String text -> JsonApi.quote(text);
+            case String text -> RequestText.quote(text);
             case Map<?, ?> map -> {
                 StringJoiner out = new StringJoiner(", ", "{", "}");
                 map.forEach(
-                        (key, item) -> out.add(JsonApi.quote((String) key) + ": " + write(item)));
+                        (key, item) ->
+                                out.add(RequestText.quote((String) key) + ": " + write(item)));
                 yield out.toString();
             }
             case List<?> list -> {

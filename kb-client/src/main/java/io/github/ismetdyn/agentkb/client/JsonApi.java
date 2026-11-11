@@ -10,11 +10,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * The JSON endpoints of the local server kb calls (docs/CLIENTS.md §1: revert, restore, check): no
@@ -29,9 +25,6 @@ final class JsonApi {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     // A restore of 10,000 records takes seconds (RestorePerformanceTest); this only stops a hang.
     private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(5);
-    private static final int FIRST_PRINTABLE = 0x20;
-    private static final int SUCCESS_CLASS = 2;
-    private static final int STATUS_CLASS = 100;
     private static final Map<String, String> JSON_BODY = Map.of("Content-Type", "application/json");
 
     private final String base;
@@ -55,19 +48,18 @@ final class JsonApi {
         return new JsonApi(SecretApi.serverUrl());
     }
 
-    /** {@code text} as a JSON string, so a value with a quote cannot add a field to a body. */
-    static String quote(String text) {
-        StringBuilder out = new StringBuilder("\"");
-        for (char c : text.toCharArray()) {
-            if (c == '"' || c == '\\') {
-                out.append('\\').append(c);
-            } else if (c < FIRST_PRINTABLE) {
-                out.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
-            } else {
-                out.append(c);
-            }
-        }
-        return out.append('"').toString();
+    /**
+     * The body of {@code GET path} as the server wrote it for {@code accept} (text/markdown, or
+     * application/json for kb show --json; ADR-0025 decision 13), without terminal control
+     * characters; errors as for JSON.
+     */
+    String text(String path, String accept) {
+        HttpResponse<String> reply =
+                exchange(
+                        HttpRequest.newBuilder(URI.create(base + path))
+                                .header("Accept", accept)
+                                .GET());
+        return (String) ServerText.printable(reply.body());
     }
 
     /** The answer object; {@code get(name)} gives a String, BigDecimal, Boolean, List or Map. */
@@ -102,13 +94,6 @@ final class JsonApi {
 
     private Reply send(HttpRequest.Builder request) {
         HttpResponse<String> reply = exchange(request);
-        if (reply.statusCode() / STATUS_CLASS != SUCCESS_CLASS) {
-            throw new KbException(
-                    "the server answered "
-                            + reply.statusCode()
-                            + ": "
-                            + ServerText.printable(ServerText.error(reply)));
-        }
         if (reply.body().isBlank()) {
             return new Reply(reply.statusCode(), reply.headers(), Map.of());
         }
@@ -118,11 +103,13 @@ final class JsonApi {
         throw new KbException("the server answered with JSON that is not an object");
     }
 
+    /** The 2xx reply; any other status is the server's error and hint as exit 1. */
     private HttpResponse<String> exchange(HttpRequest.Builder request) {
         try {
-            return http.send(
-                    request.timeout(REQUEST_TIMEOUT).build(),
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return ServerText.success(
+                    http.send(
+                            request.timeout(REQUEST_TIMEOUT).build(),
+                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         } catch (HttpConnectTimeoutException e) {
             throw new KbException(unreachable, Kb.UNREACHABLE);
         } catch (HttpTimeoutException e) {
@@ -132,47 +119,6 @@ final class JsonApi {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new KbException("interrupted while waiting for " + base);
-        }
-    }
-
-    /** What the server said, made fit to print. */
-    private static final class ServerText {
-
-        // Every C0 control but tab and newline, DEL and the C1 range (U+009B is a CSI on many
-        // terminals).
-        private static final Pattern CONTROL =
-                Pattern.compile("[\\x00-\\x08\\x0b-\\x1f\\x7f-\\x9f]");
-
-        private ServerText() {}
-
-        /**
-         * Server text as kb may print it: strings without terminal control characters, so a record
-         * or an error cannot move the cursor, clear the screen or retitle the window.
-         */
-        static Object printable(Object value) {
-            return switch (value) {
-                case String text -> CONTROL.matcher(text).replaceAll("");
-                case Map<?, ?> map -> {
-                    Map<Object, Object> clean = new LinkedHashMap<>();
-                    map.forEach((key, item) -> clean.put(key, printable(item)));
-                    yield clean;
-                }
-                case List<?> list -> list.stream().map(ServerText::printable).toList();
-                case null, default -> value;
-            };
-        }
-
-        /** {@code error; hint} of a refusal, else the body as it came. */
-        static String error(HttpResponse<String> reply) {
-            try {
-                if (Json.parse(reply.body()) instanceof Map<?, ?> body
-                        && body.get("error") instanceof String error) {
-                    return body.get("hint") instanceof String hint ? error + "; " + hint : error;
-                }
-            } catch (KbException e) {
-                // Not JSON (a proxy page, an empty 404): shown as it came.
-            }
-            return reply.body().strip();
         }
     }
 }

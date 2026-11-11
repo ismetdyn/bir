@@ -9,9 +9,10 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 /**
- * The {@code kb} command (docs/CLIENTS.md, F2 subset): a thin client of the local server's REST
- * API; it never opens the graph (ADR-0022 decision 3). Output is UTF-8 whatever the locale says, so
- * a value can be piped exactly.
+ * The {@code kb} command (docs/CLIENTS.md §2): a thin client of the local server's REST API; it
+ * never opens the graph (ADR-0022 decision 3) and holds no business rule (ARCHITECTURE §1). Output
+ * is UTF-8 whatever the locale says, so a value can be piped exactly. Exit codes: 0, 1 for an error
+ * or a wrong command line, 3 when the server cannot be reached; kb run passes on its command's.
  */
 @Command(
         name = "kb",
@@ -25,6 +26,23 @@ import picocli.CommandLine.Command;
             MaintenanceCommands.Sync.class,
             MaintenanceCommands.Check.class,
             ImportMemoriesCommand.class,
+            ReadCommands.Search.class,
+            ReadCommands.Stale.class,
+            ReadCommands.Show.class,
+            ReadCommands.Cypher.class,
+            EntityCommands.Add.class,
+            EntityCommands.Edit.class,
+            EntityCommands.Archive.class,
+            EntityCommands.Unarchive.class,
+            FactCommands.Fact.class,
+            FactCommands.Rel.class,
+            ReviewCommands.Conflicts.class,
+            ReviewCommands.Resolve.class,
+            ReviewCommands.Proposals.class,
+            ReviewCommands.Accept.class,
+            ReviewCommands.Reject.class,
+            ReviewCommands.Activity.class,
+            ScanCommand.class,
             KbTuiCommand.class
         })
 public final class Kb {
@@ -42,8 +60,6 @@ public final class Kb {
         PrintWriter err = utf8(System.err);
         CommandLine cli =
                 new CommandLine(new Kb())
-                        // kb run -- sh -c ...: everything after the command name is the command's.
-                        .setStopAtPositional(true)
                         .setOut(out)
                         .setErr(err)
                         .setExecutionExceptionHandler(
@@ -53,7 +69,13 @@ public final class Kb {
                                     // no value; a JDK message may quote one.
                                     command.getErr().println("kb: " + message(e));
                                     return e instanceof KbException kb ? kb.exitCode() : FAILED;
-                                });
+                                })
+                        // A wrong command line is bad input, exit 1 (docs/CLIENTS.md §2 has no 2).
+                        // Set last: it reaches only the subcommands already added.
+                        .setExitCodeExceptionMapper(e -> FAILED);
+        // kb run -- sh -c ...: everything after the command name is the command's. Only kb run:
+        // elsewhere an option may follow a positional (kb fact set <id> <key> <value> --env x).
+        cli.getSubcommands().get("run").setStopAtPositional(true);
         int exitCode = cli.execute(args);
         out.flush();
         err.flush();

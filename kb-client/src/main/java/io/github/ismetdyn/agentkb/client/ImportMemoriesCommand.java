@@ -114,11 +114,11 @@ final class ImportMemoriesCommand implements Callable<Integer> {
         for (Memory memory : memories) {
             list.add(
                     "{\"source\": "
-                            + JsonApi.quote(memory.source())
+                            + RequestText.quote(memory.source())
                             + ", \"path\": "
-                            + JsonApi.quote(memory.path())
+                            + RequestText.quote(memory.path())
                             + ", \"text\": "
-                            + JsonApi.quote(memory.text())
+                            + RequestText.quote(memory.text())
                             + "}");
         }
         return list.toString();

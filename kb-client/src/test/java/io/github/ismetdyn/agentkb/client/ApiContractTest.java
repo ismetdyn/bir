@@ -4,11 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import io.github.ismetdyn.agentkb.api.ActivityAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
+import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
+import io.github.ismetdyn.agentkb.api.CypherAnswer;
+import io.github.ismetdyn.agentkb.api.EditAnswer;
+import io.github.ismetdyn.agentkb.api.EntityAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
+import io.github.ismetdyn.agentkb.api.ProposalsAnswer;
 import io.github.ismetdyn.agentkb.api.RestoreAnswer;
 import io.github.ismetdyn.agentkb.api.RevertAnswer;
+import io.github.ismetdyn.agentkb.api.ScanAnswer;
+import io.github.ismetdyn.agentkb.api.SearchAnswer;
+import io.github.ismetdyn.agentkb.api.SecretsAnswer;
 import io.github.ismetdyn.agentkb.api.SyncAnswer;
+import io.github.ismetdyn.agentkb.api.WriteAnswer;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,15 +35,14 @@ import org.junit.jupiter.params.provider.MethodSource;
  * The client half of the kb-api contract (ADR-0025 decision 6, plan.md H2): Json.java maps each
  * file under fixtures/api/ to a record equal to the one the server writes as that file (kb-server
  * ApiContractTest lists the same pairs). Jackson is not used: it made native kb 55.8 MB. A field
- * the record does not know is ignored at every depth; a field the record needs that is missing,
- * null or of another type is a KbException with exit 1, never a NullPointerException or a default.
+ * the record does not know is ignored at every depth; a field the record needs (every component not
+ * marked @Nullable, read by RecordFields) that is missing, null or of another type is a KbException
+ * with exit 1, never a NullPointerException or a default (NullableFieldsTest has the @Nullable
+ * ones).
  */
 class ApiContractTest {
 
     private static final Path CONTRACT = Path.of("..", "fixtures", "api");
-    // The record components that are @Nullable, as "file:field"; every other field is required.
-    private static final Set<String> OPTIONAL =
-            Set.of("sync-answer.json:commit", "sync-answer-no-commit.json:commit");
 
     static Stream<Arguments> samples() {
         return Stream.of(
@@ -77,7 +85,22 @@ class ApiContractTest {
                 arguments(
                         "memory-import-answer.json",
                         MemoryImportAnswer.class,
-                        new MemoryImportAnswer(4, 3, 1)));
+                        new MemoryImportAnswer(4, 3, 1)),
+                arguments("search-answer.json", SearchAnswer.class, H6Samples.SEARCH),
+                arguments(
+                        "search-answer-empty.json",
+                        SearchAnswer.class,
+                        new SearchAnswer(List.of(), 0)),
+                arguments("entity-answer.json", EntityAnswer.class, H6Samples.ENTITY),
+                arguments("entity-answer-bare.json", EntityAnswer.class, H6Samples.BARE_ENTITY),
+                arguments("write-answer.json", WriteAnswer.class, H6Samples.WRITE),
+                arguments("edit-answer.json", EditAnswer.class, new EditAnswer(H6Samples.BATCH)),
+                arguments("cypher-answer.json", CypherAnswer.class, H6Samples.CYPHER),
+                arguments("conflicts-answer.json", ConflictsAnswer.class, H6Samples.CONFLICTS),
+                arguments("proposals-answer.json", ProposalsAnswer.class, H6Samples.PROPOSALS),
+                arguments("activity-answer.json", ActivityAnswer.class, H6Samples.ACTIVITY),
+                arguments("secrets-answer.json", SecretsAnswer.class, H6Samples.SECRETS),
+                arguments("scan-answer.json", ScanAnswer.class, H6Samples.SCAN));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -108,7 +131,7 @@ class ApiContractTest {
             Object type = sample.get()[1];
             Object parsed = Json.parse(contract(file));
             for (List<Object> path : JsonTree.objectFields(parsed)) {
-                if (OPTIONAL.contains(file + ":" + path.getLast())) {
+                if (RecordFields.isNullable((Class<?>) type, path)) {
                     continue;
                 }
                 Object wrong =

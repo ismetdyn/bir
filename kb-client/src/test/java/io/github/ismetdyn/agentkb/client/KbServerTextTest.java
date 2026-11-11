@@ -1,12 +1,14 @@
 package io.github.ismetdyn.agentkb.client;
 
+import static io.github.ismetdyn.agentkb.client.HostileText.CONTROL;
+import static io.github.ismetdyn.agentkb.client.HostileText.HOSTILE;
+import static io.github.ismetdyn.agentkb.client.HostileText.assertStripped;
+import static io.github.ismetdyn.agentkb.client.HostileText.escaped;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.ismetdyn.agentkb.client.KbProcess.Result;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Locale;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +26,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  * carriage return, backspace, DEL and the C1 CSI U+009B, which many terminals take as ESC [.
  */
 class KbServerTextTest {
-
-    // JSON string content: ESC[2J clears the screen, ESC]0;…BEL retitles the window.
-    private static final String HOSTILE =
-            "kbtest-before\\u001b[2J\\u001b]0;kbtest-title\\u0007\\rkbtest-after\\b\\u007f\\u009b31m";
-    // Every C0 control but tab and newline, DEL and the C1 range.
-    private static final Pattern CONTROL =
-            Pattern.compile("[\\x00-\\x08\\x0b-\\x1f\\x7f\\x{80}-\\x{9f}]");
 
     @TempDir Path workDir;
 
@@ -141,27 +136,5 @@ class KbServerTextTest {
         Result result = server.kb(workDir, "check");
 
         assertThat(result.stdout()).contains("kbtest-line-one\tcolumn\nkbtest-line-two");
-    }
-
-    private static void assertStripped(String printed) {
-        assertThat(printed).contains("kbtest-before", "kbtest-title", "kbtest-after");
-        assertThat(CONTROL.matcher(printed).find())
-                .as("control character in %s", escaped(printed))
-                .isFalse();
-    }
-
-    /** The printed text with control characters made visible, for a readable failure. */
-    private static String escaped(String text) {
-        StringBuilder out = new StringBuilder();
-        text.codePoints()
-                .forEach(
-                        c -> {
-                            if (Character.getType(c) == Character.CONTROL && c != '\n') {
-                                out.append(String.format(Locale.ROOT, "\\u%04x", c));
-                            } else {
-                                out.appendCodePoint(c);
-                            }
-                        });
-        return out.toString();
     }
 }

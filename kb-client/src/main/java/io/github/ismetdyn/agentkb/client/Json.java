@@ -1,16 +1,27 @@
 package io.github.ismetdyn.agentkb.client;
 
+import io.github.ismetdyn.agentkb.api.ActivityAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
+import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
+import io.github.ismetdyn.agentkb.api.CypherAnswer;
+import io.github.ismetdyn.agentkb.api.EditAnswer;
+import io.github.ismetdyn.agentkb.api.EntityAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
+import io.github.ismetdyn.agentkb.api.ProposalsAnswer;
 import io.github.ismetdyn.agentkb.api.RestoreAnswer;
 import io.github.ismetdyn.agentkb.api.RevertAnswer;
+import io.github.ismetdyn.agentkb.api.ScanAnswer;
+import io.github.ismetdyn.agentkb.api.SearchAnswer;
+import io.github.ismetdyn.agentkb.api.SecretsAnswer;
 import io.github.ismetdyn.agentkb.api.SyncAnswer;
+import io.github.ismetdyn.agentkb.api.WriteAnswer;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,50 +37,65 @@ import org.jspecify.annotations.Nullable;
 final class Json {
 
     // One entry per kb-api record kb reads; a new record needs its line here (ApiContractTest).
+    // The F3 records are read in AnswerReaders, so this class stays a parser.
     private static final Map<Class<? extends Record>, Function<Fields, Record>> READERS =
-            Map.of(
-                    RevertAnswer.class,
-                    answer ->
-                            new RevertAnswer(
-                                    answer.text("batch"),
-                                    answer.count("deleted"),
-                                    answer.count("reopened"),
-                                    answer.count("deletedSecretValues")),
-                    RestoreAnswer.class,
-                    answer ->
-                            new RestoreAnswer(
-                                    answer.count("nodes"),
-                                    answer.count("edges"),
-                                    answer.count("keptSecrets"),
-                                    answer.count("keptSignals"),
-                                    answer.count("droppedEdges"),
-                                    answer.count("droppedSecretValues")),
-                    SyncAnswer.class,
-                    answer ->
-                            new SyncAnswer(
-                                    answer.optionalText("commit"),
-                                    answer.flag("pushed"),
-                                    answer.count("nodes"),
-                                    answer.count("edges"),
-                                    answer.count("conflicts")),
-                    CheckAnswer.class,
-                    answer ->
-                            new CheckAnswer(
-                                    answer.flag("clean"),
-                                    answer.objects("problems").stream()
-                                            .map(
+            Map.ofEntries(
+                    reader(
+                            RevertAnswer.class,
+                            answer ->
+                                    new RevertAnswer(
+                                            answer.text("batch"),
+                                            answer.count("deleted"),
+                                            answer.count("reopened"),
+                                            answer.count("deletedSecretValues"))),
+                    reader(
+                            RestoreAnswer.class,
+                            answer ->
+                                    new RestoreAnswer(
+                                            answer.count("nodes"),
+                                            answer.count("edges"),
+                                            answer.count("keptSecrets"),
+                                            answer.count("keptSignals"),
+                                            answer.count("droppedEdges"),
+                                            answer.count("droppedSecretValues"))),
+                    reader(
+                            SyncAnswer.class,
+                            answer ->
+                                    new SyncAnswer(
+                                            answer.optionalText("commit"),
+                                            answer.flag("pushed"),
+                                            answer.count("nodes"),
+                                            answer.count("edges"),
+                                            answer.count("conflicts"))),
+                    reader(
+                            CheckAnswer.class,
+                            answer ->
+                                    new CheckAnswer(
+                                            answer.flag("clean"),
+                                            answer.list(
+                                                    "problems",
                                                     problem ->
                                                             new CheckAnswer.Problem(
                                                                     problem.text("kind"),
                                                                     problem.text("id"),
-                                                                    problem.text("detail")))
-                                            .toList()),
-                    MemoryImportAnswer.class,
-                    answer ->
-                            new MemoryImportAnswer(
-                                    answer.count("received"),
-                                    answer.count("opened"),
-                                    answer.count("truncated")));
+                                                                    problem.text("detail"))))),
+                    reader(
+                            MemoryImportAnswer.class,
+                            answer ->
+                                    new MemoryImportAnswer(
+                                            answer.count("received"),
+                                            answer.count("opened"),
+                                            answer.count("truncated"))),
+                    reader(SearchAnswer.class, AnswerReaders::search),
+                    reader(EntityAnswer.class, AnswerReaders::entity),
+                    reader(WriteAnswer.class, AnswerReaders::write),
+                    reader(EditAnswer.class, answer -> new EditAnswer(answer.text("batch"))),
+                    reader(CypherAnswer.class, AnswerReaders::cypher),
+                    reader(ConflictsAnswer.class, AnswerReaders::conflicts),
+                    reader(ProposalsAnswer.class, AnswerReaders::proposals),
+                    reader(ActivityAnswer.class, AnswerReaders::activity),
+                    reader(SecretsAnswer.class, AnswerReaders::secrets),
+                    reader(ScanAnswer.class, AnswerReaders::scan));
 
     private Json() {}
 
@@ -97,8 +123,15 @@ final class Json {
         return type.cast(reader.apply(Fields.of(value, type.getSimpleName())));
     }
 
+    /** One READERS entry; the type parameter keeps a reader to its own record. */
+    private static <T extends Record>
+            Entry<Class<? extends Record>, Function<Fields, Record>> reader(
+                    Class<T> type, Function<Fields, T> read) {
+        return Map.entry(type, read::apply);
+    }
+
     /** The fields of one answer object of kb-api record {@code type}, read by name and kind. */
-    private record Fields(Map<?, ?> map, String type) {
+    record Fields(Map<?, ?> map, String type) {
 
         static Fields of(@Nullable Object value, String type) {
             if (value instanceof Map<?, ?> map) {
@@ -137,7 +170,21 @@ final class Json {
             throw missing(name, "true or false");
         }
 
-        List<Fields> objects(String name) {
+        /** A list of text; any other element is a missing field, not a default. */
+        List<String> texts(String name) {
+            if (map.get(name) instanceof List<?> list
+                    && list.stream().allMatch(String.class::isInstance)) {
+                return list.stream().map(String.class::cast).toList();
+            }
+            throw missing(name, "list of text");
+        }
+
+        /** Each object of list {@code name} read by {@code read}. */
+        <T> List<T> list(String name, Function<Fields, T> read) {
+            return objects(name).stream().map(read).toList();
+        }
+
+        private List<Fields> objects(String name) {
             if (map.get(name) instanceof List<?> list) {
                 List<Fields> objects = new ArrayList<>(list.size());
                 for (Object item : list) {

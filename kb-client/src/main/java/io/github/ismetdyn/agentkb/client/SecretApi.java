@@ -145,9 +145,15 @@ final class SecretApi {
         }
     }
 
-    /** The server's error body names what is wrong and never holds the value. */
+    /**
+     * The server's error body names what is wrong and never holds the value; its control characters
+     * go, as for every server text.
+     */
     private static KbException refused(HttpResponse<String> reply) {
         return new KbException(
-                "the server answered " + reply.statusCode() + " " + reply.body().strip());
+                "the server answered "
+                        + reply.statusCode()
+                        + " "
+                        + ServerText.printable(reply.body().strip()));
     }
 }
