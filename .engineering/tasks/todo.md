@@ -114,12 +114,25 @@ Plan: `.engineering/tasks/plan.md`. Plan onaylandı 2026-11-01; devir: `.enginee
 - [x] CP3 İnceleme
   Kanıt: java-reviewer (4 LOW + 3 hipotez) + security-reviewer (1 Sev-2, 5 Sev-3) → hepsi testle düzeltildi; J5/J6 hipotezleri gerçekti (sync'te kapatma kazanır).
   Açık (H6/H7'de ele al): kabul edilen şema anahtarı `schema/facts.yaml` `kb sync` ile taşınmıyor; normal (closed_batch'siz) kapatma sync'te "sonra yazan kazanır"a tabi; MCP `WriteTools.java:269` çelişki mesajı ilişkileri "fact" diye sayıyor; REST'te alias sayısı/gövde limiti.
-- [ ] H6 Kalan REST + CLI
-- [ ] H7 Doküman okuma, `kb doctor`, bütünlük
-- [ ] CP4 İnceleme
+- [x] H6 Kalan REST + CLI
+  Kanıt: `7e243eb` (21 REST ucu), `8153990` (19 `kb` komutu); java + security review her iki yarıda, bulgular testle düzeltildi. `2602b72`, `e2a196b` (CWE-59 symlink sertleştirme, okuma tarafı dahil).
+- [x] H7 Doküman okuma, `/doctor`, bütünlük (sunucu)
+  Kanıt: `a9e86c8`; `kb_read doc:`, `source.document` FROM, `GET /documents*`, `GET /doctor`, `kb check` missing-blob/blob-hash-mismatch; CP4 Sev-2 (senkron symlink'e yol verme) kapandı. Birleşik `clean verify` exit 0 (kb-core 3233, kb-server 1596, kb-client 815), gate 0.
+  Kalan (istemci): `kb doc add` (parça yükleme), `kb doc list`, `kb doctor`; `kb --version` boş (Kb.java version yok).
+- [x] CP4 İnceleme (H6 + H7)
+- [x] H9a `install.sh`: native varsa onu, yoksa jar
+  Kanıt: `e292dff`; gerçek Mandrel native ile uçtan uca (dry-run yazmaz, 2. koşu değişmez). Native build bu makinede çalışıyor.
 - [ ] H8a TUI 1 · H8b TUI 2
-- [ ] H9 Native dağıtım + kurulum
+- [ ] H9b Native dağıtım (Windows: kb.exe, install.ps1 — W fazında)
 - [ ] CP5 Bitti tanımı: her işlem TUI'den
+
+## W — Windows desteği (kullanıcı: "şimdi, F3 ile birlikte", doğrudan Java; 2026-11-11)
+- [ ] W0 ADR-0026 + Windows test makinesi (dockur/windows konteyneri; kullanıcı onayı + ISO bekleniyor)
+- [ ] W1 Yollar (%LOCALAPPDATA%, AGENTKB_HOME) + owner-only ACL (POSIX 0700 karşılığı) + `kb run` temp dosyası
+- [ ] W2 `kb hook <olay>` alt komutu (bash/curl bağımlılığı kalkar)
+- [ ] W3 `install.ps1` + Görev Zamanlayıcı (servis, sync, curator)
+- [ ] W4 Windows'ta `./mvnw verify` (POSIX'e özgü testlerin Windows karşılığı) + `kb.exe`
+  Etki analizi: `/tmp/.../scratchpad/win-impact.md` (oturum notu); TUI/GUI referansı `.engineering/design/tui-gui-references.md`.
 
 ## Bekleyen (kullanıcı kararıyla ertelendi, 2026-11-07)
 - [ ] Kullanıcının gerçek Claude Code ve Codex ayarlarına geçiş: MCP sunucusu, hook'lar, AGENT-RULES, yerleşik hafızayı kapatma (önce `kb import-memories`). Adımlar `integrations/claude-code/setup.md`, `integrations/codex/setup.md`; önizleme `integrations/install.sh --dry-run`. Geçişte Codex hook'larını gerçek ayarla ölç (bugün yalnız kaynak koddan). Kullanıcı "şimdilik kalsın" dedi.
