@@ -49,7 +49,7 @@ final class KbCommandCases {
     private KbCommandCases() {}
 
     static Stream<Case> all() {
-        return Stream.of(reads(), reviews(), writes(), records(), decisions())
+        return Stream.of(reads(), reviews(), writes(), records(), decisions(), documents())
                 .flatMap(cases -> cases);
     }
 
@@ -318,6 +318,40 @@ final class KbCommandCases {
                                         + " kb:secret/ornek-proje/prod/spring.datasource.password\n",
                                 "findings: ornek-db.ornek.example\n",
                                 "skipped: src/x.yml:3: the value looks like a secret\n")));
+    }
+
+    /** plan.md H7: the document list and one document's metadata. */
+    private static Stream<Case> documents() {
+        return Stream.of(
+                new Case(
+                        "doc list",
+                        List.of("doc", "list", "--limit", "1"),
+                        "GET",
+                        "/api/v1/documents",
+                        "limit=1",
+                        List.of(),
+                        contract("document-list-answer.json"),
+                        List.of(
+                                "doc:0a1b2c3d4e5f  zz-big.bin  26214400 bytes"
+                                        + "  2026-11-10T09:30:00Z\n",
+                                "more documents not shown\n")),
+                new Case(
+                        "doc show",
+                        List.of("doc", "show", "doc:ded48257b6f3"),
+                        "GET",
+                        "/api/v1/documents/doc%3Aded48257b6f3",
+                        "",
+                        List.of(),
+                        contract("document-answer.json"),
+                        List.of(
+                                "doc:ded48257b6f3  ornek-proje-çalıştırma İ.md\n",
+                                "sha256: ded48257b6f34156d85bfd03c6aa6c4d3724d713d417771e1ccf7c68d398dbf4\n",
+                                "mime: text/markdown\n",
+                                "size: 263 bytes\n",
+                                "origin: wiki.ornek.example/ornek-proje/calistirma\n",
+                                "added: 2026-10-30T14:00:00Z\n",
+                                "path: /home/kbtest/kb/blobs/de/ded48257",
+                                "about: ornek-proje, ornek-app-01\n")));
     }
 
     /** What every write that answers write-answer.json prints. */

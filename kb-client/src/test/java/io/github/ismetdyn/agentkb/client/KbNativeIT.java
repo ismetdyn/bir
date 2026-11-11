@@ -202,7 +202,16 @@ class KbNativeIT extends KbTerminalScenarios {
                         "{\"clean\":false,\"problems\":[{\"kind\":\"dangling-edge\","
                                 + "\"id\":\"e1\",\"detail\":\"no target ş\"}]}",
                         1,
-                        new String[] {"check"}));
+                        new String[] {"check"}),
+                arguments(
+                        "GET",
+                        "/api/v1/doctor",
+                        200,
+                        "{\"ok\":true,\"checks\":[{\"name\":\"git\",\"ok\":true,\"hint\":null}]}",
+                        0,
+                        new String[] {"doctor"}),
+                // plan.md H7: the filtered version resource is in the image (resource-config.json).
+                arguments("GET", "/unused", 200, "{}", 0, new String[] {"--version"}));
     }
 
     /** kb's output and what it sent, so two runs can be compared as one value. */

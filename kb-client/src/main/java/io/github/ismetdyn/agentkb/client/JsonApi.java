@@ -11,6 +11,7 @@ import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The JSON endpoints of the local server kb calls (docs/CLIENTS.md §1: revert, restore, check): no
@@ -24,11 +25,16 @@ final class JsonApi {
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     // A restore of 10,000 records takes seconds (RestorePerformanceTest); this only stops a hang.
-    private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(5);
+    static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(5);
     private static final Map<String, String> JSON_BODY = Map.of("Content-Type", "application/json");
 
     private final String base;
-    private final String unreachable;
+    private final Duration timeout;
+    // What a broken connection is: the lost message if there is one, else an unreachable server.
+    private final String broken;
+    // What no answer in time is: the lost message (exit 3) if there is one, else a failure.
+    private final String late;
+    private final int lateExitCode;
     private final HttpClient http =
             HttpClient.newBuilder()
                     .version(HttpClient.Version.HTTP_1_1)
@@ -39,9 +45,25 @@ final class JsonApi {
     record Reply(int status, HttpHeaders headers, Map<?, ?> body) {}
 
     JsonApi(String base) {
+        this(base, REQUEST_TIMEOUT, null);
+    }
+
+    /**
+     * Requests that wait up to {@code timeout}. With {@code lost} set (the parts and completion of
+     * an upload whose PUT answered, H7 review), a broken connection or a server that does not
+     * answer in time is that message with exit 3, because the same command resumes the upload.
+     */
+    JsonApi(String base, Duration timeout, @Nullable String lost) {
         this.base = base;
-        this.unreachable =
-                "cannot reach the agentkb server at " + base + " (AGENTKB_URL); is it running?";
+        this.timeout = timeout;
+        this.late = lost != null ? lost : "the server at " + base + " did not answer in time";
+        this.lateExitCode = lost != null ? Kb.UNREACHABLE : Kb.FAILED;
+        this.broken =
+                lost != null
+                        ? lost
+                        : "cannot reach the agentkb server at "
+                                + base
+                                + " (AGENTKB_URL); is it running?";
     }
 
     static JsonApi fromEnvironment() {
@@ -108,14 +130,14 @@ final class JsonApi {
         try {
             return ServerText.success(
                     http.send(
-                            request.timeout(REQUEST_TIMEOUT).build(),
+                            request.timeout(timeout).build(),
                             HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         } catch (HttpConnectTimeoutException e) {
-            throw new KbException(unreachable, Kb.UNREACHABLE);
+            throw new KbException(broken, Kb.UNREACHABLE);
         } catch (HttpTimeoutException e) {
-            throw new KbException("the server at " + base + " did not answer in time");
+            throw new KbException(late, lateExitCode);
         } catch (IOException e) {
-            throw new KbException(unreachable, Kb.UNREACHABLE);
+            throw new KbException(broken, Kb.UNREACHABLE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new KbException("interrupted while waiting for " + base);

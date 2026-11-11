@@ -8,6 +8,9 @@ import io.github.ismetdyn.agentkb.api.ActivityAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
 import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
+import io.github.ismetdyn.agentkb.api.DoctorAnswer;
+import io.github.ismetdyn.agentkb.api.DocumentAnswer;
+import io.github.ismetdyn.agentkb.api.DocumentListAnswer;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.EntityAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
@@ -43,6 +46,50 @@ import org.junit.jupiter.params.provider.MethodSource;
 class ApiContractTest {
 
     private static final Path CONTRACT = Path.of("..", "fixtures", "api");
+
+    static final DocumentAnswer DOCUMENT =
+            new DocumentAnswer(
+                    "doc:ded48257b6f3",
+                    "ornek-proje-çalıştırma İ.md",
+                    "ded48257b6f34156d85bfd03c6aa6c4d3724d713d417771e1ccf7c68d398dbf4",
+                    "text/markdown",
+                    263L,
+                    "wiki.ornek.example/ornek-proje/calistirma",
+                    "2026-10-30T14:00:00Z",
+                    "/home/kbtest/kb/blobs/de/"
+                            + "ded48257b6f34156d85bfd03c6aa6c4d3724d713d417771e1ccf7c68d398dbf4",
+                    List.of("ornek-proje", "ornek-app-01"));
+
+    private static final DoctorAnswer DOCTOR =
+            new DoctorAnswer(
+                    false,
+                    List.of(
+                            new DoctorAnswer.Check("git", true, null),
+                            new DoctorAnswer.Check(
+                                    "git-lfs",
+                                    false,
+                                    "Install git-lfs; documents over the LFS threshold need it."),
+                            new DoctorAnswer.Check("repo", true, null),
+                            new DoctorAnswer.Check("lfs-filter", true, null),
+                            new DoctorAnswer.Check(
+                                    "data-dir",
+                                    false,
+                                    "Make the data directory (agentkb.data-dir) owner-only:"
+                                            + " chmod 700.")));
+
+    private static final String BIG_SHA =
+            "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9";
+    private static final DocumentAnswer BIG_DOCUMENT =
+            new DocumentAnswer(
+                    "doc:0a1b2c3d4e5f",
+                    "zz-big.bin",
+                    BIG_SHA,
+                    "application/octet-stream",
+                    26_214_400L,
+                    null,
+                    "2026-11-10T09:30:00Z",
+                    "/home/kbtest/kb/blobs/0a/" + BIG_SHA,
+                    List.of());
 
     static Stream<Arguments> samples() {
         return Stream.of(
@@ -100,7 +147,13 @@ class ApiContractTest {
                 arguments("proposals-answer.json", ProposalsAnswer.class, H6Samples.PROPOSALS),
                 arguments("activity-answer.json", ActivityAnswer.class, H6Samples.ACTIVITY),
                 arguments("secrets-answer.json", SecretsAnswer.class, H6Samples.SECRETS),
-                arguments("scan-answer.json", ScanAnswer.class, H6Samples.SCAN));
+                arguments("scan-answer.json", ScanAnswer.class, H6Samples.SCAN),
+                arguments("document-answer.json", DocumentAnswer.class, DOCUMENT),
+                arguments(
+                        "document-list-answer.json",
+                        DocumentListAnswer.class,
+                        new DocumentListAnswer(List.of(BIG_DOCUMENT), true)),
+                arguments("doctor-answer.json", DoctorAnswer.class, DOCTOR));
     }
 
     @ParameterizedTest(name = "{0}")

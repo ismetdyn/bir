@@ -4,6 +4,9 @@ import io.github.ismetdyn.agentkb.api.ActivityAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
 import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
+import io.github.ismetdyn.agentkb.api.DoctorAnswer;
+import io.github.ismetdyn.agentkb.api.DocumentAnswer;
+import io.github.ismetdyn.agentkb.api.DocumentListAnswer;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.EntityAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
@@ -37,7 +40,8 @@ import org.jspecify.annotations.Nullable;
 final class Json {
 
     // One entry per kb-api record kb reads; a new record needs its line here (ApiContractTest).
-    // The F3 records are read in AnswerReaders, so this class stays a parser.
+    // The larger F3 records are read in AnswerReaders and DocumentReaders, so this class stays a
+    // parser.
     private static final Map<Class<? extends Record>, Function<Fields, Record>> READERS =
             Map.ofEntries(
                     reader(
@@ -95,7 +99,21 @@ final class Json {
                     reader(ProposalsAnswer.class, AnswerReaders::proposals),
                     reader(ActivityAnswer.class, AnswerReaders::activity),
                     reader(SecretsAnswer.class, AnswerReaders::secrets),
-                    reader(ScanAnswer.class, AnswerReaders::scan));
+                    reader(ScanAnswer.class, AnswerReaders::scan),
+                    reader(DocumentAnswer.class, DocumentReaders::document),
+                    reader(DocumentListAnswer.class, DocumentReaders::documents),
+                    reader(
+                            DoctorAnswer.class,
+                            answer ->
+                                    new DoctorAnswer(
+                                            answer.flag("ok"),
+                                            answer.list(
+                                                    "checks",
+                                                    check ->
+                                                            new DoctorAnswer.Check(
+                                                                    check.text("name"),
+                                                                    check.flag("ok"),
+                                                                    check.optionalText("hint"))))));
 
     private Json() {}
 
@@ -156,6 +174,22 @@ final class Json {
             if (map.get(name) instanceof BigDecimal number) {
                 try {
                     return number.intValueExact();
+                } catch (ArithmeticException e) {
+                    throw missing(name, "whole number");
+                }
+            }
+            throw missing(name, "whole number");
+        }
+
+        /** A whole number that may be null, e.g. a byte count past the int range. */
+        @Nullable Long optionalNumber(String name) {
+            Object value = map.get(name);
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof BigDecimal number) {
+                try {
+                    return number.longValueExact();
                 } catch (ArithmeticException e) {
                     throw missing(name, "whole number");
                 }

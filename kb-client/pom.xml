@@ -92,6 +92,23 @@
   </dependencies>
 
   <build>
+    <!-- The version kb prints (Kb.Version): only kb-version.properties is filtered, with the Boot parent's @ delimiter.
+         This list replaces the parent's, which filters application*.yml/properties; kb-client has none. -->
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>**/kb-version.properties</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <excludes>
+          <exclude>**/kb-version.properties</exclude>
+        </excludes>
+      </resource>
+    </resources>
     <plugins>
       <!-- install.sh runs this jar as `java -jar`: the plugin kb-server already uses makes it self-contained
            (picocli inside, Main-Class set). No Spring code is added; the jar only gets the Boot launcher. -->

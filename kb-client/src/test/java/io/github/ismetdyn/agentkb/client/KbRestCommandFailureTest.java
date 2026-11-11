@@ -109,7 +109,11 @@ class KbRestCommandFailureTest {
                 "fact close .",
                 "show ..",
                 "rel close ..",
-                "edit ornek-app-01 --alias app01 --clear-aliases"
+                "edit ornek-app-01 --alias app01 --clear-aliases",
+                "doc show ..",
+                "doc list --limit many",
+                "doc add",
+                "doctor extra"
             })
     void a_wrong_command_line_exits_one_without_a_request(String command) {
         Result result = server.kb(workDir, command.split(" "));

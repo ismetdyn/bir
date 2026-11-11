@@ -1,10 +1,13 @@
 package io.github.ismetdyn.agentkb.client;
 
 import io.github.ismetdyn.agentkb.client.tui.KbTuiCommand;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -17,6 +20,7 @@ import picocli.CommandLine.Command;
 @Command(
         name = "kb",
         mixinStandardHelpOptions = true,
+        versionProvider = Kb.Version.class,
         description = "Client of the local agentkb server.",
         subcommands = {
             SecretCommand.class,
@@ -43,9 +47,30 @@ import picocli.CommandLine.Command;
             ReviewCommands.Reject.class,
             ReviewCommands.Activity.class,
             ScanCommand.class,
+            DocCommands.Doc.class,
+            DoctorCommand.class,
             KbTuiCommand.class
         })
 public final class Kb {
+
+    /**
+     * kb --version: the Maven project.version, which the build writes into kb-version.properties
+     * (kb-client pom.xml); native kb carries the file through resource-config.json.
+     */
+    static final class Version implements CommandLine.IVersionProvider {
+
+        @Override
+        public String[] getVersion() throws IOException {
+            Properties version = new Properties();
+            try (InputStream in = Kb.class.getResourceAsStream("kb-version.properties")) {
+                if (in == null) {
+                    throw new IOException("kb-version.properties is missing from kb");
+                }
+                version.load(in);
+            }
+            return new String[] {"kb " + version.getProperty("version")};
+        }
+    }
 
     /** kb itself failed; for kb run, the command did not start; for kb check, it found problems. */
     static final int FAILED = 1;

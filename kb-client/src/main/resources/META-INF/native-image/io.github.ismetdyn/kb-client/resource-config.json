@@ -3,6 +3,9 @@
     "includes": [
       {
         "pattern": "\\Qdev/tamboui/tui/bindings/\\E.*\\.properties"
+      },
+      {
+        "pattern": "\\Qio/github/ismetdyn/agentkb/client/kb-version.properties\\E"
       }
     ]
   }
