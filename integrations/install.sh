@@ -60,9 +60,6 @@ if [[ "$java_bin" =~ [[:space:]] ]]; then
 fi
 command -v git >/dev/null || die "git not found on PATH; install it with your package manager (package: git)"
 command -v systemctl >/dev/null || die "systemctl not found; agentkb runs as a systemd user service"
-if ! command -v curl >/dev/null; then
-  echo "WARN: curl not found; kb-hook.sh needs it (hooks fail open without it)" >&2
-fi
 
 # Native kb: unset = this checkout's build if present; empty = jar; a given path must be executable.
 if [[ -z "${AGENTKB_CLIENT_NATIVE+set}" ]]; then

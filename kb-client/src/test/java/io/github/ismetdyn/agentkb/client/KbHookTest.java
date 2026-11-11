@@ -15,9 +15,11 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -195,8 +197,69 @@ class KbHookTest {
     }
 
     /**
+     * A proxy the JVM is told to use for every host, loopback included, gets nothing: the request
+     * goes straight to the server (the curl script's {@code --noproxy '*'}).
+     */
+    @Test
+    void a_proxy_from_the_jvm_options_is_not_used() throws IOException {
+        stub = new HookStub(200, Duration.ZERO);
+        try (ServerSocket proxy = new ServerSocket(0)) {
+            List<String> launcher = new ArrayList<>(KbProcess.jvm(Map.of()));
+            launcher.addAll(
+                    1,
+                    List.of(
+                            "-Dhttp.proxyHost=127.0.0.1",
+                            "-Dhttp.proxyPort=" + proxy.getLocalPort(),
+                            "-Dhttp.nonProxyHosts="));
+
+            Result result =
+                    KbProcess.run(
+                            launcher,
+                            stub.url(),
+                            HOOKS_ON,
+                            PAYLOAD,
+                            workDir,
+                            "hook",
+                            "session-start");
+
+            assertThat(connected(proxy)).as("the proxy").isFalse();
+            assertThat(result).isEqualTo(new Result(0, ANSWER, ""));
+            assertThat(stub.requests).hasSize(1);
+        }
+    }
+
+    /** A client that never closes stdin still gets kb's exit within the budget, and no request. */
+    @Test
+    void stdin_that_never_ends_is_given_up_within_the_budget() throws Exception {
+        stub = new HookStub(200, Duration.ZERO);
+        long start = System.nanoTime();
+        Process kb =
+                KbProcess.start(
+                        KbProcess.jvm(Map.of()),
+                        stub.url(),
+                        HOOKS_ON,
+                        workDir,
+                        "hook",
+                        "session-start");
+        try (OutputStream open = kb.getOutputStream()) {
+            open.write("{\"session_id\":".getBytes(StandardCharsets.UTF_8));
+            open.flush();
+
+            boolean exited = kb.waitFor(WITHIN_BUDGET.toMillis(), TimeUnit.MILLISECONDS);
+
+            assertThat(exited).as("kb exited while stdin was still open").isTrue();
+            assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(WITHIN_BUDGET);
+            assertThat(kb.exitValue()).isZero();
+            assertThat(kb.getInputStream().readAllBytes()).isEmpty();
+            assertThat(stub.requests).isEmpty();
+        } finally {
+            kb.destroyForcibly();
+        }
+    }
+
+    /**
      * Invariants 3 and 4, ADR-0020: the hook carries prompts and answers, so it talks to this
-     * machine only, never through a proxy from the environment.
+     * machine only.
      */
     @ParameterizedTest(name = "{0}")
     @ValueSource(
@@ -209,16 +272,9 @@ class KbHookTest {
     void an_address_off_this_machine_gets_no_request(String url) throws IOException {
         try (ServerSocket listener = new ServerSocket(0)) {
             String target = url.replace("%d", String.valueOf(listener.getLocalPort()));
-            String proxy = "http://127.0.0.1:" + listener.getLocalPort();
 
             Result result =
-                    KbProcess.run(
-                            target,
-                            Map.of("KB_HOOKS", "on", "http_proxy", proxy, "all_proxy", proxy),
-                            PAYLOAD,
-                            workDir,
-                            "hook",
-                            "session-start");
+                    KbProcess.run(target, HOOKS_ON, PAYLOAD, workDir, "hook", "session-start");
 
             assertThat(result).isEqualTo(SILENT);
             assertThat(connected(listener)).as(target).isFalse();

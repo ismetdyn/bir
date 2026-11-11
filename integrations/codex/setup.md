@@ -30,25 +30,27 @@ Kontrol: `codex mcp list`, Codex içinde `/mcp`.
 
 Codex'te hook'lar varsayılan olarak açık. Hook komutu `kb hook <olay> <istemci>`dir (ADR-0027 karar 4; fail-open, bkz.
 `integrations/claude-code/setup.md` §2). Codex komutu Linux'ta `$SHELL -lc`, Windows'ta `cmd.exe /C` ile çalıştırır
-(openai/codex `hooks/src/engine/command_runner.rs`, 2026-11-11); `$HOME` cmd'de açılmadığı için komut yol değil, PATH'teki
-`kb`'yi çağırır. Windows davranışı test makinesinde doğrulanacak (W0).
+(openai/codex `hooks/src/engine/command_runner.rs`, 2026-11-11). Komut her zaman mutlak yoldur, çıplak `kb` asla (bkz.
+Claude Code §2). Linux'ta `$HOME/.local/bin/kb`. Windows'ta cmd `$HOME`'u açmaz; komut
+`"%LOCALAPPDATA%\agentkb\tools\kb.cmd" hook session-start codex` biçimindedir (JSON'da ters bölüler `\\`; native olunca
+`kb.exe`). Satırları install.ps1 yazacak; davranış Windows test makinesinde doğrulanacak (W0).
 
 ```json
 {
   "hooks": {
     "SessionStart": [
       { "hooks": [
-        { "type": "command", "command": "kb hook session-start codex", "timeout": 5 }
+        { "type": "command", "command": "$HOME/.local/bin/kb hook session-start codex", "timeout": 5 }
       ] }
     ],
     "UserPromptSubmit": [
       { "hooks": [
-        { "type": "command", "command": "kb hook user-prompt-submit codex", "timeout": 3 }
+        { "type": "command", "command": "$HOME/.local/bin/kb hook user-prompt-submit codex", "timeout": 3 }
       ] }
     ],
     "PostToolUse": [
       { "matcher": "request_user_input",
-        "hooks": [ { "type": "command", "command": "kb hook post-tool-use codex", "timeout": 5 } ] }
+        "hooks": [ { "type": "command", "command": "$HOME/.local/bin/kb hook post-tool-use codex", "timeout": 5 } ] }
     ]
   }
 }

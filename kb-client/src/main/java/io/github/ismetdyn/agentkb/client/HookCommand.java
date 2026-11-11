@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.client;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -68,9 +70,16 @@ final class HookCommand implements Callable<Integer> {
         return 0;
     }
 
-    /** The server's answer; empty unless it is a 2xx. The address is checked (SecretApi). */
+    /**
+     * The server's answer; empty unless it is a 2xx. The address is checked (SecretApi). The budget
+     * covers reading stdin too: a client that never closes it gets no answer, not a hung hook.
+     */
     private static byte[] answer(String event, String client)
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        long deadline = System.nanoTime() + BUDGET.toNanos();
+        byte[] payload =
+                CompletableFuture.supplyAsync(HookCommand::stdin)
+                        .get(BUDGET.toNanos(), TimeUnit.NANOSECONDS);
         URI uri =
                 URI.create(
                         SecretApi.serverUrl()
@@ -82,7 +91,7 @@ final class HookCommand implements Callable<Integer> {
                 HttpRequest.newBuilder(uri)
                         .header("Content-Type", "application/json")
                         .timeout(BUDGET)
-                        .POST(HttpRequest.BodyPublishers.ofByteArray(System.in.readAllBytes()))
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(payload))
                         .build();
         // No proxy: one from the environment or the JVM options would carry the prompt away.
         HttpClient http =
@@ -94,9 +103,18 @@ final class HookCommand implements Callable<Integer> {
         // The request timeout ends with the headers; the budget covers the body too.
         HttpResponse<byte[]> response =
                 http.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                        .get(BUDGET.toMillis(), TimeUnit.MILLISECONDS);
+                        .get(deadline - System.nanoTime(), TimeUnit.NANOSECONDS);
         return response.statusCode() / STATUS_CLASS == SUCCESS_CLASS
                 ? response.body()
                 : new byte[0];
+    }
+
+    // On a pool thread, so the budget can give up on it; System.exit then ends it.
+    private static byte[] stdin() {
+        try {
+            return System.in.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

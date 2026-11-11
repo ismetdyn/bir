@@ -15,32 +15,36 @@ Kontrol: Claude Code içinde `/mcp`. `OriginGuard` eklenince bağlantının geç
 ## 2. Hook'lar — `~/.claude/settings.json`
 
 KB hook'ları (F2). Hook komutu `kb hook <olay> <istemci>`dir (ADR-0027 karar 4): stdin'i sunucuya taşır, cevabı
-yazdırır, her hatada boş çıktı ve 0 ile çıkar (fail-open). `kb` hook'un PATH'inde olmalı (Linux'ta `~/.local/bin`).
-Eski `~/kb-tools/kb-hook.sh <olay> claude` satırları geçiş süresince çalışır; o betik artık `kb hook`'u çağırır.
+yazdırır, her hatada boş çıktı ve 0 ile çıkar (fail-open). Komut her zaman mutlak yolla yazılır, çıplak `kb` asla:
+hook her dizinde çalışır ve PATH'teki bir `kb` oraya konmuş olabilir. Linux'ta yol install.sh'nin koyduğu
+`$HOME/.local/bin/kb`'dir. Eski `~/kb-tools/kb-hook.sh <olay> claude` satırları geçiş süresince çalışır; o betik de yalnız
+bu yolu çağırır.
 
 ```json
 {
   "hooks": {
     "SessionStart": [
       { "hooks": [
-        { "type": "command", "command": "kb hook session-start claude", "timeout": 5 }
+        { "type": "command", "command": "$HOME/.local/bin/kb hook session-start claude", "timeout": 5 }
       ] }
     ],
     "UserPromptSubmit": [
       { "hooks": [
-        { "type": "command", "command": "kb hook user-prompt-submit claude", "timeout": 3 }
+        { "type": "command", "command": "$HOME/.local/bin/kb hook user-prompt-submit claude", "timeout": 3 }
       ] }
     ],
     "PostToolUse": [
       { "matcher": "AskUserQuestion",
-        "hooks": [ { "type": "command", "command": "kb hook post-tool-use claude", "timeout": 5 } ] }
+        "hooks": [ { "type": "command", "command": "$HOME/.local/bin/kb hook post-tool-use claude", "timeout": 5 } ] }
     ]
   }
 }
 ```
 
 Windows: Claude Code hook komutunu Git Bash ile, Git Bash yoksa PowerShell ile çalıştırır (code.claude.com/docs/en/hooks,
-2026-11-11). `kb` başlatıcısı bulunsun diye PATH'te olmalı; `kb.cmd` ile davranış Windows test makinesinde doğrulanacak (W0).
+2026-11-11). Komut yine mutlak yoldur: `%LOCALAPPDATA%\agentkb\tools\kb.cmd` (native olunca `kb.exe`), örneğin Git Bash'te
+`"$LOCALAPPDATA/agentkb/tools/kb.cmd" hook session-start claude`. Satırları install.ps1 yazacak; davranış Windows test
+makinesinde doğrulanacak (W0).
 
 ## 3. Global talimat
 
