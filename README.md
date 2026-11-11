@@ -53,6 +53,22 @@ integrations/install.sh --dry-run   # hiçbir şey yazmaz; yapılacakları ve aj
 integrations/install.sh             # derler, ~/kb-tools ve ~/.local/bin/kb'yi kurar, kb init, servis + senkron timer
 ```
 
+**`kb` istemcisinin seçimi** (her kurulum script'i bu sözleşmeye uyar). Native, jar'a tercih edilir:
+
+| `AGENTKB_CLIENT_NATIVE` | Kurulan istemci |
+|---|---|
+| tanımsız | checkout'ta çalıştırılabilir `kb-client/target/kb` varsa native, yoksa jar. Native `kb-core`, `kb-api` veya `kb-client` kaynaklarından eskiyse uyarı verilir, kurulum durmaz |
+| boş (`AGENTKB_CLIENT_NATIVE=`) | jar |
+| yol | o native dosya; yoksa veya çalıştırılabilir değilse hata, HOME'a dokunulmaz |
+
+Native `~/kb-tools/kb`'ye, jar `~/kb-tools/agentkb-client.jar`'a kopyalanır. `~/.local/bin/kb` ikisini de
+`-Duser.home=$HOME` ile çalıştırır. Başarılı kurulumdan sonra öbür türün dosyası silinir. Native'i script
+derlemez; önce (Mandrel 23.1.13, ADR-0025):
+
+```bash
+mise exec java@mandrel-23.1.13.0-Final+java21 -- ./mvnw -pl kb-client -am -Pnative package
+```
+
 Claude Code ve Codex ayarları (MCP, hook'lar, AGENT-RULES, yerleşik hafızayı kapatma) script tarafından yazılmaz;
 adımlar `integrations/claude-code/setup.md` ve `integrations/codex/setup.md`'de. Önce `kb import-memories`.
 

@@ -18,6 +18,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Runs integrations/install.sh the way a user does on an empty machine, but sealed off from this
@@ -26,7 +27,9 @@ import java.util.stream.Stream;
  * git, systemd tools, sudo or network clients; the real git is added back as a stub-dir link. No
  * DBUS or XDG variable reaches the script, so no real user manager and no real ~/.claude, ~/.codex,
  * ~/kb, ~/.config/systemd or ~/.local is touched. The jars come from {@code AGENTKB_SERVER_JAR} and
- * {@code AGENTKB_CLIENT_JAR} (contract fixed by the install tests).
+ * {@code AGENTKB_CLIENT_JAR} (contract fixed by the install tests). {@code AGENTKB_CLIENT_NATIVE}
+ * is empty unless a test sets {@link #clientNative}, so a native kb built in this checkout never
+ * leaks into the jar tests.
  */
 final class InstallSandbox {
 
@@ -102,6 +105,18 @@ final class InstallSandbox {
     final Path serverJar;
     final Path clientJar;
 
+    /** A native kb build; when run it logs as {@code kb-native}. */
+    final Path nativeKb;
+
+    /**
+     * The {@code AGENTKB_CLIENT_NATIVE} the script gets: empty means no native kb, null leaves it
+     * unset so the script looks for its checkout's {@code kb-client/target/kb}.
+     */
+    @Nullable String clientNative = "";
+
+    /** The install.sh to run; a test may point it into a copied checkout. */
+    Path script = SCRIPT;
+
     record Run(int exit, String stdout, String stderr) {}
 
     /** {@code home} stays empty; stubs, log and jars go under {@code tools}. */
@@ -116,6 +131,8 @@ final class InstallSandbox {
         Files.createSymbolicLink(stubBin.resolve("git"), REAL_GIT);
         serverJar = Files.writeString(tools.resolve("server-build.jar"), "zz fake server jar");
         clientJar = Files.writeString(tools.resolve("client-build.jar"), "zz fake client jar");
+        nativeKb = tools.resolve("kb-native-build");
+        executable(nativeKb, LOGGING_STUB.formatted("kb-native", log));
     }
 
     /** A java stub that answers every version question with {@code version}. */
@@ -124,7 +141,7 @@ final class InstallSandbox {
     }
 
     Run install(String... args) {
-        List<String> command = new ArrayList<>(List.of(BASH.toString(), SCRIPT.toString()));
+        List<String> command = new ArrayList<>(List.of(BASH.toString(), script.toString()));
         command.addAll(List.of(args));
         return run(command);
     }
@@ -137,6 +154,9 @@ final class InstallSandbox {
         env.put("LANG", "C.UTF-8");
         env.put("AGENTKB_SERVER_JAR", serverJar.toString());
         env.put("AGENTKB_CLIENT_JAR", clientJar.toString());
+        if (clientNative != null) {
+            env.put("AGENTKB_CLIENT_NATIVE", clientNative);
+        }
         try {
             env.put("PATH", stubBin + ":" + systemBin());
             Process process = builder.start();

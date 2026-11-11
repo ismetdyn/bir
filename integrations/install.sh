@@ -7,13 +7,16 @@
 # Yaptığı: java ≥ 21, git ve jar'ları denetler (eksikse HOME'a dokunmadan durur); jar'ları, kb-hook.sh ve
 # AGENT-RULES.md'yi ~/kb-tools/'a, kb başlatıcısını ~/.local/bin/kb'ye koyar; systemd kullanıcı birimlerini
 # denetlenen java ile ~/.config/systemd/user/'a yazar; `init` çalıştırır; servisi ve senkron timer'ını açar.
+# kb istemcisi native (~/kb-tools/kb) ya da istemci jar'ı + java başlatıcısıdır; seçim kuralı README "Kurulum"da.
+# Hangisinin kurulacağını --dry-run yazdırır.
 # ~/.claude ve ~/.codex'e yazmaz: o geçiş kullanıcı onayıyla, elle yapılır (plan.md "Kapsam dışı"; --dry-run).
 # Küratör birimleri F4'te (`kb curator` F2'de yok).
 #
 # Ortam:
-#   AGENTKB_SERVER_JAR  kurulacak sunucu jar'ı (varsayılan: bu checkout'un kb-server/target/agentkb-server.jar)
-#   AGENTKB_CLIENT_JAR  kurulacak istemci jar'ı (varsayılan: bu checkout'un kb-client/target/kb-client-*.jar)
-#   Varsayılan jar yoksa checkout ./mvnw ile derlenir.
+#   AGENTKB_SERVER_JAR     kurulacak sunucu jar'ı (varsayılan: bu checkout'un kb-server/target/agentkb-server.jar)
+#   AGENTKB_CLIENT_NATIVE  kurulacak native kb (README "Kurulum")
+#   AGENTKB_CLIENT_JAR     kurulacak istemci jar'ı, native yoksa (varsayılan: bu checkout'un kb-client/target/kb-client-*.jar)
+#   Varsayılan jar yoksa checkout ./mvnw ile derlenir; native'i derlemez (README "Kurulum").
 set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -35,13 +38,14 @@ integrations="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 checkout="$(dirname "$integrations")"
 tools_dir="$HOME/kb-tools"
 bin_dir="$HOME/.local/bin"
+# Not $XDG_CONFIG_HOME: the user manager (systemd --user) does not see this shell's environment.
 unit_dir="$HOME/.config/systemd/user"
 
 # --- Ön koşullar: hiçbiri HOME'a yazmaz -------------------------------------------------------------
 
 java_bin="$(command -v java || true)"
 if [[ -z "$java_bin" ]]; then
-  die "java not found on PATH; install Java $MIN_JAVA or newer (e.g. sudo dnf5 install java-$MIN_JAVA-openjdk-headless)"
+  die "java not found on PATH; install Java $MIN_JAVA or newer (distro package such as openjdk-$MIN_JAVA-jre-headless, or mise)"
 fi
 java_version="$("$java_bin" -XshowSettings:properties -version 2>&1 \
   | sed -n 's/^ *java\.specification\.version = //p')"
@@ -54,17 +58,42 @@ fi
 if [[ "$java_bin" =~ [[:space:]] ]]; then
   die "java path '$java_bin' contains whitespace; put a java without spaces in its path first on PATH"
 fi
-command -v git >/dev/null || die "git not found on PATH; install it (e.g. sudo dnf5 install git)"
+command -v git >/dev/null || die "git not found on PATH; install it with your package manager (package: git)"
 command -v systemctl >/dev/null || die "systemctl not found; agentkb runs as a systemd user service"
 if ! command -v curl >/dev/null; then
   echo "WARN: curl not found; kb-hook.sh needs it (hooks fail open without it)" >&2
 fi
 
-if [[ -z "${AGENTKB_SERVER_JAR:-}" || -z "${AGENTKB_CLIENT_JAR:-}" ]]; then
+# Native kb: unset = this checkout's build if present; empty = jar; a given path must be executable.
+if [[ -z "${AGENTKB_CLIENT_NATIVE+set}" ]]; then
+  AGENTKB_CLIENT_NATIVE="$checkout/kb-client/target/kb"
+  if [[ ! -f "$AGENTKB_CLIENT_NATIVE" || ! -x "$AGENTKB_CLIENT_NATIVE" ]]; then AGENTKB_CLIENT_NATIVE=""; fi
+  # A checkout build older than its sources is installed anyway; say so (KbNativeIT is the hard check).
+  src_dirs=()
+  for module in kb-core kb-api kb-client; do
+    if [[ -d "$checkout/$module/src" ]]; then src_dirs+=("$checkout/$module/src"); fi
+  done
+  if [[ -n "$AGENTKB_CLIENT_NATIVE" ]] && (( ${#src_dirs[@]} > 0 )); then
+    newer_source="$(find "${src_dirs[@]}" -type f -newer "$AGENTKB_CLIENT_NATIVE" -print -quit)"
+    if [[ -n "$newer_source" ]]; then
+      echo "WARN: native kb $AGENTKB_CLIENT_NATIVE is older than $newer_source; rebuild it (README \"Kurulum\") or set AGENTKB_CLIENT_NATIVE= for the jar" >&2
+    fi
+  fi
+elif [[ -n "$AGENTKB_CLIENT_NATIVE" && ( ! -f "$AGENTKB_CLIENT_NATIVE" || ! -x "$AGENTKB_CLIENT_NATIVE" ) ]]; then
+  die "native kb not found or not executable: $AGENTKB_CLIENT_NATIVE (set AGENTKB_CLIENT_NATIVE= to install the jar)"
+fi
+if [[ -n "$AGENTKB_CLIENT_NATIVE" ]]; then client_kind=native; else client_kind=jar; fi
+# The other variant's file, left by an earlier install; removed once this one is installed.
+if [[ "$client_kind" == native ]]; then other_client="$tools_dir/$CLIENT_JAR_NAME"; else other_client="$tools_dir/kb"; fi
+
+needs_client_jar=false
+if [[ "$client_kind" == jar && -z "${AGENTKB_CLIENT_JAR:-}" ]]; then needs_client_jar=true; fi
+if [[ -z "${AGENTKB_SERVER_JAR:-}" ]] || $needs_client_jar; then
   shopt -s nullglob
   client_builds=("$checkout"/kb-client/target/kb-client-*[0-9T].jar)
   shopt -u nullglob
-  if [[ ! -f "$checkout/kb-server/target/$SERVER_JAR_NAME" || ${#client_builds[@]} -eq 0 ]]; then
+  if [[ ! -f "$checkout/kb-server/target/$SERVER_JAR_NAME" ]] \
+    || { $needs_client_jar && (( ${#client_builds[@]} == 0 )); }; then
     build=("$checkout/mvnw" -B -q -DskipTests -pl kb-server,kb-client -am package)
     if $dry_run; then
       echo "would build: ${build[*]}"
@@ -76,7 +105,7 @@ if [[ -z "${AGENTKB_SERVER_JAR:-}" || -z "${AGENTKB_CLIENT_JAR:-}" ]]; then
       shopt -u nullglob
     fi
   fi
-  if (( ${#client_builds[@]} > 1 )); then
+  if $needs_client_jar && (( ${#client_builds[@]} > 1 )); then
     die "more than one client jar in $checkout/kb-client/target; set AGENTKB_CLIENT_JAR"
   fi
   : "${AGENTKB_SERVER_JAR:=$checkout/kb-server/target/$SERVER_JAR_NAME}"
@@ -84,7 +113,9 @@ if [[ -z "${AGENTKB_SERVER_JAR:-}" || -z "${AGENTKB_CLIENT_JAR:-}" ]]; then
 fi
 if ! $dry_run; then
   [[ -f "$AGENTKB_SERVER_JAR" ]] || die "server jar not found: $AGENTKB_SERVER_JAR"
-  [[ -f "$AGENTKB_CLIENT_JAR" ]] || die "client jar not found: $AGENTKB_CLIENT_JAR"
+  if [[ "$client_kind" == jar && ! -f "$AGENTKB_CLIENT_JAR" ]]; then
+    die "client jar not found: $AGENTKB_CLIENT_JAR"
+  fi
 fi
 for unit in "${UNITS[@]}"; do
   [[ -f "$integrations/systemd/$unit" ]] || die "unit template missing: $integrations/systemd/$unit"
@@ -95,18 +126,25 @@ done
 state() { if [[ -e "$1" ]]; then echo "exists"; else echo "missing"; fi; }
 
 if $dry_run; then
+  if [[ "$client_kind" == native ]]; then
+    client_plan="copy $AGENTKB_CLIENT_NATIVE -> $tools_dir/kb
+  write $bin_dir/kb (runs \$HOME/kb-tools/kb -Duser.home=\$HOME)"
+  else
+    client_plan="copy $AGENTKB_CLIENT_JAR -> $tools_dir/$CLIENT_JAR_NAME
+  write $bin_dir/kb (runs $java_bin -Duser.home=\$HOME -jar \$HOME/kb-tools/$CLIENT_JAR_NAME)"
+  fi
   cat <<EOF
 DRY RUN: nothing is written and nothing is run.
 
-Install would:
+Install would (kb client: $client_kind):
   copy $AGENTKB_SERVER_JAR -> $tools_dir/$SERVER_JAR_NAME
-  copy $AGENTKB_CLIENT_JAR -> $tools_dir/$CLIENT_JAR_NAME
+  $client_plan
   copy kb-hook.sh, AGENT-RULES.md -> $tools_dir/
-  write $bin_dir/kb (runs $java_bin -Duser.home=\$HOME -jar \$HOME/kb-tools/$CLIENT_JAR_NAME)
   render ${UNITS[*]} -> $unit_dir/ (ExecStart java: $java_bin)
   run $java_bin -Duser.home=$HOME -jar $tools_dir/$SERVER_JAR_NAME init
   run systemctl --user daemon-reload
   run systemctl --user enable --now agentkb.service agentkb-sync.timer
+  remove $other_client (the other kb client; $(state "$other_client"))
 
 Agent settings switch: NOT done by install.sh. Apply it by hand after your approval, in this order.
 Current state:
@@ -143,14 +181,21 @@ put() {
 
 put "$AGENTKB_SERVER_JAR" "$tools_dir/$SERVER_JAR_NAME" 0644
 server_changed=$put_changed
-put "$AGENTKB_CLIENT_JAR" "$tools_dir/$CLIENT_JAR_NAME" 0644
 put "$integrations/kb-hook.sh" "$tools_dir/kb-hook.sh" 0755
 put "$integrations/AGENT-RULES.md" "$tools_dir/AGENT-RULES.md" 0644
 
 # Every JVM gets -Duser.home="$HOME": on Linux the JVM takes user.home from the password file, so
 # with HOME set elsewhere (sudo -E, containers, a test HOME) it would use another home than $HOME.
-printf '#!/bin/sh\n# install.sh tarafından yazıldı; elle değiştirme, kurulumu yeniden çalıştır.\nexec %q -Duser.home="$HOME" -jar "$HOME/kb-tools/%s" "$@"\n' \
-  "$java_bin" "$CLIENT_JAR_NAME" > "$work/kb"
+# The native image does the same and parses -D options before main, so it gets the same flag.
+printf '#!/bin/sh\n# install.sh tarafından yazıldı; elle değiştirme, kurulumu yeniden çalıştır.\n' > "$work/kb"
+if [[ "$client_kind" == native ]]; then
+  put "$AGENTKB_CLIENT_NATIVE" "$tools_dir/kb" 0755
+  printf 'exec "$HOME/kb-tools/kb" -Duser.home="$HOME" "$@"\n' >> "$work/kb"
+else
+  put "$AGENTKB_CLIENT_JAR" "$tools_dir/$CLIENT_JAR_NAME" 0644
+  printf 'exec %q -Duser.home="$HOME" -jar "$HOME/kb-tools/%s" "$@"\n' \
+    "$java_bin" "$CLIENT_JAR_NAME" >> "$work/kb"
+fi
 put "$work/kb" "$bin_dir/kb" 0755
 
 java_unit="${java_bin//%/%%}"
@@ -170,8 +215,9 @@ if $server_changed; then
 fi
 systemctl --user enable --now agentkb.service
 systemctl --user enable --now agentkb-sync.timer
+rm -f "$other_client"
 
-echo "agentkb installed. Server: systemctl --user status agentkb; client: $bin_dir/kb"
+echo "agentkb installed. Server: systemctl --user status agentkb; client: $bin_dir/kb ($client_kind)"
 if [[ ":${PATH}:" != *":$bin_dir:"* ]]; then
   echo "NOTE: $bin_dir is not on PATH; add it to use 'kb'." >&2
 fi
