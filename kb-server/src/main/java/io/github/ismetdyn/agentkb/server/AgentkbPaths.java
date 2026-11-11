@@ -66,19 +66,10 @@ record AgentkbPaths(
             base = (local != null ? local : home.resolve("AppData").resolve("Local")).resolve(NAME);
             tools = base.resolve("tools");
         } else {
-            // XDG Base Directory spec: a relative value is invalid and ignored.
-            @Nullable Path xdg = set(env, "XDG_DATA_HOME");
             Path legacyDir = home.resolve(".local").resolve("share").resolve(NAME);
-            base = xdg != null && xdg.isAbsolute() ? xdg.resolve(NAME) : legacyDir;
-            // An install from before ADR-0027 holds its graph in the legacy dir: keep using it
-            // rather than start an empty graph beside it.
-            legacy =
-                    !base.equals(legacyDir)
-                            && !isDirectory.test(base)
-                            && isDirectory.test(legacyDir);
-            if (legacy) {
-                base = legacyDir;
-            }
+            Path xdgDir = xdgDataDir(env, legacyDir);
+            legacy = keepsLegacy(xdgDir, legacyDir, isDirectory);
+            base = legacy ? legacyDir : xdgDir;
             tools = home.resolve("kb-tools");
         }
         Path repoBase = agentkbHome != null ? agentkbHome : home;
@@ -88,6 +79,22 @@ record AgentkbPaths(
                 tools,
                 List.of(home.resolve("projects"), home.resolve("git")),
                 legacy && set(env, "AGENTKB_DATA_DIR") == null);
+    }
+
+    /** XDG Base Directory spec: a relative XDG_DATA_HOME is invalid and ignored. */
+    private static Path xdgDataDir(Map<String, String> env, Path fallback) {
+        @Nullable Path xdg = set(env, "XDG_DATA_HOME");
+        return xdg != null && xdg.isAbsolute() ? xdg.resolve(NAME) : fallback;
+    }
+
+    /**
+     * An install from before ADR-0027 holds its graph in the legacy dir: keep using it rather than
+     * start an empty graph beside it, until the XDG one exists.
+     */
+    private static boolean keepsLegacy(Path xdgDir, Path legacyDir, Predicate<Path> isDirectory) {
+        return !xdgDir.equals(legacyDir)
+                && !isDirectory.test(xdgDir)
+                && isDirectory.test(legacyDir);
     }
 
     /** The server's lowest-priority properties: yml, environment and arguments override them. */
