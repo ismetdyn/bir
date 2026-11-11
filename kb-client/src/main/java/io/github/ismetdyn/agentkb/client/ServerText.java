@@ -8,9 +8,10 @@ import java.util.regex.Pattern;
 
 /**
  * What the server said, made fit to print (lead decision 6): JsonApi and SecretApi pass every
- * answer and error through it before kb prints a character of it.
+ * answer and error through it before kb prints a character of it; kb tui cleans typed and pasted
+ * text with it too.
  */
-final class ServerText {
+public final class ServerText {
 
     // Every C0 control but tab and newline, DEL and the C1 range (U+009B is a CSI on many
     // terminals), and the bidi controls that reorder what follows (CWE-451): ALM, LRM, RLM, the
@@ -28,7 +29,7 @@ final class ServerText {
      * Server text as kb may print it: strings without terminal control characters, so a record or
      * an error cannot move the cursor, clear the screen or retitle the window.
      */
-    static Object printable(Object value) {
+    public static Object printable(Object value) {
         return switch (value) {
             case String text -> CONTROL.matcher(text).replaceAll("");
             case Map<?, ?> map -> {

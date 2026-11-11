@@ -1,6 +1,5 @@
 package io.github.ismetdyn.agentkb.client;
 
-import io.github.ismetdyn.agentkb.api.WriteAnswer;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -16,24 +15,6 @@ import picocli.CommandLine.Spec;
 final class FactCommands {
 
     private FactCommands() {}
-
-    /**
-     * POSTs {@code body} to an entity's {@code facts} or {@code relations} and prints the write.
-     */
-    private static int write(CommandSpec spec, String entity, String list, String body) {
-        WriteAnswer answer =
-                Json.toRecord(
-                        JsonApi.fromEnvironment()
-                                .post(
-                                        "/api/v1/entities/"
-                                                + RequestText.segment(entity)
-                                                + "/"
-                                                + list,
-                                        body),
-                        WriteAnswer.class);
-        AnswerText.written(spec.commandLine().getOut(), answer);
-        return 0;
-    }
 
     @Command(
             name = "fact",
@@ -64,14 +45,11 @@ final class FactCommands {
 
             @Override
             public Integer call() {
-                String fact =
-                        "{\"key\": "
-                                + RequestText.quote(key)
-                                + ", \"value\": "
-                                + RequestText.quote(value)
-                                + (env == null ? "" : ", \"env\": " + RequestText.quote(env))
-                                + "}";
-                return write(spec, id, "facts", "{\"facts\": [" + fact + "]}");
+                AnswerText.written(
+                        spec.commandLine().getOut(),
+                        KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT)
+                                .setFact(id, key, value, env));
+                return 0;
             }
         }
 
@@ -117,13 +95,11 @@ final class FactCommands {
 
             @Override
             public Integer call() {
-                String relation =
-                        "{\"type\": "
-                                + RequestText.quote(type)
-                                + ", \"target\": "
-                                + RequestText.quote(target)
-                                + "}";
-                return write(spec, id, "relations", "{\"relations\": [" + relation + "]}");
+                AnswerText.written(
+                        spec.commandLine().getOut(),
+                        KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT)
+                                .addRelation(id, type, target));
+                return 0;
             }
         }
 

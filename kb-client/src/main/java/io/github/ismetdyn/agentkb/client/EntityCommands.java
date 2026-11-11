@@ -3,7 +3,6 @@ package io.github.ismetdyn.agentkb.client;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.WriteAnswer;
 import java.util.List;
-import java.util.StringJoiner;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -18,8 +17,6 @@ import picocli.CommandLine.Spec;
  * unreachable.
  */
 final class EntityCommands {
-
-    private static final String ENTITIES = "/api/v1/entities/";
 
     private EntityCommands() {}
 
@@ -77,20 +74,8 @@ final class EntityCommands {
                 throw new KbException("give --alias or --clear-aliases, not both");
             }
             List<String> given = clearAliases ? List.of() : aliases;
-            StringJoiner body = new StringJoiner(", ", "{", "}");
-            if (given != null) {
-                StringJoiner names = new StringJoiner(", ", "[", "]");
-                given.forEach(alias -> names.add(RequestText.quote(alias)));
-                body.add("\"aliases\": " + names);
-            }
-            if (summary != null) {
-                body.add("\"summary\": " + RequestText.quote(summary));
-            }
             EditAnswer answer =
-                    Json.toRecord(
-                            JsonApi.fromEnvironment()
-                                    .patch(ENTITIES + RequestText.segment(id), body.toString()),
-                            EditAnswer.class);
+                    KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT).edit(id, given, summary);
             AnswerText.edited(spec.commandLine().getOut(), "edited " + id, answer);
             return 0;
         }
@@ -106,7 +91,11 @@ final class EntityCommands {
 
         @Override
         public Integer call() {
-            return post(spec, ENTITIES + RequestText.segment(id) + "/archive", "archived " + id);
+            AnswerText.edited(
+                    spec.commandLine().getOut(),
+                    "archived " + id,
+                    KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT).archive(id));
+            return 0;
         }
     }
 
@@ -120,8 +109,11 @@ final class EntityCommands {
 
         @Override
         public Integer call() {
-            return post(
-                    spec, ENTITIES + RequestText.segment(id) + "/unarchive", "unarchived " + id);
+            AnswerText.edited(
+                    spec.commandLine().getOut(),
+                    "unarchived " + id,
+                    KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT).unarchive(id));
+            return 0;
         }
     }
 

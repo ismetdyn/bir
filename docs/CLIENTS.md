@@ -90,14 +90,40 @@ Risk: henüz 0.x sürümü. TUI ince bir istemci olduğu için gerekirse Go/Bubb
 
 | Ekran | Kısayol | İşlev |
 |---|---|---|
-| Arama + detay | `/`, `↵` | Yazarken arama, filtreler, detay paneli |
-| Düzenleme | `e`, `a`, `r` | Şemaya göre form; ilişki türü ve hedef için otomatik tamamlama |
-| Arşiv | `d` | Onaylı; geri alınabilir |
+| Arama + detay | `/`, `↵`, `t` | Yazarken arama (`GET /search`), aramasız gözatma (`GET /entities`), `t` sıradaki tür (şemadan), detay paneli |
+| Düzenleme | `e`, `a`, `r` | Form; fact anahtarı ve ilişki türü `GET /schema`'dan seçilir, değeri sunucu doğrular |
+| Arşiv | `d`, `u` | Onaylı (varsayılan Vazgeç; `←`/`n` Vazgeç, `→`/`y` Arşivle, `Tab` seçimi değiştirmez); onay açıldığı kaydı arşivler; `u` arşivden çıkarır |
 | Çelişkiler | `c` | Yan yana değer, kaynak, tarih; kabul/ret |
 | Öneriler | `p` | Fark görünümü; kabul/ret |
 | Aktivite | `l` | Kaynağa göre filtre; partiyi geri alma |
 | Bayat | `s` | Doğrulanacaklar; "doğruladım" ile `observed_at` tazelenir |
 | Sinyaller | `g` | Açık sinyaller ve "Atılanlar" (hiçbir şey üretmeden kapananlar, nedeniyle); yeniden açınca küratör tekrar bakar |
+| Yardım, palet, çıkış | `?`, `:`, `q` | Tuşlar ve palet aynı komut tablosundan; `Ctrl+C` her yerde çıkar |
+
+H8a'da çıkanlar (arama, detay, düzenleme, arşiv; `c p l s g` H8b ve sonrası):
+
+- **Yerleşim:** üstte durum satırı (`agentkb ●`, sunucuya ulaşılamıyorsa `○ unreachable`; `[type: …]`; arama metni), solda
+  liste, sağda seçili kaydın detayı (`GET /entities/{id}` JSON), altta ileti satırı ve odağa göre tuş ipuçları. Seçim
+  değişince detay kendiliğinden yüklenir; eski cevap atılır.
+- **Odak:** liste, arama, detay, form, onay, yardım, palet. Harf kısayolları yalnız liste ve detayda çalışır; aramada,
+  formda ve palette harfler metindir (Türkçe harfler dahil); diyalog açıkken bütün tuşlar ona gider. `Esc` kademelidir:
+  önce arama metnini temizler, sonra listeye döner.
+- **Arama:** `/` ile yazdıkça 150 ms bekleyip `GET /search?limit=20`; yalnız son sorgunun cevabı gösterilir. Boş arama
+  gözatmadır (`GET /entities?limit=500`). Seçimin geçip gittiği kaydın detayı istenmez. Yapıştırma bracketed paste ile tek
+  olaydır (yapıştırılan `q` ya da satır sonu tuş sayılmaz); metin kontrol ve bidi karakterlerinden arındırılıp tek satır
+  olarak yazı alanına girer, listede yok sayılır.
+- **Hiçbir şey gizlenmez (değişmez 12):** arşivli ve geçmiş/ham satırlar soluk ve işaretli; kapalı fact `[closed <gün>]`,
+  biten ilişki `[ended <gün>]`, `ok` olmayan durum `[conflict]` gibi işaretli. Secret yalnız ad ve placeholder; değer hiç
+  istenmez.
+- **Formlar:** `Tab` alan değiştirir, `↑↓` şemadaki anahtar/türden seçer (yazılan önekle süzülür; anahtarın tek/çok
+  değerli oluşu, biçimi ve izinli değerleri altta yazar), `↵` gönderir, `Esc` vazgeçer. İstemci değeri denetlemez:
+  sunucunun reddi (`error; hint`) formda olduğu gibi görünür ve form açık kalır. Kayıt olunca parti ve geri alma komutu
+  ileti satırında yazar; sunucunun cevabı yalnız o yazmayı gönderen forma gider. `e` formunda her alias ayrı bir alandır
+  (virgüllü alias bölünmez), bir alan yeni alias içindir; boşaltılan alan o alias'ı düşürür. Bir çağrı en çok 10 sn bekler.
+- **Komut paleti:** `:` ile açılır, yazdıkça süzer (tam id önce), çalışamayan komut soluk ve nedenli (`no record
+  selected`, `archived already`, `not archived`, `the schema is not loaded`); `reload` yalnız palette.
+- Sunucudan gelen her metin kontrol ve bidi karakterlerinden arındırılmış ve ekranda tek satırdır (satır sonu ve sekme
+  boşluk olur; formda gösterilen değer de böyle, gönderilen değer değişmez).
 
 ## 4. Masaüstü GUI (`kb-gui`)
 

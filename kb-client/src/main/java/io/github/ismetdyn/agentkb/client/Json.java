@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.client;
 
 import io.github.ismetdyn.agentkb.api.ActivityAnswer;
+import io.github.ismetdyn.agentkb.api.BatchAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
 import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
@@ -9,11 +10,13 @@ import io.github.ismetdyn.agentkb.api.DocumentAnswer;
 import io.github.ismetdyn.agentkb.api.DocumentListAnswer;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.EntityAnswer;
+import io.github.ismetdyn.agentkb.api.EntityListAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
 import io.github.ismetdyn.agentkb.api.ProposalsAnswer;
 import io.github.ismetdyn.agentkb.api.RestoreAnswer;
 import io.github.ismetdyn.agentkb.api.RevertAnswer;
 import io.github.ismetdyn.agentkb.api.ScanAnswer;
+import io.github.ismetdyn.agentkb.api.SchemaAnswer;
 import io.github.ismetdyn.agentkb.api.SearchAnswer;
 import io.github.ismetdyn.agentkb.api.SecretsAnswer;
 import io.github.ismetdyn.agentkb.api.SyncAnswer;
@@ -100,6 +103,9 @@ final class Json {
                     reader(ActivityAnswer.class, AnswerReaders::activity),
                     reader(SecretsAnswer.class, AnswerReaders::secrets),
                     reader(ScanAnswer.class, AnswerReaders::scan),
+                    reader(SchemaAnswer.class, BrowseReaders::schema),
+                    reader(EntityListAnswer.class, BrowseReaders::entities),
+                    reader(BatchAnswer.class, BrowseReaders::batch),
                     reader(DocumentAnswer.class, DocumentReaders::document),
                     reader(DocumentListAnswer.class, DocumentReaders::documents),
                     reader(

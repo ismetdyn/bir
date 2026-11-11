@@ -48,19 +48,9 @@ final class ReadCommands {
 
         @Override
         public Integer call() {
-            String path =
-                    RequestText.query(
-                            "/api/v1/search",
-                            "q",
-                            String.join(" ", words),
-                            "type",
-                            type,
-                            "env",
-                            env,
-                            "limit",
-                            limit);
             SearchAnswer answer =
-                    Json.toRecord(JsonApi.fromEnvironment().get(path), SearchAnswer.class);
+                    KbApi.fromEnvironment(JsonApi.REQUEST_TIMEOUT)
+                            .search(String.join(" ", words), type, env, limit);
             AnswerText.hits(spec.commandLine().getOut(), answer, "no matches");
             return 0;
         }

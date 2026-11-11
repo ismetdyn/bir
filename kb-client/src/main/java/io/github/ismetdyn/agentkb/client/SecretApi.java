@@ -50,7 +50,15 @@ final class SecretApi {
      */
     static String serverUrl() {
         String url = System.getenv("AGENTKB_URL");
-        String base = url == null || url.isBlank() ? DEFAULT_URL : url.strip();
+        return loopbackBase(url == null || url.isBlank() ? DEFAULT_URL : url.strip());
+    }
+
+    /**
+     * {@code base} without a trailing slash, if it names this machine.
+     *
+     * @throws KbException if it does not
+     */
+    static String loopbackBase(String base) {
         if (!isLoopback(host(base))) {
             throw new KbException(
                     "AGENTKB_URL must name this machine (127.0.0.0/8, ::1 or localhost),"

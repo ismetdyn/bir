@@ -28,11 +28,24 @@ abstract class KbTerminalScenarios {
     static final String ID = "ornek-db/prod/app-password";
     static final String VALUE = "kbtest-FAKE-5e0b17c4";
 
-    /** docs/CLIENTS.md: the hello screen names the product. */
-    private static final String HELLO = "agentkb";
+    /**
+     * docs/CLIENTS.md §3: the status line names the product; the stub answers no list, so the
+     * screen shows that and stays.
+     */
+    private static final String SCREEN = "agentkb";
 
     /** Enter the alternate screen (xterm smcup). */
     private static final String ALT_SCREEN = "\u001b[?1049h";
+
+    /**
+     * Bracketed paste on and off (xterm 2004): the terminal wraps a paste in PASTE_START,
+     * PASTE_END.
+     */
+    private static final String PASTE_ON = "\u001b[?2004h";
+
+    private static final String PASTE_OFF = "\u001b[?2004l";
+    private static final String PASTE_START = "\u001b[200~";
+    private static final String PASTE_END = "\u001b[201~";
 
     private static final int SCREEN_SECONDS = 30;
     private static final int EXIT_SECONDS = 10;
@@ -60,26 +73,31 @@ abstract class KbTerminalScenarios {
     }
 
     @Test
-    void tui_shows_the_hello_screen_on_the_alternate_screen_and_q_quits() {
-        Session session = tty(HELLO, "q", EXIT_SECONDS, "tui");
+    void tui_shows_its_screen_on_the_alternate_screen_and_q_quits() {
+        Session session = tty(SCREEN, "q", EXIT_SECONDS, "tui");
 
         assertThat(session.status()).as(session.screen()).isEqualTo("exit=0");
-        assertThat(session.screen()).contains(ALT_SCREEN);
+        assertThat(session.screen()).contains(ALT_SCREEN).contains(PASTE_ON).contains(PASTE_OFF);
     }
 
     @Test
     void tui_with_no_alt_screen_draws_on_the_main_screen() {
-        Session session = tty(HELLO, "q", EXIT_SECONDS, "tui", "--no-alt-screen");
+        Session session = tty(SCREEN, "q", EXIT_SECONDS, "tui", "--no-alt-screen");
 
         assertThat(session.status()).as(session.screen()).isEqualTo("exit=0");
         assertThat(session.screen()).doesNotContain(ALT_SCREEN);
     }
 
+    /**
+     * A key that is not q, and a pasted q: with bracketed paste on, a paste is one PasteEvent,
+     * which the list ignores, not a q key that would quit.
+     */
     @Test
-    void tui_keeps_running_on_a_key_that_is_not_q() {
-        Session session = tty(HELLO, "x", STAYS_SECONDS, "tui");
+    void tui_keeps_running_on_a_key_that_is_not_q_and_on_a_pasted_q() {
+        Session session = tty(SCREEN, "x" + PASTE_START + "q" + PASTE_END, STAYS_SECONDS, "tui");
 
         assertThat(session.status()).as(session.screen()).isEqualTo("timeout:exit");
+        assertThat(session.screen()).contains(PASTE_ON);
     }
 
     /** docs/SECRETS.md §4: from a terminal the value is read without echo. */

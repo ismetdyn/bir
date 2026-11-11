@@ -67,7 +67,14 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- TamboUI's Pilot (HelloScreenTest): ToolkitTestRunner, the Pilot interface and TestBackend. -->
+    <!-- plan.md "Yeni bağımlılıklar" (H8a): TamboUI only inside client.tui (ClientArchitectureTest); version from the parent. -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <version>${archunit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TamboUI's Pilot (TuiPilotTest): ToolkitTestRunner, the Pilot interface and TestBackend. -->
     <dependency>
       <groupId>dev.tamboui</groupId>
       <artifactId>tamboui-toolkit</artifactId>

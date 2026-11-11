@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import io.github.ismetdyn.agentkb.api.ActivityAnswer;
+import io.github.ismetdyn.agentkb.api.BatchAnswer;
 import io.github.ismetdyn.agentkb.api.CheckAnswer;
 import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
@@ -13,11 +14,13 @@ import io.github.ismetdyn.agentkb.api.DocumentAnswer;
 import io.github.ismetdyn.agentkb.api.DocumentListAnswer;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.EntityAnswer;
+import io.github.ismetdyn.agentkb.api.EntityListAnswer;
 import io.github.ismetdyn.agentkb.api.MemoryImportAnswer;
 import io.github.ismetdyn.agentkb.api.ProposalsAnswer;
 import io.github.ismetdyn.agentkb.api.RestoreAnswer;
 import io.github.ismetdyn.agentkb.api.RevertAnswer;
 import io.github.ismetdyn.agentkb.api.ScanAnswer;
+import io.github.ismetdyn.agentkb.api.SchemaAnswer;
 import io.github.ismetdyn.agentkb.api.SearchAnswer;
 import io.github.ismetdyn.agentkb.api.SecretsAnswer;
 import io.github.ismetdyn.agentkb.api.SyncAnswer;
@@ -153,7 +156,10 @@ class ApiContractTest {
                         "document-list-answer.json",
                         DocumentListAnswer.class,
                         new DocumentListAnswer(List.of(BIG_DOCUMENT), true)),
-                arguments("doctor-answer.json", DoctorAnswer.class, DOCTOR));
+                arguments("doctor-answer.json", DoctorAnswer.class, DOCTOR),
+                arguments("schema-answer.json", SchemaAnswer.class, H8Samples.SCHEMA),
+                arguments("entity-list-answer.json", EntityListAnswer.class, H8Samples.ENTITY_LIST),
+                arguments("batch-answer.json", BatchAnswer.class, H8Samples.BATCH));
     }
 
     @ParameterizedTest(name = "{0}")

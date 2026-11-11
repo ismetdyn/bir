@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -17,9 +18,10 @@ import java.util.regex.Pattern;
 /**
  * A loopback server that answers {@code <METHOD> <path>} with a fixed status, JSON body and extra
  * headers, and records every request with its body as text and as bytes, so a test sees exactly
- * what {@code kb} sent and how it treats the answer. An unknown method and path answers 404.
+ * what {@code kb} sent and how it treats the answer. An unknown method and path answers 404. Public
+ * for the kb tui tests in client.tui.
  */
-final class ApiStub implements AutoCloseable {
+public final class ApiStub implements AutoCloseable {
 
     private static final int NOT_FOUND = 404;
     private static final int NO_BODY = -1;
@@ -28,7 +30,7 @@ final class ApiStub implements AutoCloseable {
      * {@code body} is {@code bytes} read as UTF-8; {@code bytes} is what arrived; {@code rawQuery}
      * is the query as sent, empty if none.
      */
-    record Request(
+    public record Request(
             String method,
             String rawPath,
             String rawQuery,
@@ -39,16 +41,17 @@ final class ApiStub implements AutoCloseable {
     private record Answer(int status, String json, Map<String, String> headers) {}
 
     private final Map<String, Answer> answers = new ConcurrentHashMap<>();
+    private final Map<String, Duration> delays = new ConcurrentHashMap<>();
     private final List<Request> requests = new CopyOnWriteArrayList<>();
     private final HttpServer server;
 
-    ApiStub() throws IOException {
+    public ApiStub() throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", this::handle);
         server.start();
     }
 
-    ApiStub answer(String method, String path, int status, String json) {
+    public ApiStub answer(String method, String path, int status, String json) {
         return answer(method, path, status, json, Map.of());
     }
 
@@ -59,11 +62,20 @@ final class ApiStub implements AutoCloseable {
         return this;
     }
 
-    String url() {
+    /**
+     * Holds the answer to {@code <METHOD> <path>} back for {@code delay}; the request is recorded
+     * first.
+     */
+    public ApiStub delay(String method, String path, Duration delay) {
+        delays.put(method + " " + path, delay);
+        return this;
+    }
+
+    public String url() {
         return "http://127.0.0.1:" + server.getAddress().getPort();
     }
 
-    List<Request> requests() {
+    public List<Request> requests() {
         return List.copyOf(requests);
     }
 
@@ -90,7 +102,16 @@ final class ApiStub implements AutoCloseable {
                             Map.copyOf(exchange.getRequestHeaders()),
                             body,
                             received));
-            Answer answer = answers.get(exchange.getRequestMethod() + " " + rawPath);
+            String key = exchange.getRequestMethod() + " " + rawPath;
+            Duration delay = delays.get(key);
+            if (delay != null) {
+                try {
+                    Thread.sleep(delay.toMillis());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            Answer answer = answers.get(key);
             if (answer == null) {
                 exchange.sendResponseHeaders(NOT_FOUND, NO_BODY);
                 return;
