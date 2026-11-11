@@ -1,10 +1,14 @@
 package io.github.ismetdyn.agentkb.server;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The one place for agentkb's default paths (ADR-0027 decision 1, ARCHITECTURE §14). {@code init}
@@ -12,7 +16,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li>Linux: data {@code $XDG_DATA_HOME/agentkb} ({@code ~/.local/share/agentkb}), repo {@code
- *       ~/kb}, tools {@code ~/kb-tools}.
+ *       ~/kb}, tools {@code ~/kb-tools}. An existing {@code ~/.local/share/agentkb} stays in use
+ *       (with a warning) while the XDG one does not exist yet.
  *   <li>Windows: data {@code %LOCALAPPDATA%\agentkb}, repo {@code %USERPROFILE%\kb}, tools {@code
  *       %LOCALAPPDATA%\agentkb\tools}. The JDK takes user.home from the profile directory there.
  *   <li>{@code AGENTKB_HOME} moves data, repo and tools under it; {@code AGENTKB_DATA_DIR} and
@@ -21,25 +26,38 @@ import org.jspecify.annotations.Nullable;
  *
  * The scan roots stay the user's {@code projects} and {@code git} folders on both systems.
  */
-record AgentkbPaths(Path dataDir, Path repo, Path tools, List<Path> allowedRoots) {
+record AgentkbPaths(
+        Path dataDir, Path repo, Path tools, List<Path> allowedRoots, boolean legacyDataDir) {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AgentkbPaths.class);
     private static final String NAME = "agentkb";
 
     AgentkbPaths {
         allowedRoots = List.copyOf(allowedRoots);
     }
 
+    /** Resolved once per process (init or the server), so the warning is logged once. */
     static AgentkbPaths ofThisMachine() {
-        return resolve(
-                System.getProperty("os.name"),
-                System.getenv(),
-                Path.of(System.getProperty("user.home")));
+        AgentkbPaths paths =
+                resolve(
+                        System.getProperty("os.name"),
+                        System.getenv(),
+                        Path.of(System.getProperty("user.home")),
+                        Files::isDirectory);
+        if (paths.legacyDataDir()) {
+            LOG.warn(
+                    "event=legacy_data_dir_kept data_dir={} hint=move_it_under_XDG_DATA_HOME",
+                    paths.dataDir());
+        }
+        return paths;
     }
 
-    static AgentkbPaths resolve(String osName, Map<String, String> env, Path home) {
+    static AgentkbPaths resolve(
+            String osName, Map<String, String> env, Path home, Predicate<Path> isDirectory) {
         @Nullable Path agentkbHome = set(env, "AGENTKB_HOME");
         Path base;
         Path tools;
+        boolean legacy = false;
         if (agentkbHome != null) {
             base = agentkbHome;
             tools = agentkbHome.resolve("tools");
@@ -50,9 +68,17 @@ record AgentkbPaths(Path dataDir, Path repo, Path tools, List<Path> allowedRoots
         } else {
             // XDG Base Directory spec: a relative value is invalid and ignored.
             @Nullable Path xdg = set(env, "XDG_DATA_HOME");
-            Path dataHome =
-                    xdg != null && xdg.isAbsolute() ? xdg : home.resolve(".local").resolve("share");
-            base = dataHome.resolve(NAME);
+            Path legacyDir = home.resolve(".local").resolve("share").resolve(NAME);
+            base = xdg != null && xdg.isAbsolute() ? xdg.resolve(NAME) : legacyDir;
+            // An install from before ADR-0027 holds its graph in the legacy dir: keep using it
+            // rather than start an empty graph beside it.
+            legacy =
+                    !base.equals(legacyDir)
+                            && !isDirectory.test(base)
+                            && isDirectory.test(legacyDir);
+            if (legacy) {
+                base = legacyDir;
+            }
             tools = home.resolve("kb-tools");
         }
         Path repoBase = agentkbHome != null ? agentkbHome : home;
@@ -60,7 +86,8 @@ record AgentkbPaths(Path dataDir, Path repo, Path tools, List<Path> allowedRoots
                 orElse(set(env, "AGENTKB_DATA_DIR"), base),
                 orElse(set(env, "AGENTKB_REPO"), repoBase.resolve("kb")),
                 tools,
-                List.of(home.resolve("projects"), home.resolve("git")));
+                List.of(home.resolve("projects"), home.resolve("git")),
+                legacy && set(env, "AGENTKB_DATA_DIR") == null);
     }
 
     /** The server's lowest-priority properties: yml, environment and arguments override them. */

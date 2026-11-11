@@ -42,7 +42,7 @@ class DefaultPathsTest {
     @Test
     void the_server_takes_its_default_paths_from_agentkb_paths() {
         Path home = Path.of("/nonexistent-home");
-        AgentkbPaths paths = AgentkbPaths.resolve("Linux", Map.of(), home);
+        AgentkbPaths paths = AgentkbPaths.resolve("Linux", Map.of(), home, path -> false);
 
         // Default properties are the last source: everything else overrides them.
         PropertySource<?> defaults =

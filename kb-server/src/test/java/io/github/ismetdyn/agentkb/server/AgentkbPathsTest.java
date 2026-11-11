@@ -18,10 +18,49 @@ class AgentkbPathsTest {
     private static final String LINUX = "Linux";
     private static final String WINDOWS = "Windows 11";
     private static final Path HOME = Path.of("/home/ayse");
+    private static final Path LEGACY = HOME.resolve(".local/share/agentkb");
+    private static final Path XDG_TARGET = Path.of("/data/ayse/agentkb");
+    private static final Map<String, String> XDG = Map.of("XDG_DATA_HOME", "/data/ayse");
+
+    /** No directory exists, as on a fresh machine. */
+    private static AgentkbPaths resolve(String os, Map<String, String> env, Path home) {
+        return AgentkbPaths.resolve(os, env, home, path -> false);
+    }
+
+    /**
+     * Review J1: an install from before ADR-0027 keeps its graph in ~/.local/share/agentkb. When
+     * XDG_DATA_HOME points elsewhere and holds no agentkb yet, that graph stays in use (with a
+     * warning), never an empty new one beside it.
+     */
+    @Test
+    void an_existing_legacy_data_dir_is_kept_while_the_xdg_one_does_not_exist() {
+        AgentkbPaths kept = AgentkbPaths.resolve(LINUX, XDG, HOME, LEGACY::equals);
+
+        assertThat(kept.dataDir()).isEqualTo(LEGACY);
+        assertThat(kept.legacyDataDir()).isTrue();
+    }
+
+    @Test
+    void the_xdg_data_dir_wins_once_it_exists_or_when_there_is_no_legacy_one() {
+        AgentkbPaths both =
+                AgentkbPaths.resolve(
+                        LINUX, XDG, HOME, path -> path.equals(LEGACY) || path.equals(XDG_TARGET));
+        AgentkbPaths fresh = AgentkbPaths.resolve(LINUX, XDG, HOME, path -> false);
+        AgentkbPaths noXdg = AgentkbPaths.resolve(LINUX, Map.of(), HOME, LEGACY::equals);
+
+        assertThat(both.dataDir()).isEqualTo(XDG_TARGET);
+        assertThat(both.legacyDataDir()).isFalse();
+        assertThat(fresh.dataDir()).isEqualTo(XDG_TARGET);
+        assertThat(fresh.legacyDataDir()).isFalse();
+        assertThat(noXdg.dataDir())
+                .as("the default itself, nothing to warn about")
+                .isEqualTo(LEGACY);
+        assertThat(noXdg.legacyDataDir()).isFalse();
+    }
 
     @Test
     void linux_defaults_follow_xdg_with_the_known_fallbacks() {
-        AgentkbPaths paths = AgentkbPaths.resolve(LINUX, Map.of(), HOME);
+        AgentkbPaths paths = resolve(LINUX, Map.of(), HOME);
 
         assertThat(paths.dataDir()).isEqualTo(HOME.resolve(".local/share/agentkb"));
         assertThat(paths.repo()).isEqualTo(HOME.resolve("kb"));
@@ -32,12 +71,10 @@ class AgentkbPathsTest {
 
     @Test
     void linux_data_moves_with_an_absolute_xdg_data_home_and_ignores_a_relative_one() {
-        assertThat(
-                        AgentkbPaths.resolve(LINUX, Map.of("XDG_DATA_HOME", "/data/ayse"), HOME)
-                                .dataDir())
+        assertThat(resolve(LINUX, Map.of("XDG_DATA_HOME", "/data/ayse"), HOME).dataDir())
                 .isEqualTo(Path.of("/data/ayse/agentkb"));
         // XDG Base Directory spec: a relative value is invalid and ignored.
-        assertThat(AgentkbPaths.resolve(LINUX, Map.of("XDG_DATA_HOME", "rel"), HOME).dataDir())
+        assertThat(resolve(LINUX, Map.of("XDG_DATA_HOME", "rel"), HOME).dataDir())
                 .isEqualTo(HOME.resolve(".local/share/agentkb"));
     }
 
@@ -46,7 +83,7 @@ class AgentkbPathsTest {
         Path local = Path.of("/Users/ayse/AppData/Local");
 
         AgentkbPaths paths =
-                AgentkbPaths.resolve(
+                resolve(
                         WINDOWS,
                         Map.of("LOCALAPPDATA", local.toString(), "XDG_DATA_HOME", "/ignored"),
                         HOME);
@@ -60,7 +97,7 @@ class AgentkbPathsTest {
 
     @Test
     void windows_without_local_app_data_falls_back_to_the_profile_default() {
-        assertThat(AgentkbPaths.resolve(WINDOWS, Map.of(), HOME).dataDir())
+        assertThat(resolve(WINDOWS, Map.of(), HOME).dataDir())
                 .isEqualTo(HOME.resolve("AppData").resolve("Local").resolve("agentkb"));
     }
 
@@ -69,7 +106,7 @@ class AgentkbPathsTest {
         Path base = Path.of("/opt/kbhome");
         for (String os : List.of(LINUX, WINDOWS)) {
             AgentkbPaths paths =
-                    AgentkbPaths.resolve(
+                    resolve(
                             os,
                             Map.of(
                                     "AGENTKB_HOME",
@@ -92,7 +129,7 @@ class AgentkbPathsTest {
     @Test
     void the_specific_variables_win_over_agentkb_home_and_blank_ones_count_as_unset() {
         AgentkbPaths paths =
-                AgentkbPaths.resolve(
+                resolve(
                         LINUX,
                         Map.of(
                                 "AGENTKB_HOME", "/opt/kbhome",
@@ -100,20 +137,20 @@ class AgentkbPathsTest {
                                 "AGENTKB_REPO", "/srv/kb"),
                         HOME);
         AgentkbPaths blank =
-                AgentkbPaths.resolve(
+                resolve(
                         LINUX,
                         Map.of("AGENTKB_HOME", " ", "AGENTKB_DATA_DIR", "", "AGENTKB_REPO", ""),
                         HOME);
 
         assertThat(paths.dataDir()).isEqualTo(Path.of("/srv/data"));
         assertThat(paths.repo()).isEqualTo(Path.of("/srv/kb"));
-        assertThat(blank).isEqualTo(AgentkbPaths.resolve(LINUX, Map.of(), HOME));
+        assertThat(blank).isEqualTo(resolve(LINUX, Map.of(), HOME));
     }
 
     /** The server takes its defaults from here, so application.yml holds no second copy. */
     @Test
     void the_server_defaults_are_the_resolved_paths() {
-        AgentkbPaths paths = AgentkbPaths.resolve(LINUX, Map.of(), HOME);
+        AgentkbPaths paths = resolve(LINUX, Map.of(), HOME);
 
         assertThat(paths.serverDefaults())
                 .containsOnly(
