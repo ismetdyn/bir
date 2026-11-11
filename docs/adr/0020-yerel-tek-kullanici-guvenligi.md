@@ -28,6 +28,9 @@ uzaktan gelen dosyaları bağlantı (symlink) olarak asla izlemez.
 - (−) "Ajan secret değerini görmez" zorlanan bir sınır değil, kural olur: `kb run` ve placeholder akışı çalışır, ama ajan isterse
   `GET /api/v1/secrets/{id}` çağırabilir. Kullanıcı ajanlarına güvendiği için kabul edildi. Değerin MCP, Cypher, log, anlık
   görüntü ve git'e girmemesi kuralları değişmez.
+- Windows'ta (ADR-0027) bir bilgisayarı birden çok hesap paylaşabilir ve "Bypass traverse checking" hakkı yüzünden üst
+  dizinin kapalı olması alttaki dosyayı korumaz; koruma her dosyanın kendi ACL'sindedir. Bu yüzden veri dizini ve `kb run
+  --file` dosyası yalnız kullanıcıya ACL alır ve veri dizininin üst dizinden mirası kesilir (SECRETS §5).
 - (−) Bu bilgisayarda çalışan her program sunucuyu okuyup yazabilir.
 - (+) Kurulum sadeleşir; istemci ayarlarında başlık ve ortam değişkeni gerekmez.
 - `integrations/kb-hook.sh`, `curator/mcp.json`, `curator/run-curator.sh` token'sız hale F2'de getirilir.

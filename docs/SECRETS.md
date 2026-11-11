@@ -84,8 +84,8 @@ yolunu kapatan bir savunma olduğunu belirtir.
 | `kb_cypher` | `secret_value` geçen sorguyu reddeder, sonuçlardaki Secret düğümlerinden bu alanı çıkarır, metinlerdeki saklı değerleri `****` ile maskeler |
 | Anlık görüntü | `secret_value` yazılmaz (test: sahte değer `~/kb` altında ve git geçmişinde aranır). Kullanıcının düz metni maskelenmez; değer saklanmadan önce yazılmışsa `PUT` cevabı kaç kayıtta geçtiğini söyler, yüklenmiş dokümanlara bakılmadığını belirtir ve değiştirilmesini ister (ADR-0026) |
 | Tarayıcı | İyi bilinen yer tutucuları (`postgres`, `changeme`, …; `kb-core` `Placeholders`), 4 karakterden kısa değerleri ve tek karakter sınıfından oluşan düşük entropili değerleri (yalnız harf, yalnız rakam; ör. `keycloak`) saklamaz: Secret ve adı kalır, değer boş kalır; tarama cevabı `placeholder, not stored` der (ADR-0026) |
-| Veri dizini | `~/.local/share/agentkb` 0700 |
-| `kb run` | Değer sadece alt süreçte; çıktı maskeleme |
+| Veri dizini | Yalnız agentkb'yi çalıştıran kullanıcıya açık (`OwnerOnly`, ADR-0027 karar 2). Linux: `~/.local/share/agentkb` 0700. Windows (NTFS): `%LOCALAPPDATA%\agentkb` başka bir hesabınsa reddedilir; tek ACL girdisi kullanıcıya tam yetki verir ve içeride miras alınır, üst dizinden miras `icacls /inheritance:r` ile kesilir (sonradan üst dizine verilen izin içeri ulaşmaz), içerdekiler `icacls /reset` ile buna döner. Sonuç her başlangıçta denetlenir (miras kalmış girdi de hata sayılır), `kb doctor` raporlar; ikisini de desteklemeyen dosya sistemi başlamayı reddeder |
+| `kb run` | Değer sadece alt süreçte; çıktı maskeleme. `--file` dosyası POSIX'te oluşurken 0600; Windows'ta oluşurken yalnız kullanıcıya ACL alır, geçici dizin başka hesabınsa reddedilir; öldürülen bir çalıştırmanın dosyasını sonraki `kb run` siler |
 
 Doküman yükleme (`POST /api/v1/documents`), secret desenlerine uyan ya da bir Secret'ta saklı bir değeri içeren dosyayı
 reddeder; ret yalnız satır numarasını söyler, değeri söylemez. Metin her zaman UTF-8, BOM'u veya NUL sezgisi varsa ek

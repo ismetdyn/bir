@@ -101,5 +101,5 @@ Sonraki fazlar için kalıp: "ROADMAP'teki F<n>'i yap; önce testleri yaz; bitti
 | Küratör | Headless Claude Code, sadece `/mcp/curator` | ADR-0011, CURATOR.md |
 | Yerleşik hafızalar | Kapalı (önce içe aktarılır) | ADR-0013 |
 | Sadelik | Kanıtlanmış ihtiyaç olmadan mekanizma yok | ADR-0016 |
-| Yollar | Repo `~/kb`, veri `~/.local/share/agentkb`, araçlar `~/kb-tools`, port `7411` | ARCHITECTURE §14 |
+| Yollar | İşletim sistemine göre `AgentkbPaths`'te; Linux: repo `~/kb`, veri `~/.local/share/agentkb`, araçlar `~/kb-tools`; Windows: `%USERPROFILE%\kb`, `%LOCALAPPDATA%\agentkb`; `AGENTKB_HOME` hepsini taşır; port `7411` | ARCHITECTURE §14, ADR-0027 |
 | Lisans / yayın | GPL-3.0-only; kişisel ad alanı (`io.github.ismetdyn.agentkb`) | PUBLISHING.md |

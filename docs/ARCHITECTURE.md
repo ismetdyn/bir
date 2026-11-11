@@ -265,10 +265,25 @@ Code'u sadece `/mcp/curator` araçlarıyla başlatır. Ayrıntılar: CURATOR.md.
 
 ## 14. Yapılandırma
 
+`repo`, `data-dir` ve `scan.allowed-roots` varsayılanları `application.yml`'de değil, işletim sistemine göre tek yerde
+(`AgentkbPaths`, ADR-0027 karar 1) durur; `init` ve sunucu ikisi de oradan okur:
+
+| | Linux | Windows |
+|---|---|---|
+| Veri (`data-dir`) | `$XDG_DATA_HOME/agentkb` (`~/.local/share/agentkb`) | `%LOCALAPPDATA%\agentkb` |
+| Bilgi reposu (`repo`) | `~/kb` | `%USERPROFILE%\kb` |
+| Araçlar | `~/kb-tools` | `%LOCALAPPDATA%\agentkb\tools` |
+| Tarama kökleri | `~/projects`, `~/git` | `%USERPROFILE%\projects`, `%USERPROFILE%\git` |
+
+`AGENTKB_HOME` veri, repo (`$AGENTKB_HOME/kb`) ve araçları (`$AGENTKB_HOME/tools`) birlikte taşır; `AGENTKB_DATA_DIR` ve
+`AGENTKB_REPO` ondan da önce gelir. Linux'ta XDG başka yeri gösterip orada henüz `agentkb` yokken mevcut
+`~/.local/share/agentkb` kullanılmaya devam eder (uyarıyla). Veri dizini yalnız sahibine açıktır: Linux 0700, Windows yalnız
+kullanıcıya ACL + kesilmiş miras (`OwnerOnly`, SECRETS §5).
+
 ```yaml
 agentkb:
-  repo: ${HOME}/kb                          # anlık görüntü + şema (git)
-  data-dir: ${HOME}/.local/share/agentkb    # graph/ burada (0700); asla senkronlanmaz; secret değerleri burada
+  repo: ${HOME}/kb                          # anlık görüntü + şema (git); varsayılan AgentkbPaths'ten
+  data-dir: ${HOME}/.local/share/agentkb    # graph/ burada (yalnız sahibine açık); asla senkronlanmaz; secret değerleri burada
   state-dir: ${HOME}/.local/state/agentkb   # audit, küratör özetleri
   scan:
     allowed-roots: [${HOME}/projects, ${HOME}/git]
