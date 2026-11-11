@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * masked, so this logs an unexpected failure itself: its class, its root cause's class and a {@code
  * trace_id}, never a message, which may carry a request value (invariants 2 and 10). The reply
  * carries the trace id and no internal detail. Limited to the REST and hook controllers, so the MCP
- * transports keep their own handling; kb-hook.sh turns any non-2xx hook answer into no output
+ * transports keep their own handling; kb hook turns any non-2xx hook answer into no output
  * (fail-open).
  */
 @RestControllerAdvice(

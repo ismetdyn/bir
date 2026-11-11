@@ -25,10 +25,10 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 
 /**
- * SPEC §12 "Hook" and ARCHITECTURE §11: KB hooks finish within 2 s (kb-hook.sh gives curl
- * --max-time 2) and fail open. The server cuts work that would overrun and answers 200 with no
- * context rather than let the client's own timeout drop the answer. The 300 ms brief/recall target
- * of SPEC §12 is a performance goal, not checked here (timing on a shared test JVM).
+ * SPEC §12 "Hook" and ARCHITECTURE §11: KB hooks finish within 2 s (kb hook gives up after 2 s) and
+ * fail open. The server cuts work that would overrun and answers 200 with no context rather than
+ * let the client's own timeout drop the answer. The 300 ms brief/recall target of SPEC §12 is a
+ * performance goal, not checked here (timing on a shared test JVM).
  */
 class HookBudgetTest extends RunningServerTestBase {
 

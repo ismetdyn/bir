@@ -15,7 +15,8 @@ import picocli.CommandLine.Command;
  * The {@code kb} command (docs/CLIENTS.md §2): a thin client of the local server's REST API; it
  * never opens the graph (ADR-0022 decision 3) and holds no business rule (ARCHITECTURE §1). Output
  * is UTF-8 whatever the locale says, so a value can be piped exactly. Exit codes: 0, 1 for an error
- * or a wrong command line, 3 when the server cannot be reached; kb run passes on its command's.
+ * or a wrong command line, 3 when the server cannot be reached; kb run passes on its command's, and
+ * kb hook always exits 0 (fail-open).
  */
 @Command(
         name = "kb",
@@ -25,6 +26,7 @@ import picocli.CommandLine.Command;
         subcommands = {
             SecretCommand.class,
             RunCommand.class,
+            HookCommand.class,
             MaintenanceCommands.Revert.class,
             MaintenanceCommands.Restore.class,
             MaintenanceCommands.Sync.class,

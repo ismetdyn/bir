@@ -28,24 +28,27 @@ Kontrol: `codex mcp list`, Codex içinde `/mcp`.
 
 ## 2. Hook'lar — `~/.codex/hooks.json`
 
-Codex'te hook'lar varsayılan olarak açık.
+Codex'te hook'lar varsayılan olarak açık. Hook komutu `kb hook <olay> <istemci>`dir (ADR-0027 karar 4; fail-open, bkz.
+`integrations/claude-code/setup.md` §2). Codex komutu Linux'ta `$SHELL -lc`, Windows'ta `cmd.exe /C` ile çalıştırır
+(openai/codex `hooks/src/engine/command_runner.rs`, 2026-11-11); `$HOME` cmd'de açılmadığı için komut yol değil, PATH'teki
+`kb`'yi çağırır. Windows davranışı test makinesinde doğrulanacak (W0).
 
 ```json
 {
   "hooks": {
     "SessionStart": [
       { "hooks": [
-        { "type": "command", "command": "$HOME/kb-tools/kb-hook.sh session-start codex", "timeout": 5 }
+        { "type": "command", "command": "kb hook session-start codex", "timeout": 5 }
       ] }
     ],
     "UserPromptSubmit": [
       { "hooks": [
-        { "type": "command", "command": "$HOME/kb-tools/kb-hook.sh user-prompt-submit codex", "timeout": 3 }
+        { "type": "command", "command": "kb hook user-prompt-submit codex", "timeout": 3 }
       ] }
     ],
     "PostToolUse": [
       { "matcher": "request_user_input",
-        "hooks": [ { "type": "command", "command": "$HOME/kb-tools/kb-hook.sh post-tool-use codex", "timeout": 5 } ] }
+        "hooks": [ { "type": "command", "command": "kb hook post-tool-use codex", "timeout": 5 } ] }
     ]
   }
 }

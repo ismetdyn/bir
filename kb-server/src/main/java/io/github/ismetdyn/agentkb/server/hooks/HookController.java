@@ -26,15 +26,15 @@ import tools.jackson.databind.node.MissingNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * {@code POST /hooks/<event>?client=<claude|codex>}, what integrations/kb-hook.sh carries
- * (ARCHITECTURE §11): session-start opens the session's Episode and gives the brief with its id,
- * starting a background scan of the working copy when SPEC S1 calls for one, user-prompt-submit
- * records the prompt with its session and gives the recall, post-tool-use captures an answered
- * question and gives nothing. The answer is empty or only {@code hookSpecificOutput {hookEventName,
- * additionalContext}}: Codex refuses any other key (additionalProperties false), and Claude Code
- * takes the same shape. Both clients' payloads are read the same way, so the client is only
- * checked. An unknown event or client is an empty 404; a payload that is no JSON object an empty
- * 200, so a session is never blocked. Behind OriginGuard like every path (ADR-0020).
+ * {@code POST /hooks/<event>?client=<claude|codex>}, what kb hook carries (ARCHITECTURE §11):
+ * session-start opens the session's Episode and gives the brief with its id, starting a background
+ * scan of the working copy when SPEC S1 calls for one, user-prompt-submit records the prompt with
+ * its session and gives the recall, post-tool-use captures an answered question and gives nothing.
+ * The answer is empty or only {@code hookSpecificOutput {hookEventName, additionalContext}}: Codex
+ * refuses any other key (additionalProperties false), and Claude Code takes the same shape. Both
+ * clients' payloads are read the same way, so the client is only checked. An unknown event or
+ * client is an empty 404; a payload that is no JSON object an empty 200, so a session is never
+ * blocked. Behind OriginGuard like every path (ADR-0020).
  */
 @RestController
 class HookController {

@@ -20,11 +20,11 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Posts hook payloads to {@code /hooks/{event}?client=} the way integrations/kb-hook.sh does, and
- * reads the answer by the two clients' output contracts. The payloads under
- * src/test/resources/hooks/ are the stdin Claude Code 2.1.318 really sent (claude-*, paths
- * anonymised) and, for AskUserQuestion and Codex, built from the documented and source schemas
- * (codex rust-v0.161.0 codex-rs/hooks/schema/generated).
+ * Posts hook payloads to {@code /hooks/{event}?client=} the way kb hook does, and reads the answer
+ * by the two clients' output contracts. The payloads under src/test/resources/hooks/ are the stdin
+ * Claude Code 2.1.318 really sent (claude-*, paths anonymised) and, for AskUserQuestion and Codex,
+ * built from the documented and source schemas (codex rust-v0.161.0
+ * codex-rs/hooks/schema/generated).
  */
 public final class HookHttp {
 
@@ -33,7 +33,7 @@ public final class HookHttp {
     public static final String POST_TOOL_USE = "post-tool-use";
     public static final List<String> CLIENTS = List.of("claude", "codex");
 
-    /** kb-hook.sh gives curl --max-time 2; an answer after that never reaches the agent. */
+    /** kb hook gives up after 2 s; an answer after that never reaches the agent. */
     public static final Duration HOOK_BUDGET = Duration.ofSeconds(2);
 
     // Claude Code drops additionalContext beyond 10,000 characters (code.claude.com hooks docs).

@@ -15,7 +15,7 @@ import java.util.Optional;
 /**
  * {@code GET} and {@code PUT /api/v1/secrets/<id>} of the local server (ADR-0022 decision 5): the
  * id with its slashes in the path, the value as a UTF-8 text body, no token and no Origin
- * (ADR-0020). The address comes from {@code AGENTKB_URL}, as for integrations/kb-hook.sh.
+ * (ADR-0020). The address comes from {@code AGENTKB_URL}, as for kb hook.
  */
 final class SecretApi {
 
