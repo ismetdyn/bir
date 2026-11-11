@@ -92,7 +92,10 @@ class ApiContractTest extends RunningServerTestBase {
                 arguments("proposals-answer.json", H6Samples.PROPOSALS),
                 arguments("activity-answer.json", H6Samples.ACTIVITY),
                 arguments("secrets-answer.json", H6Samples.SECRETS),
-                arguments("scan-answer.json", H6Samples.SCAN));
+                arguments("scan-answer.json", H6Samples.SCAN),
+                arguments("schema-answer.json", H8Samples.SCHEMA),
+                arguments("entity-list-answer.json", H8Samples.ENTITIES),
+                arguments("batch-answer.json", H8Samples.BATCH));
     }
 
     @ParameterizedTest

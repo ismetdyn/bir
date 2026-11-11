@@ -34,9 +34,14 @@ public final class RestReadProbe {
                         "/api/v1/conflicts?limit=500",
                         "/api/v1/proposals?limit=500",
                         "/api/v1/stale?days=0&limit=500",
-                        "/api/v1/entities/" + ApiHttp.q(value))) {
+                        "/api/v1/entities/" + ApiHttp.q(value),
+                        "/api/v1/schema",
+                        "/api/v1/entities?limit=500",
+                        "/api/v1/entities?type=" + ApiHttp.q(value),
+                        "/api/v1/activity/" + ApiHttp.q(value))) {
             answers.put("GET " + path, api.get(path).body());
         }
+        answers.putAll(batches(api));
         for (String id : List.of("ornek-lb", "ornek-app-01", "ornek-proje", entity)) {
             answers.put("GET entity json " + id, api.get("/api/v1/entities/" + id).body());
             answers.put(
@@ -81,6 +86,23 @@ public final class RestReadProbe {
         answers.put(
                 "POST reject",
                 post(api, "/api/v1/proposals/" + value + "/reject", Map.of("note", value)));
+        return answers;
+    }
+
+    /** Every batch in detail: the secret writes and the scans among them name secrets. */
+    private static Map<String, String> batches(ApiHttp api)
+            throws IOException, InterruptedException {
+        Map<String, String> answers = new LinkedHashMap<>();
+        List<String> batches =
+                JSON.readTree(api.get("/api/v1/activity?limit=500").body())
+                        .get("batches")
+                        .valueStream()
+                        .map(batch -> batch.get("batch").asString())
+                        .toList();
+        for (String batch : batches) {
+            String path = "/api/v1/activity/" + batch + "?limit=500";
+            answers.put("GET " + path, api.get(path).body());
+        }
         return answers;
     }
 

@@ -74,7 +74,24 @@ public record Schema(
     public record RelationType(String type, String description, List<String> synonyms) {}
 
     /** A fact key and its rules as written in facts.yaml ({@code validator}, {@code kind}, …). */
-    public record FactKey(String key, Map<String, String> rules) {}
+    public record FactKey(String key, Map<String, String> rules) {
+
+        /** A text key is always multi-valued (schema/facts.yaml header). */
+        public boolean multi() {
+            return "true".equals(rules.get("multi")) || "text".equals(rules.get("kind"));
+        }
+
+        /** The values of {@code enum}, the only ones the key takes; empty if it has none. */
+        public List<String> allowed() {
+            String allowed = rules.get("enum");
+            return allowed == null ? List.of() : List.of(allowed.split(",\\s*"));
+        }
+
+        /** Whether a value may point to an entity with a TARGET edge ({@code target: optional}). */
+        public boolean takesTarget() {
+            return rules.containsKey("target");
+        }
+    }
 
     /**
      * @throws IllegalStateException naming the file if one is missing, broken or lacks its section

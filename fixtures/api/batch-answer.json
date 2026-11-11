@@ -1,0 +1,16 @@
+{
+  "batch": "01KBTESTBATCH0000000000000Z",
+  "at": "2026-11-10T08:00:00Z",
+  "sources": ["user"],
+  "revertible": false,
+  "blockedBy": ["01KBTESTBATCH00000000000010"],
+  "changes": [
+    {"change": "opened", "kind": "entity", "id": "ornek-app-01", "entity": "ornek-app-01", "key": "Server", "env": null, "value": "Uygulama sunucusu", "source": "user"},
+    {"change": "opened", "kind": "fact", "id": "01KBTESTFACT1", "entity": "ornek-app-01", "key": "ip", "env": "prod", "value": "192.0.2.21", "source": "user"},
+    {"change": "opened", "kind": "relation", "id": "01KBTESTREL1", "entity": "ornek-app-01", "key": "BEHIND", "env": "prod", "value": "ornek-lb", "source": "user"},
+    {"change": "opened", "kind": "secret", "id": "ornek-app-01/prod/db-password", "entity": "ornek-app-01", "key": "db-password", "env": "prod", "value": null, "source": "user"},
+    {"change": "closed", "kind": "fact", "id": "01KBTESTFACT0", "entity": "ornek-app-01", "key": "ip", "env": "prod", "value": "kbtest-ğhost-İ \"quoted\" \\ /", "source": "user"},
+    {"change": "revised", "kind": "entity", "id": "ornek-app-01", "entity": "ornek-app-01", "key": "aliases, summary", "env": null, "value": null, "source": "user"}
+  ],
+  "more": 0
+}

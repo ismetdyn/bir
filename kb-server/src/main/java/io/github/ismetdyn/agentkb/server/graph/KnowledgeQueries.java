@@ -50,8 +50,8 @@ public class KnowledgeQueries {
     // Lucene query syntax; the agent's words are text, never operators (ReadToolContractTest).
     private static final Pattern LUCENE_SPECIAL =
             Pattern.compile("[\\\\+\\-!():^\\[\\]\"{}~*?|&/]");
-    private static final String TYPE_OF =
-            "coalesce([l IN labels(%s) WHERE l <> 'Entity'][0], 'Entity')";
+    // ListQueries names an entity's type the same way.
+    static final String TYPE_OF = "coalesce([l IN labels(%s) WHERE l <> 'Entity'][0], 'Entity')";
 
     // RESOLVE's id half alone: an index seek, where RESOLVE's alias match scans every entity.
     private static final String RESOLVE_ID =

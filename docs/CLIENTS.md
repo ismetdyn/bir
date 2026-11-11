@@ -12,6 +12,8 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 |---|---|---|
 | GET | `/search?q=&type=&env=&limit=` | Arama (güncel önce, geçmiş işaretli); `limit` 1–20, varsayılan 8 (ADR-0017); yanıtta `more` kesilen sayıyı verir |
 | GET | `/entities/{id}` | Varlık: `Accept`'te kalitesi 0'dan büyük ve JSON'unkinden düşük olmayan `text/markdown` → `MarkdownView`, değilse JSON (fact ve ilişki id'leriyle): güncel fact'ler, ilişkiler, secret adları, geçmiş. Bilinmeyen id 404 |
+| GET | `/entities?type=&limit=` | Gözatma: aramasız bütün varlıklar (`id`, `type`, `status`, tek satır `summary`, `updatedAt`), id sırasıyla, arşivliler sonda ve işaretli (değişmez 12); `type` tür anahtarı ya da etiketi, büyük/küçük harf fark etmez (`/search` gibi); `limit` varsayılan 50, en çok 500; `more` kesilen sayı |
+| GET | `/schema` | Şema, `kb_schema` ile aynı kaynak (`schema/*.yaml`): varlık türleri (`key`, `label`, `operational`), fact anahtarları (`multi`: metin anahtarı hep çok değerli; `validator`, `allowed` enum değerleri, `kind`, `target`), ilişki türleri (`type`, `description`, `synonyms`). İstemci şemayı kopyalamaz |
 | POST | `/entities` `{id,type,facts?,relations?}` · PATCH `/entities/{id}` `{aliases?,summary?}` | Yeni varlık (fact'siz de olur: `kb add <tür> <id>`; yeni 201, bilinen 200); alias (en çok 20) ve özet |
 | POST | `/entities/{id}/facts` `{facts}` | Fact ekle/değiştir (değişen eski fact kapanır) |
 | POST | `/facts/{id}/close` | Fact'i kapat (silme yok) |
@@ -22,6 +24,7 @@ F2'de yalnız şu alt küme çıkar (ADR-0022): `GET/PUT /secrets/{id}`, `POST /
 | GET | `/proposals?limit=` · POST `/proposals/{id}/accept` · POST `/proposals/{id}/reject` `{note?}` | Öneriler (karar, kural, arşiv, şema); açıklar önce |
 | GET | `/signals?status=&kind=` · POST `/signals/{id}/reopen` | Sinyaller; atılanlar (hiçbir şey üretmeden kapananlar) ve yeniden açma |
 | GET | `/activity?source=&batch=&since=&limit=` | Son yazmalar, parti başına bir satır, yeniden eskiye; `limit` varsayılan 50, en çok 500 |
+| GET | `/activity/{batch}?limit=` | Tek parti: aktivite satırı, açtığı/kapattığı/değiştirdiği kayıtlar (`changes`: `change`, `kind`, `id`, `entity`, `key`, `env`, `/search` parçası gibi kesilen tek satır `value`, `source`; secret değeri hiç yok), `revertible` ve `blockedBy` (önce geri alınacak sonraki partiler; şema kabulü hiç geri alınmaz); `limit` varsayılan 50, en çok 500; bilinmeyen ya da geri alınmış parti 404 `{error, hint}` |
 | POST | `/revert` | `{batch}` |
 | GET | `/secrets?prefix=&limit=` | Secret listesi (ad, ortam, placeholder, bu bilgisayarda değeri var mı; değer yok); `limit` varsayılan 50, en çok 500 |
 | PUT | `/secrets/{id}` | Değeri yaz (`kb secret set`); değer bu bilgisayardan çıkmaz |

@@ -1,0 +1,15 @@
+{
+  "entityTypes": [
+    {"key": "server", "label": "Server", "operational": true},
+    {"key": "topic", "label": "Topic", "operational": false}
+  ],
+  "factKeys": [
+    {"key": "port", "multi": true, "validator": "port-spec", "allowed": [], "kind": null, "target": true},
+    {"key": "engine", "multi": false, "validator": null, "allowed": ["oracle", "postgresql"], "kind": null, "target": false},
+    {"key": "role", "multi": true, "validator": null, "allowed": [], "kind": "text", "target": false}
+  ],
+  "relationTypes": [
+    {"type": "RUNS", "description": "Bu sunucu/küme şu servisi/uygulamayı çalıştırır", "synonyms": ["HOSTS"]},
+    {"type": "PART_OF", "description": "Daha büyük bir bütünün parçası \"İ\"", "synonyms": []}
+  ]
+}

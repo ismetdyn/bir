@@ -2,6 +2,7 @@ package io.github.ismetdyn.agentkb.server.api;
 
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
 import io.github.ismetdyn.agentkb.api.EntityAnswer;
+import io.github.ismetdyn.agentkb.api.SchemaAnswer;
 import io.github.ismetdyn.agentkb.api.SearchAnswer;
 import io.github.ismetdyn.agentkb.core.Ids;
 import io.github.ismetdyn.agentkb.core.Times;
@@ -11,6 +12,7 @@ import io.github.ismetdyn.agentkb.core.render.FactView;
 import io.github.ismetdyn.agentkb.core.render.RelationView;
 import io.github.ismetdyn.agentkb.core.render.ResultList;
 import io.github.ismetdyn.agentkb.core.render.ResultList.Hit;
+import io.github.ismetdyn.agentkb.server.graph.Schema;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +46,38 @@ final class ReadAnswers {
                                                         : ResultList.snippet(hit.snippet())))
                         .toList(),
                 page.more());
+    }
+
+    /**
+     * The schema files as kb_schema reads them; a fact key's rules as the write path applies them.
+     */
+    static SchemaAnswer schema(Schema schema) {
+        return new SchemaAnswer(
+                schema.entityTypes().stream()
+                        .map(
+                                type ->
+                                        new SchemaAnswer.EntityType(
+                                                type.key(), type.label(), type.operational()))
+                        .toList(),
+                schema.factKeys().stream()
+                        .map(
+                                key ->
+                                        new SchemaAnswer.FactKey(
+                                                key.key(),
+                                                key.multi(),
+                                                key.rules().get("validator"),
+                                                key.allowed(),
+                                                key.rules().get("kind"),
+                                                key.takesTarget()))
+                        .toList(),
+                schema.relations().stream()
+                        .map(
+                                relation ->
+                                        new SchemaAnswer.RelationType(
+                                                relation.type(),
+                                                relation.description(),
+                                                relation.synonyms()))
+                        .toList());
     }
 
     static EntityAnswer entity(EntityView view) {

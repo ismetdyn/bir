@@ -1,0 +1,8 @@
+{
+  "entities": [
+    {"id": "ornek-app-01", "type": "Server", "status": "current", "summary": "Uygulama sunucusu \"prod\"", "updatedAt": "2026-11-10T08:00:00Z"},
+    {"id": "ornek-proje", "type": "Project", "status": "observed", "summary": null, "updatedAt": ""},
+    {"id": "ornek-app-00", "type": "Server", "status": "archived", "summary": "kbtest-ğhost-İ", "updatedAt": "2026-11-09T08:00:00Z"}
+  ],
+  "more": 12
+}

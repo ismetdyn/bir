@@ -185,7 +185,7 @@ final class WriteCheck {
                                                 where + ": unknown key", KEY_HINT));
         String value = text(where + ": value", input.value(), VALUE_LIMIT);
         FactValues.check(key, value, where);
-        if (input.target() != null && !key.rules().containsKey("target")) {
+        if (input.target() != null && !key.takesTarget()) {
             throw new WriteRejectedException(where + ": key takes no target", TARGET_KEY_HINT);
         }
         String target =
@@ -195,7 +195,7 @@ final class WriteCheck {
                 value,
                 env(input.env(), where),
                 target,
-                isMulti(key),
+                key.multi(),
                 isCaseInsensitive(key),
                 source);
     }
@@ -206,11 +206,6 @@ final class WriteCheck {
      */
     static boolean isCaseInsensitive(FactKey key) {
         return "hostname".equals(key.rules().get("validator"));
-    }
-
-    /** A text key is always multi-valued (schema/facts.yaml header). */
-    static boolean isMulti(FactKey key) {
-        return "true".equals(key.rules().get("multi")) || "text".equals(key.rules().get("kind"));
     }
 
     private static CheckedRelation relation(

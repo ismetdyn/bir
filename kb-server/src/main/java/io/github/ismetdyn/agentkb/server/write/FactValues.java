@@ -3,7 +3,6 @@ package io.github.ismetdyn.agentkb.server.write;
 import io.github.ismetdyn.agentkb.server.graph.Schema.FactKey;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,8 +54,7 @@ final class FactValues {
         if (validator != null && !accepts(validator, value)) {
             throw new WriteRejectedException(where + ": value is not a valid " + validator, HINT);
         }
-        String allowed = key.rules().get("enum");
-        if (allowed != null && !Arrays.asList(allowed.split(",\\s*")).contains(value)) {
+        if (key.rules().containsKey("enum") && !key.allowed().contains(value)) {
             // The allowed values stay out of the message: "postgres" is part of "postgresql".
             throw new WriteRejectedException(where + ": value is not an allowed value", HINT);
         }

@@ -44,6 +44,9 @@ class ApiEndpointGuardTest extends SecurityTestBase {
                 "POST|/api/v1/proposals/ID/accept|{}|application/json",
                 "POST|/api/v1/proposals/ID/reject|{\"note\": \"ID\"}|application/json",
                 "GET|/api/v1/activity||application/json",
+                "GET|/api/v1/activity/ID||application/json",
+                "GET|/api/v1/schema||application/json",
+                "GET|/api/v1/entities?type=server||application/json",
                 "GET|/api/v1/secrets?prefix=ornek||application/json",
                 "POST|/api/v1/scan|{\"path\": \"/tmp/ID\"}|application/json"
             })

@@ -76,7 +76,7 @@ final class FactEdits {
                 schema.factKeys().stream()
                         .filter(known -> known.key().equals(pending.key()))
                         .findFirst();
-        boolean multi = key.map(WriteCheck::isMulti).orElse(false);
+        boolean multi = key.map(FactKey::multi).orElse(false);
         boolean caseInsensitive = key.map(WriteCheck::isCaseInsensitive).orElse(false);
         Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         Fact incoming =

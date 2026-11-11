@@ -1,5 +1,6 @@
 package io.github.ismetdyn.agentkb.server.graph;
 
+import io.github.ismetdyn.agentkb.core.Ids;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,26 @@ public class ListQueries {
             int revised,
             List<String> entities) {}
 
+    /**
+     * One record a batch opened, closed or revised: {@code kind} its label (Entity for an entity,
+     * Relation for an edge between entities, the revised record's for a revision); {@code key} the
+     * fact key, relation or entity type, a secret's name or the fields a revision changed; {@code
+     * value} the fact value, relation target or text of the record, never a secret value.
+     */
+    public record Change(
+            String change,
+            String kind,
+            @Nullable String id,
+            @Nullable String entity,
+            @Nullable String key,
+            @Nullable String env,
+            @Nullable String value,
+            String source) {}
+
+    /** An entity as a browse list shows it; {@code type} is its graph label. */
+    public record EntityEntry(
+            String id, String type, String status, @Nullable String summary, String updatedAt) {}
+
     /** {@code since} is an ISO-8601 time as Times.format writes it. */
     public record ActivityFilter(
             @Nullable String source, @Nullable String batch, @Nullable String since) {}
@@ -78,45 +99,71 @@ public class ListQueries {
                    p.review_note AS reviewNote
             ORDER BY CASE WHEN p.status = 'open' THEN 0 ELSE 1 END, p.id DESC
             """;
-    // Every record of a batch, each counted once: what it opened (batch), what it closed, and what
-    // it revised (Revision, ADR-0025 decision 15). A close is a user edit's closed_batch (decision
-    // 10) or a fact the batch superseded (SUPERSEDES from one of its records), as WriteResult and
-    // ScanResult count them; accept-new does both for one fact. Relations count only between
-    // entities, the vocabulary ones; HAS_FACT and the like belong to their node.
-    private static final String ACTIVITY =
+    // The columns that name node %1$s of a batch (Change). A Secret's text is never read: its
+    // value is secret_value, which no column names (invariant 2).
+    private static final String NODE_COLUMNS =
             """
-            CALL () {
+            %1$s.id AS id, CASE WHEN %1$s:Entity THEN 'Entity' ELSE head(labels(%1$s)) END AS kind,
+            CASE WHEN %1$s:Entity THEN %2$s
+                 ELSE coalesce(%1$s.key, %1$s.name, %1$s.kind) END AS key,
+            %1$s.env AS env,
+            CASE WHEN %1$s:Secret THEN null
+                 ELSE coalesce(%1$s.value, %1$s.summary, %1$s.content, %1$s.rule, %1$s.title)
+            END AS value""";
+    private static final String EDGE_COLUMNS =
+            "r.id AS id, 'Relation' AS kind, type(r) AS key, r.env AS env, b.id AS value";
+    // Every record of a batch, a row per way it changed it: what it opened (batch), what it closed,
+    // and what it revised (Revision, ADR-0025 decision 15). A close is a user edit's closed_batch
+    // (decision 10) or a fact the batch superseded (SUPERSEDES from one of its records), as
+    // WriteResult and ScanResult count them; accept-new does both for one fact. Relations count
+    // only between entities, the vocabulary ones; HAS_FACT and the like belong to their node.
+    private static final String BATCH_RECORDS =
+            """
               MATCH (n) WHERE n.batch IS NOT NULL AND NOT n:Revision
               OPTIONAL MATCH (owner:Entity)-[:HAS_FACT|HAS_SECRET]->(n)
               RETURN n.batch AS batch, coalesce(n.source, n.by) AS source, n.updated_at AS at,
                      'opened' AS change, elementId(n) AS rec,
-                     coalesce(owner.id, CASE WHEN n:Entity THEN n.id END) AS entity
+                     coalesce(owner.id, CASE WHEN n:Entity THEN n.id END) AS entity, %1$s
               UNION ALL
-              MATCH (a:Entity)-[r]->(:Entity) WHERE r.batch IS NOT NULL
+              MATCH (a:Entity)-[r]->(b:Entity) WHERE r.batch IS NOT NULL
               RETURN r.batch AS batch, r.source AS source, r.updated_at AS at,
-                     'opened' AS change, elementId(r) AS rec, a.id AS entity
+                     'opened' AS change, elementId(r) AS rec, a.id AS entity, %3$s
               UNION ALL
               MATCH (n) WHERE n.closed_batch IS NOT NULL
               OPTIONAL MATCH (owner:Entity)-[:HAS_FACT]->(n)
               RETURN n.closed_batch AS batch, 'user' AS source, n.valid_to AS at,
-                     'closed' AS change, elementId(n) AS rec, owner.id AS entity
+                     'closed' AS change, elementId(n) AS rec, owner.id AS entity, %1$s
               UNION ALL
-              MATCH (a:Entity)-[r]->(:Entity) WHERE r.closed_batch IS NOT NULL
+              MATCH (a:Entity)-[r]->(b:Entity) WHERE r.closed_batch IS NOT NULL
               RETURN r.closed_batch AS batch, 'user' AS source, r.valid_to AS at,
-                     'closed' AS change, elementId(r) AS rec, a.id AS entity
+                     'closed' AS change, elementId(r) AS rec, a.id AS entity, %3$s
               UNION ALL
               MATCH (n)-[:SUPERSEDES]->(old)
               WHERE n.batch IS NOT NULL AND old.valid_to IS NOT NULL
                 AND (old.batch IS NULL OR old.batch <> n.batch)
               OPTIONAL MATCH (owner:Entity)-[:HAS_FACT]->(old)
               RETURN n.batch AS batch, n.source AS source, old.valid_to AS at,
-                     'closed' AS change, elementId(old) AS rec, owner.id AS entity
+                     'closed' AS change, elementId(old) AS rec, owner.id AS entity, %2$s
               UNION ALL
               MATCH (rv:Revision)-[:REVISES]->(x)
               RETURN rv.batch AS batch, 'user' AS source, rv.updated_at AS at,
                      'revised' AS change, elementId(rv) AS rec,
-                     CASE WHEN x:Entity THEN x.id END AS entity
-            }
+                     CASE WHEN x:Entity THEN x.id END AS entity, x.id AS id,
+                     CASE WHEN x:Entity THEN 'Entity' ELSE head(labels(x)) END AS kind,
+                     reduce(s = '', f IN coalesce(rv.fields, [])
+                            | s + CASE WHEN s = '' THEN '' ELSE ', ' END + f) AS key,
+                     null AS env, null AS value
+            """
+                    .formatted(
+                            NODE_COLUMNS.formatted("n", KnowledgeQueries.TYPE_OF.formatted("n")),
+                            NODE_COLUMNS.formatted(
+                                    "old", KnowledgeQueries.TYPE_OF.formatted("old")),
+                            EDGE_COLUMNS);
+    // Each record counted once per way the batch changed it.
+    private static final String ACTIVITY =
+            """
+            CALL () {
+            %s}
             WITH batch, coalesce(max(at), '') AS at, collect(DISTINCT source) AS sources,
                  count(DISTINCT CASE WHEN change = 'opened' THEN rec END) AS opened,
                  count(DISTINCT CASE WHEN change = 'closed' THEN rec END) AS closed,
@@ -126,7 +173,29 @@ public class ListQueries {
               AND ($source IS NULL OR $source IN sources)
             RETURN batch, at, sources, opened, closed, revised, entities
             ORDER BY at DESC, batch DESC
-            """;
+            """
+                    .formatted(BATCH_RECORDS);
+    // A record closed two ways (accept-new) is one row; its sources then differ only in name.
+    private static final String CHANGES =
+            """
+            CALL () {
+            %s}
+            WITH * WHERE batch = $batch
+            WITH change, rec, id, kind, entity, key, env, value, min(source) AS source
+            RETURN change, id, kind, entity, key, env, value, source
+            ORDER BY CASE change WHEN 'opened' THEN 0 WHEN 'closed' THEN 1 ELSE 2 END,
+                     entity, kind, key, id
+            """
+                    .formatted(BATCH_RECORDS);
+    // Archived entities last (invariant 12: ordered and marked, never left out).
+    private static final String ENTITIES =
+            """
+            MATCH (e:Entity)
+            RETURN e.id AS id, %s AS type, e.status AS status, e.summary AS summary,
+                   e.updated_at AS updatedAt
+            ORDER BY CASE WHEN e.status = 'archived' THEN 1 ELSE 0 END, e.id
+            """
+                    .formatted(KnowledgeQueries.TYPE_OF.formatted("e"));
     private static final String SECRETS =
             """
             MATCH (s:Secret) WHERE s.id STARTS WITH $prefix
@@ -200,6 +269,43 @@ public class ListQueries {
                                         .sorted()
                                         .limit(ENTITIES_SHOWN)
                                         .toList()));
+    }
+
+    /** What {@code batch} opened, closed and revised: opened first, then by entity and kind. */
+    public List<Change> changes(String batch) {
+        return read(
+                CHANGES,
+                Map.of("batch", batch),
+                row ->
+                        new Change(
+                                text(row, "change"),
+                                text(row, "kind"),
+                                Objects.toString(row.get("id"), null),
+                                Objects.toString(row.get("entity"), null),
+                                Objects.toString(row.get("key"), null),
+                                Objects.toString(row.get("env"), null),
+                                Objects.toString(row.get("value"), null),
+                                text(row, "source")));
+    }
+
+    /**
+     * Every entity, archived ones last, then by id; of one type if {@code type} names its label or
+     * key in any case, as search filters (KnowledgeQueries#search).
+     */
+    public List<EntityEntry> entities(@Nullable String type) {
+        return read(
+                        ENTITIES,
+                        Map.of(),
+                        row ->
+                                new EntityEntry(
+                                        text(row, "id"),
+                                        text(row, "type"),
+                                        text(row, "status"),
+                                        Objects.toString(row.get("summary"), null),
+                                        text(row, "updatedAt")))
+                .stream()
+                .filter(e -> type == null || Ids.normalize(type).equals(Ids.normalize(e.type())))
+                .toList();
     }
 
     /** The secrets whose id starts with {@code prefix}, by id; never a value. */

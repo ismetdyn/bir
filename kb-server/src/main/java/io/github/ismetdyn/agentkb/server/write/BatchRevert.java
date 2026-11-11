@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.write;
 
 import io.github.ismetdyn.agentkb.server.snapshot.SnapshotMerge;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -138,31 +139,21 @@ final class BatchRevert {
      * @throws WriteRejectedException if no record carries the batch or a later batch built on it
      */
     static RevertResult revert(Transaction tx, String batch, String now) {
-        List<String> nodes = elementIds(nodes(tx, batch));
-        List<String> edges = elementIds(edges(tx, batch));
-        List<String> closedNodes = elementIds(tx, CLOSED_NODES, batch);
-        List<String> closedEdges = elementIds(tx, CLOSED_EDGES, batch);
-        int deleted = nodes.size() + edges.size();
-        if (deleted + closedNodes.size() + closedEdges.size() == 0) {
+        Records records = Records.of(tx, batch);
+        if (records.isEmpty()) {
             // The batch is not echoed: it is a request value (invariant 2).
             throw new WriteRejectedException(
                     "no record carries this batch",
                     "Give the batch id a write returned; a reverted batch has no records left.");
         }
-        Map<String, Object> params =
-                Map.of(
-                        "batch", batch,
-                        "now", now,
-                        "nodes", nodes,
-                        "edges", edges,
-                        "closedNodes", closedNodes,
-                        "closedEdges", closedEdges);
-        if (count(tx, SCHEMA_ACCEPTS, params) > 0) {
+        if (count(tx, SCHEMA_ACCEPTS, records.params()) > 0) {
             throw new WriteRejectedException(
                     "this batch accepted a schema proposal",
                     "A schema change is normative and not undone by kb revert (ADR-0025 decision"
                             + " 17); change schema/facts.yaml through a new schema proposal.");
         }
+        Map<String, Object> params = records.params();
+        params.put("now", now);
         Set<String> later = later(tx, params);
         if (!later.isEmpty()) {
             throw new WriteRejectedException(
@@ -170,7 +161,7 @@ final class BatchRevert {
                     "Revert batch " + String.join(", ", later) + " first, then this one.");
         }
         int secretValues = count(tx, COUNT_SECRET_VALUES, params);
-        Revisions.restore(tx, nodes, now);
+        Revisions.restore(tx, records.nodes(), now);
         // The closes first: REOPEN then skips what they already reopened.
         int reopened =
                 count(tx, REOPEN_CLOSED_NODES, params)
@@ -179,7 +170,57 @@ final class BatchRevert {
         tx.execute(DELETE_EDGES, params).close();
         tx.execute(DELETE_NODES, params).close();
         tx.execute(TOMBSTONE, params).close();
-        return new RevertResult(batch, deleted, reopened, secretValues);
+        return new RevertResult(
+                batch, records.nodes().size() + records.edges().size(), reopened, secretValues);
+    }
+
+    /**
+     * Whether {@link #revert} would go through now, read only: no record or a schema accept is no,
+     * without a later batch; otherwise the later batches that built on this one, by id.
+     */
+    static RevertCheck check(Transaction tx, String batch) {
+        Records records = Records.of(tx, batch);
+        if (records.isEmpty() || count(tx, SCHEMA_ACCEPTS, records.params()) > 0) {
+            return new RevertCheck(false, List.of());
+        }
+        List<String> later = List.copyOf(later(tx, records.params()));
+        return new RevertCheck(later.isEmpty(), later);
+    }
+
+    /** The element ids of what the batch opened and closed. */
+    private record Records(
+            String batch,
+            List<String> nodes,
+            List<String> edges,
+            List<String> closedNodes,
+            List<String> closedEdges) {
+
+        static Records of(Transaction tx, String batch) {
+            return new Records(
+                    batch,
+                    elementIds(BatchRevert.nodes(tx, batch)),
+                    elementIds(BatchRevert.edges(tx, batch)),
+                    elementIds(tx, CLOSED_NODES, batch),
+                    elementIds(tx, CLOSED_EDGES, batch));
+        }
+
+        boolean isEmpty() {
+            return nodes.isEmpty()
+                    && edges.isEmpty()
+                    && closedNodes.isEmpty()
+                    && closedEdges.isEmpty();
+        }
+
+        /** The query parameters; a mutable map, so revert adds {@code now}. */
+        Map<String, Object> params() {
+            return new HashMap<>(
+                    Map.of(
+                            "batch", batch,
+                            "nodes", nodes,
+                            "edges", edges,
+                            "closedNodes", closedNodes,
+                            "closedEdges", closedEdges));
+        }
     }
 
     private static Set<Node> nodes(Transaction tx, String batch) {

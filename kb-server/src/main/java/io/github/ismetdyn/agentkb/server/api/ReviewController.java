@@ -1,6 +1,7 @@
 package io.github.ismetdyn.agentkb.server.api;
 
 import io.github.ismetdyn.agentkb.api.ActivityAnswer;
+import io.github.ismetdyn.agentkb.api.BatchAnswer;
 import io.github.ismetdyn.agentkb.api.ConflictsAnswer;
 import io.github.ismetdyn.agentkb.api.EditAnswer;
 import io.github.ismetdyn.agentkb.api.ProposalsAnswer;
@@ -8,13 +9,17 @@ import io.github.ismetdyn.agentkb.core.Ids;
 import io.github.ismetdyn.agentkb.core.model.Source;
 import io.github.ismetdyn.agentkb.server.graph.ListQueries;
 import io.github.ismetdyn.agentkb.server.graph.ListQueries.ActivityFilter;
+import io.github.ismetdyn.agentkb.server.graph.ListQueries.Batch;
 import io.github.ismetdyn.agentkb.server.write.GraphEdits.Resolution;
 import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
 import io.github.ismetdyn.agentkb.server.write.WriteService;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,10 +31,10 @@ import org.springframework.web.bind.annotation.RestController;
  * What the user reviews (docs/CLIENTS.md §1): {@code GET /api/v1/conflicts}, {@code POST
  * /api/v1/conflicts/{id}/resolve {resolution: accept-new|keep-old}} (ADR-0025 decision 11), {@code
  * GET /api/v1/proposals}, {@code POST /api/v1/proposals/{id}/accept} and {@code …/reject {note?}}
- * (decisions 12 and 18), and {@code GET /api/v1/activity?source=&batch=&since=}. Lists take {@code
- * limit} (50 by default, 500 at most) and say how many more there were. A review is the user's
- * edit, one batch (WriteService.edits()). A refusal is 400 {@code {error, hint}} without the
- * request value.
+ * (decisions 12 and 18), {@code GET /api/v1/activity?source=&batch=&since=} and {@code GET
+ * /api/v1/activity/{batch}?limit=} (one batch, record by record). Lists take {@code limit} (50 by
+ * default, 500 at most) and say how many more there were. A review is the user's edit, one batch
+ * (WriteService.edits()). A refusal is 400 {@code {error, hint}} without the request value.
  */
 @RestController
 class ReviewController {
@@ -100,5 +105,36 @@ class ReviewController {
                 new ActivityFilter(
                         source, RequestChecks.batch(batch), RequestChecks.time(since, "since"));
         return ListAnswers.activity(lists.activity(filter), RequestChecks.listLimit(limit));
+    }
+
+    /**
+     * One batch with what it changed and whether kb revert would undo it now; an unknown or
+     * reverted batch is 404. The three reads are not one transaction: a write in between shows on
+     * the next call, as on the activity list.
+     */
+    @GetMapping("/api/v1/activity/{batch}")
+    ResponseEntity<?> batch(
+            @PathVariable String batch, @RequestParam(required = false) @Nullable String limit) {
+        RequestChecks.batch(batch);
+        int shown = RequestChecks.listLimit(limit);
+        Optional<Batch> found =
+                lists.activity(new ActivityFilter(null, batch, null)).stream().findFirst();
+        if (found.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(
+                            Map.of(
+                                    "error",
+                                    "no record carries this batch",
+                                    "hint",
+                                    "GET /api/v1/activity (kb activity) lists the batches; a"
+                                            + " reverted batch has no records left."));
+        }
+        BatchAnswer answer =
+                ListAnswers.batch(
+                        found.get(),
+                        writes.maintenance().revertCheck(batch),
+                        lists.changes(batch),
+                        shown);
+        return ResponseEntity.ok(answer);
     }
 }

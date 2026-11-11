@@ -1,10 +1,13 @@
 package io.github.ismetdyn.agentkb.server.api;
 
 import io.github.ismetdyn.agentkb.api.CypherAnswer;
+import io.github.ismetdyn.agentkb.api.EntityListAnswer;
+import io.github.ismetdyn.agentkb.api.SchemaAnswer;
 import io.github.ismetdyn.agentkb.api.SearchAnswer;
 import io.github.ismetdyn.agentkb.core.render.MarkdownView;
 import io.github.ismetdyn.agentkb.server.graph.CypherGuard;
 import io.github.ismetdyn.agentkb.server.graph.KnowledgeQueries;
+import io.github.ismetdyn.agentkb.server.graph.ListQueries;
 import io.github.ismetdyn.agentkb.server.graph.RepoSchema;
 import io.github.ismetdyn.agentkb.server.write.WriteRejectedException;
 import java.nio.charset.StandardCharsets;
@@ -30,8 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
  * ADR-0017; ordered and marked, invariant 12), {@code GET /api/v1/entities/{id}} as Markdown from
  * MarkdownView, the one renderer, for {@code Accept: text/markdown} and else as JSON (ADR-0025
  * decision 13), {@code POST /api/v1/cypher {query}} through CypherGuard with kb_cypher's limits,
- * and {@code GET /api/v1/stale?days=&limit=}. A refusal is {@code {error, hint}} without the
- * request value.
+ * {@code GET /api/v1/stale?days=&limit=}, and for the TUI and GUI {@code GET /api/v1/schema} (the
+ * vocabulary kb_schema reads) and {@code GET /api/v1/entities?type=&limit=} (every entity without a
+ * search, archived last; 50 by default, 500 at most). A refusal is {@code {error, hint}} without
+ * the request value.
  */
 @RestController
 class ReadController {
@@ -56,13 +61,30 @@ class ReadController {
                     + " queries.";
 
     private final KnowledgeQueries queries;
+    private final ListQueries lists;
     private final CypherGuard guard;
     private final RepoSchema schema;
 
-    ReadController(KnowledgeQueries queries, CypherGuard guard, RepoSchema schema) {
+    ReadController(
+            KnowledgeQueries queries, ListQueries lists, CypherGuard guard, RepoSchema schema) {
         this.queries = queries;
+        this.lists = lists;
         this.guard = guard;
         this.schema = schema;
+    }
+
+    @GetMapping("/api/v1/schema")
+    SchemaAnswer schema() {
+        return ReadAnswers.schema(schema.load());
+    }
+
+    @GetMapping("/api/v1/entities")
+    EntityListAnswer entities(
+            @RequestParam(required = false) @Nullable String type,
+            @RequestParam(required = false) @Nullable String limit) {
+        int shown = RequestChecks.listLimit(limit);
+        return ListAnswers.entities(
+                lists.entities(RequestChecks.word(type, "type", WORD_CHARS)), shown);
     }
 
     @GetMapping("/api/v1/search")

@@ -63,6 +63,14 @@ public final class GraphMaintenance {
     }
 
     /**
+     * Whether {@link #revert} would go through now (BatchRevert#check), in a read transaction;
+     * nothing is written.
+     */
+    public RevertCheck revertCheck(String batch) {
+        return store.read(tx -> BatchRevert.check(tx, batch));
+    }
+
+    /**
      * {@code kb restore} (RecordRestore): rebuilds the graph from {@code snapshot} in one
      * transaction, keeping local data (ADR-0022 decision 38). Rows are taken as they are (invariant
      * 11). Fails, leaving the graph unchanged, only when a row cannot exist in a graph.
