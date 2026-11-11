@@ -6,10 +6,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -47,8 +44,6 @@ public class EmbeddedNeo4jStore implements AutoCloseable {
     private static final long PAGE_CACHE_BYTES = 128L * 1024 * 1024;
     private static final String LOG_CONFIG_RESOURCE = "/neo4j-server-logs.xml";
     private static final String LOG_CONFIG_FILE = "conf/server-logs.xml";
-    private static final Set<PosixFilePermission> OWNER_ONLY =
-            PosixFilePermissions.fromString("rwx------");
 
     private final DatabaseManagementService management;
     private final GraphDatabaseService database;
@@ -77,13 +72,13 @@ public class EmbeddedNeo4jStore implements AutoCloseable {
 
     /**
      * docs/SECRETS.md §5: the graph holds secret values in plain text, so the data directory is
-     * 0700 before Neo4j writes into it. An existing wider one is tightened, not refused: installs
-     * made before G8 created it with the umask.
+     * owner-only (OwnerOnly: 0700 or an owner-only ACL) before Neo4j writes into it. An existing
+     * wider one is tightened, not refused: installs made before G8 created it with the umask. A
+     * file system that allows neither stops the start.
      */
     private static Path ownerOnly(Path dataDir) {
         try {
-            Files.createDirectories(dataDir);
-            Files.setPosixFilePermissions(dataDir, OWNER_ONLY);
+            OwnerOnly.directory(dataDir);
             return dataDir;
         } catch (IOException e) {
             throw new UncheckedIOException("cannot make " + dataDir + " owner-only", e);

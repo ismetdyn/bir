@@ -1,15 +1,13 @@
 package io.github.ismetdyn.agentkb.server.docs;
 
+import io.github.ismetdyn.agentkb.server.graph.OwnerOnly;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
-import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,8 +15,9 @@ import org.springframework.stereotype.Component;
 /**
  * {@code kb doctor}, {@code GET /api/v1/doctor} (docs/CLIENTS.md §2): git, git-lfs, the knowledge
  * repo, the git-lfs filter set with {@code --local} in that repo when its .gitattributes uses it
- * (ADR-0025 decision 5), and the owner-only data directory (kb init makes it 0700). Nothing is
- * changed. A hint names the setting, never a path: the answer goes to any local client.
+ * (ADR-0025 decision 5), and the owner-only data directory (kb init makes it 0700, or owner-only by
+ * ACL on Windows). Nothing is changed. A hint names the setting, never a path: the answer goes to
+ * any local client.
  */
 @Component
 public class Doctor {
@@ -37,8 +36,6 @@ public class Doctor {
     /** {@code hint} is set only when the check fails. */
     public record Check(String name, boolean ok, @Nullable String hint) {}
 
-    private static final Set<PosixFilePermission> OWNER_ONLY =
-            PosixFilePermissions.fromString("rwx------");
     private static final String LFS_ATTRIBUTE = "filter=lfs";
 
     private final String repo;
@@ -93,9 +90,7 @@ public class Doctor {
     }
 
     private boolean ownerOnly() throws IOException {
-        return Files.isDirectory(dataDir, LinkOption.NOFOLLOW_LINKS)
-                && Files.getPosixFilePermissions(dataDir, LinkOption.NOFOLLOW_LINKS)
-                        .equals(OWNER_ONLY);
+        return Files.isDirectory(dataDir, LinkOption.NOFOLLOW_LINKS) && OwnerOnly.holds(dataDir);
     }
 
     private static Check check(String name, boolean ok, String hint) {

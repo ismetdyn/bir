@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributes;
@@ -18,15 +19,18 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongPredicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
  * {@code kb run} (docs/SECRETS.md §3): resolves every {@code kb:secret/<id>} placeholder before
- * anything starts, gives the values only to the child (environment, or a 0600 file for {@code
- * --file}), masks them in the child's output and returns its exit code. A value that cannot be had
- * stops the command before it runs.
+ * anything starts, gives the values only to the child (environment, or an owner-only file for
+ * {@code --file}), masks them in the child's output and returns its exit code. A value that cannot
+ * be had stops the command before it runs.
  */
 @Command(
         name = "run",
@@ -36,6 +40,8 @@ final class RunCommand implements Callable<Integer> {
     static final String PLACEHOLDER = "kb:secret/";
     private static final String ENV = "--env";
     private static final char NUL = '\u0000';
+    private static final String FILE_PREFIX = "kb-secret-";
+    private static final Pattern FILE_NAME = Pattern.compile(FILE_PREFIX + "(\\d{1,18})-.*");
     private static final Set<PosixFilePermission> OWNER_ONLY =
             PosixFilePermissions.fromString("rwx------");
 
@@ -64,10 +70,16 @@ final class RunCommand implements Callable<Integer> {
         SecretApi api = SecretApi.fromEnvironment();
         Map<String, String> envValues = resolve(api, envs, ENV);
         Map<String, String> fileValues = resolve(api, files, "--file");
+        Path tempDir = tempDir();
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            sweep(tempDir, pid -> ProcessHandle.of(pid).isPresent());
+        }
         List<Path> written = new CopyOnWriteArrayList<>();
         AtomicReference<Process> child = new AtomicReference<>();
         // SIGTERM/SIGINT run only shutdown hooks, not the finally below: the hook still removes the
-        // files and stops the child, which would otherwise keep the value in its environment.
+        // files and stops the child, which would otherwise keep the value in its environment. A
+        // kill that runs no hook (SIGKILL; TerminateProcess, as Windows has no SIGTERM) leaves the
+        // file: on Windows the next kb run sweeps it (ADR-0027 decision 3).
         Runtime.getRuntime()
                 .addShutdownHook(
                         Thread.ofPlatform()
@@ -84,7 +96,7 @@ final class RunCommand implements Callable<Integer> {
                     new ProcessBuilder(command).redirectInput(ProcessBuilder.Redirect.INHERIT);
             builder.environment().putAll(envValues);
             for (Map.Entry<String, String> file : fileValues.entrySet()) {
-                Path path = privateFile(file.getValue());
+                Path path = privateFile(tempDir, file.getValue());
                 written.add(path);
                 builder.environment().put(file.getKey(), path.toString());
             }
@@ -139,14 +151,37 @@ final class RunCommand implements Callable<Integer> {
         }
     }
 
-    private static Path privateFile(String value) throws IOException {
-        Path path =
-                Files.createTempFile(
-                        tempDir(),
-                        "kb-secret-",
-                        "",
-                        PosixFilePermissions.asFileAttribute(
-                                PosixFilePermissions.fromString("rw-------")));
+    /**
+     * Removes the {@code --file} files in {@code dir} whose kb is gone: their name carries the
+     * writer's pid. A file still in use or another user's cannot be deleted and waits for a later
+     * run; a name without a pid is never touched.
+     */
+    static void sweep(Path dir, LongPredicate isAlive) {
+        try (DirectoryStream<Path> candidates = Files.newDirectoryStream(dir, FILE_PREFIX + "*")) {
+            for (Path file : candidates) {
+                Matcher name = FILE_NAME.matcher(file.getFileName().toString());
+                if (name.matches() && !isAlive.test(Long.parseLong(name.group(1)))) {
+                    deleteIfPossible(file);
+                }
+            }
+        } catch (IOException e) {
+            // Best effort: an unreadable temp dir holds nothing this run can sweep, and writing
+            // this run's own file reports a real problem with it.
+        }
+    }
+
+    private static void deleteIfPossible(Path file) {
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException e) {
+            // Still open or not ours: left for a later run.
+        }
+    }
+
+    /** Deleted by the shutdown hook and the finally above; deleteOnExit is the JDK's own net. */
+    private static Path privateFile(Path dir, String value) throws IOException {
+        Path path = OwnerOnly.createFile(dir, FILE_PREFIX + ProcessHandle.current().pid() + "-");
+        path.toFile().deleteOnExit();
         Files.writeString(path, value, StandardCharsets.UTF_8);
         return path;
     }
@@ -170,8 +205,9 @@ final class RunCommand implements Callable<Integer> {
                             && attributes.permissions().equals(OWNER_ONLY)
                             && attributes.owner().getName().equals(System.getProperty("user.name"));
             return isPrivate ? dir : fallback;
-        } catch (IOException e) {
-            // Missing or unreadable: the XDG spec says to fall back, so this is not an error.
+        } catch (IOException | UnsupportedOperationException e) {
+            // Missing, unreadable or without POSIX attributes (Windows): the XDG spec says to fall
+            // back, so this is not an error.
             return fallback;
         }
     }

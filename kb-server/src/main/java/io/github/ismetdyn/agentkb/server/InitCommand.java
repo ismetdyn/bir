@@ -1,21 +1,21 @@
 package io.github.ismetdyn.agentkb.server;
 
+import io.github.ismetdyn.agentkb.server.graph.OwnerOnly;
 import io.github.ismetdyn.agentkb.server.snapshot.RepoInit;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.stream.Stream;
 
 /**
  * {@code java -jar agentkb-server.jar init} (docs/CLIENTS.md §2, ADR-0022 decision 3): creates the
- * data directory 0700 and the knowledge repository (RepoInit), without Spring and without Neo4j.
- * The paths are the server's defaults (AgentkbPaths, ADR-0027 decision 1), overridden by the same
- * AGENTKB_HOME, AGENTKB_DATA_DIR and AGENTKB_REPO the server reads. Idempotent: an existing data
- * directory is only made 0700 again and an existing git repository is left as it is (a second
- * machine clones its remote there before init). A repository path holding anything else is refused
- * untouched, before anything changes.
+ * data directory owner-only (OwnerOnly) and the knowledge repository (RepoInit), without Spring and
+ * without Neo4j. The paths are the server's defaults (AgentkbPaths, ADR-0027 decision 1),
+ * overridden by the same AGENTKB_HOME, AGENTKB_DATA_DIR and AGENTKB_REPO the server reads.
+ * Idempotent: an existing data directory is only made owner-only again and an existing git
+ * repository is left as it is (a second machine clones its remote there before init). A repository
+ * path holding anything else is refused untouched, before anything changes.
  */
 final class InitCommand {
 
@@ -77,12 +77,11 @@ final class InitCommand {
     /** docs/SECRETS.md §5: the graph holds secret values, so its directory is the owner's only. */
     private void ownerOnlyDataDir(PrintStream out) throws IOException {
         boolean existed = Files.isDirectory(dataDir);
-        Files.createDirectories(dataDir);
-        Files.setPosixFilePermissions(dataDir, PosixFilePermissions.fromString("rwx------"));
+        OwnerOnly.directory(dataDir);
         out.println(
                 (existed ? "data directory " : "created the data directory ")
                         + dataDir
-                        + " (0700)");
+                        + " (owner only)");
     }
 
     private static boolean isAbsentOrEmpty(Path dir) throws IOException {
