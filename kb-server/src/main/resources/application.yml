@@ -15,16 +15,12 @@ spring:
         streamable-http:
           mcp-endpoint: /mcp
 
+# agentkb.repo (the knowledge repository kb init creates), agentkb.data-dir (the graph lives in
+# <data-dir>/graph) and agentkb.scan.allowed-roots (kb_scan reads only under these, invariant 9; a
+# missing one allows nothing) default per OS in AgentkbPaths (ADR-0027 decision 1), not here.
+# AGENTKB_HOME, AGENTKB_REPO, AGENTKB_DATA_DIR and AGENTKB_SCAN_ALLOWED_ROOTS (comma separated)
+# override them. Tests set the first two in src/test/resources/config/application.yml.
 agentkb:
-  # The knowledge repository (snapshot + schema, git) that kb init creates (docs/ARCHITECTURE.md
-  # §14). Tests blank it in src/test/resources/config/application.yml.
-  repo: ${user.home}/kb
-  # The graph lives in <data-dir>/graph (docs/ARCHITECTURE.md §14).
-  data-dir: ${user.home}/.local/share/agentkb
-  scan:
-    # kb_scan reads only under these folders (invariant 9, docs/ARCHITECTURE.md §14); a missing
-    # one allows nothing. AGENTKB_SCAN_ALLOWED_ROOTS overrides the list (comma separated).
-    allowed-roots: ${user.home}/projects,${user.home}/git
   documents:
     # A document over this size (SI megabytes) needs git-lfs; without it PUT /uploads answers 422
     # (ADR-0025 decision 5).

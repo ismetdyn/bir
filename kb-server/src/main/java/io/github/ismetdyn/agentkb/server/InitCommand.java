@@ -6,16 +6,16 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Map;
 import java.util.stream.Stream;
 
 /**
  * {@code java -jar agentkb-server.jar init} (docs/CLIENTS.md §2, ADR-0022 decision 3): creates the
  * data directory 0700 and the knowledge repository (RepoInit), without Spring and without Neo4j.
- * The paths are the server's defaults (ARCHITECTURE §14), overridden by the same AGENTKB_DATA_DIR
- * and AGENTKB_REPO the server reads. Idempotent: an existing data directory is only made 0700 again
- * and an existing git repository is left as it is (a second machine clones its remote there before
- * init). A repository path holding anything else is refused untouched, before anything changes.
+ * The paths are the server's defaults (AgentkbPaths, ADR-0027 decision 1), overridden by the same
+ * AGENTKB_HOME, AGENTKB_DATA_DIR and AGENTKB_REPO the server reads. Idempotent: an existing data
+ * directory is only made 0700 again and an existing git repository is left as it is (a second
+ * machine clones its remote there before init). A repository path holding anything else is refused
+ * untouched, before anything changes.
  */
 final class InitCommand {
 
@@ -33,11 +33,8 @@ final class InitCommand {
     }
 
     /** The paths as the server resolves them by default. */
-    static InitCommand fromEnvironment(Map<String, String> env) {
-        Path home = Path.of(System.getProperty("user.home"));
-        return new InitCommand(
-                path(env, "AGENTKB_DATA_DIR", home.resolve(".local/share/agentkb")),
-                path(env, "AGENTKB_REPO", home.resolve("kb")));
+    static InitCommand fromEnvironment(AgentkbPaths paths) {
+        return new InitCommand(paths.dataDir(), paths.repo());
     }
 
     /**
@@ -98,10 +95,5 @@ final class InitCommand {
         try (Stream<Path> entries = Files.list(dir)) {
             return entries.findAny().isEmpty();
         }
-    }
-
-    private static Path path(Map<String, String> env, String name, Path fallback) {
-        String value = env.get(name);
-        return value == null || value.isBlank() ? fallback : Path.of(value);
     }
 }

@@ -7,29 +7,52 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.PropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
 /**
  * ARCHITECTURE §14: in production {@code agentkb.repo} defaults to {@code ~/kb}, so the systemd
- * unit needs no argument. Tests must never reach the real {@code ~/kb} or the real data directory:
- * a server started there would import the user's snapshot and commit its own on shutdown
- * (ShutdownSnapshotTest). So inside the test JVM a server started without the two properties
- * resolves them to blank or to somewhere other than the real home's paths (todo G4 LOW item).
+ * unit needs no argument. The defaults come from AgentkbPaths alone (ADR-0027 decision 1; its
+ * values are checked in AgentkbPathsTest), never from a second copy in application.yml. Tests must
+ * never reach the real {@code ~/kb} or the real data directory: a server started there would import
+ * the user's snapshot and commit its own on shutdown (ShutdownSnapshotTest). So inside the test JVM
+ * a server started without the two properties resolves them to blank or to somewhere other than the
+ * real home's paths (todo G4 LOW item).
  */
 class DefaultPathsTest {
 
     private static final Path MAIN_CONFIG = Path.of("src", "main", "resources", "application.yml");
 
     @Test
-    void the_production_default_repo_is_kb_in_the_home_directory() throws IOException {
+    void application_yml_holds_no_second_copy_of_the_default_paths() throws IOException {
         JsonNode config = new YAMLMapper().readTree(MAIN_CONFIG.toFile());
 
-        assertThat(config.at("/agentkb/repo").asString("")).matches("\\$\\{(user\\.home|HOME)}/kb");
+        assertThat(config.at("/agentkb/repo").isMissingNode()).isTrue();
+        assertThat(config.at("/agentkb/data-dir").isMissingNode()).isTrue();
+        assertThat(config.at("/agentkb/scan/allowed-roots").isMissingNode()).isTrue();
+    }
+
+    @Test
+    void the_server_takes_its_default_paths_from_agentkb_paths() {
+        Path home = Path.of("/nonexistent-home");
+        AgentkbPaths paths = AgentkbPaths.resolve("Linux", Map.of(), home);
+
+        // Default properties are the last source: everything else overrides them.
+        PropertySource<?> defaults =
+                prepared(AgentkbServerApplication.application(paths)).getPropertySources().stream()
+                        .reduce((first, second) -> second)
+                        .orElseThrow();
+
+        assertThat(defaults.getProperty("agentkb.repo")).isEqualTo(home.resolve("kb").toString());
+        assertThat(defaults.getProperty("agentkb.data-dir"))
+                .isEqualTo(home.resolve(".local/share/agentkb").toString());
     }
 
     @Test
@@ -61,29 +84,34 @@ class DefaultPathsTest {
                                         .isFalse());
     }
 
-    /**
-     * The two properties as a server started with no arguments would see them, read when the
-     * environment is ready; the start is then aborted, so no bean, no Neo4j and no repo is touched.
-     */
+    /** The two properties as a server started by main with no arguments would see them. */
     private static Map<String, String> resolvedWithoutArguments() {
+        // As main builds it, with this machine's real defaults underneath.
+        ConfigurableEnvironment environment =
+                prepared(AgentkbServerApplication.application(AgentkbPaths.ofThisMachine()));
         Map<String, String> resolved = new HashMap<>();
-        SpringApplication application = new SpringApplication(AgentkbServerApplication.class);
+        resolved.put("agentkb.repo", environment.getProperty("agentkb.repo"));
+        resolved.put("agentkb.data-dir", environment.getProperty("agentkb.data-dir"));
+        return resolved;
+    }
+
+    /**
+     * The environment once it is ready; the start is then aborted, so no bean, no Neo4j and no repo
+     * is touched.
+     */
+    private static ConfigurableEnvironment prepared(SpringApplication application) {
+        AtomicReference<ConfigurableEnvironment> environment = new AtomicReference<>();
         application.addListeners(
                 (ApplicationListener<ApplicationEnvironmentPreparedEvent>)
                         event -> {
-                            resolved.put(
-                                    "agentkb.repo",
-                                    event.getEnvironment().getProperty("agentkb.repo"));
-                            resolved.put(
-                                    "agentkb.data-dir",
-                                    event.getEnvironment().getProperty("agentkb.data-dir"));
+                            environment.set(event.getEnvironment());
                             throw new StopBeforeContext();
                         });
 
         Throwable stopped = catchThrowable(() -> application.run("--server.port=0"));
 
         assertThat(stopped).isInstanceOf(StopBeforeContext.class);
-        return resolved;
+        return environment.get();
     }
 
     private static final class StopBeforeContext extends RuntimeException {
