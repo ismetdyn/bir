@@ -104,6 +104,8 @@ public final class SyncGit {
      * is a copy still being written and stays out.
      */
     public Staged stage(Snapshot snapshot) throws IOException {
+        // Before git add: the attributes decide how git stores the snapshot (ADR-0027 decision 8).
+        documents.keepLineEndings();
         SnapshotFormat.write(repo.resolve("snapshot"), snapshot);
         require(git("add", "--", NODES, EDGES), "git add of the snapshot failed");
         documents.stage();

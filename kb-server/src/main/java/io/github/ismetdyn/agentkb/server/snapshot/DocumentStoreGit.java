@@ -22,6 +22,8 @@ final class DocumentStoreGit {
     static final String NOT_TMP = ":(exclude)*.tmp";
     private static final List<String> PATHS = List.of("blobs", ".gitattributes");
     private static final String UNION_ATTRIBUTES = "/.gitattributes merge=union";
+    private static final List<String> LINE_ENDING_ATTRIBUTES =
+            List.of("snapshot/*.jsonl text eol=lf", "blobs/** -text");
     private final Path repo;
 
     DocumentStoreGit(Path repo) {
@@ -80,11 +82,61 @@ final class DocumentStoreGit {
      * {@code .gitattributes} merges by union, {@code -X ours} or not: two machines that each track
      * a blob with git-lfs append a line each, and ours alone would drop the other's, so its blob
      * would be committed raw. Set in {@code $GIT_DIR/info/attributes}, so it holds for whatever
-     * wrote {@code .gitattributes} and changes no tracked file. The file may hold the user's own
-     * lines in any encoding: it is read as ISO-8859-1, which maps every byte, and the line is only
-     * appended, so a crash cannot lose what was there. A link there is refused, never written
-     * through (CWE-59).
+     * wrote {@code .gitattributes} and changes no tracked file.
      */
+    void mergeByUnion() throws IOException {
+        // SystemGit pins GIT_DIR to <repo>/.git.
+        appendMissing(
+                repo.resolve(".git").resolve("info").resolve("attributes"),
+                ".git/info/attributes",
+                List.of(UNION_ATTRIBUTES));
+    }
+
+    /**
+     * ADR-0027 decision 8: the tracked {@code .gitattributes} keeps the snapshot LF and the blobs
+     * byte for byte, so {@code core.autocrlf} on a Windows clone changes neither the snapshot's
+     * bytes nor a blob's hash. Tracked, unlike the union line, as it must reach every clone; kb
+     * init writes it and a sync adds it to an older repository.
+     */
+    void keepLineEndings() throws IOException {
+        appendMissing(
+                repo.resolve(".gitattributes"),
+                ".gitattributes in the knowledge repository",
+                LINE_ENDING_ATTRIBUTES);
+    }
+
+    /**
+     * Appends the lines of {@code wanted} that {@code file} lacks, each once. The file may hold the
+     * user's own lines in any encoding: it is read as ISO-8859-1, which maps every byte, and lines
+     * are only appended, so a crash cannot lose what was there. A link there is refused, never
+     * written through (CWE-59).
+     */
+    private static void appendMissing(Path file, String name, List<String> wanted)
+            throws IOException {
+        boolean exists = Files.exists(file, LinkOption.NOFOLLOW_LINKS);
+        if (exists && !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(name + " is a link or no plain file");
+        }
+        List<String> missing = new ArrayList<>(wanted);
+        // Line by line, not whole (CP4 S3); only the last byte decides the separator.
+        if (exists) {
+            try (Stream<String> lines = Files.lines(file, StandardCharsets.ISO_8859_1)) {
+                lines.forEach(missing::remove);
+            }
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+        Files.createDirectories(file.getParent());
+        String separator = exists && !endsWithLineBreak(file) ? "\n" : "";
+        Files.writeString(
+                file,
+                separator + String.join("\n", missing) + "\n",
+                StandardCharsets.ISO_8859_1,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.APPEND);
+    }
+
     /** An empty file counts as ending with a line break: nothing goes before the new line. */
     private static boolean endsWithLineBreak(Path file) throws IOException {
         try (SeekableByteChannel channel =
@@ -97,31 +149,6 @@ final class DocumentStoreGit {
             channel.position(size - 1).read(last);
             return last.get(0) == '\n';
         }
-    }
-
-    void mergeByUnion() throws IOException {
-        // SystemGit pins GIT_DIR to <repo>/.git.
-        Path file = repo.resolve(".git").resolve("info").resolve("attributes");
-        boolean exists = Files.exists(file, LinkOption.NOFOLLOW_LINKS);
-        if (exists && !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException(".git/info/attributes is a link or no plain file");
-        }
-        // Line by line, not whole (CP4 S3); only the last byte decides the separator.
-        if (exists) {
-            try (Stream<String> lines = Files.lines(file, StandardCharsets.ISO_8859_1)) {
-                if (lines.anyMatch(UNION_ATTRIBUTES::equals)) {
-                    return;
-                }
-            }
-        }
-        Files.createDirectories(file.getParent());
-        String separator = exists && !endsWithLineBreak(file) ? "\n" : "";
-        Files.writeString(
-                file,
-                separator + UNION_ATTRIBUTES + "\n",
-                StandardCharsets.ISO_8859_1,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND);
     }
 
     private SystemGit.Result git(String... args) throws IOException {

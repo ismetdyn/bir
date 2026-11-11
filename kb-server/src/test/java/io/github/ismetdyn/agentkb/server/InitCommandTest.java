@@ -73,7 +73,11 @@ class InitCommandTest {
         assertThat(ScanProjects.git(kb, "ls-tree", "-r", "--name-only", "HEAD").lines())
                 .as("committed without a user git identity")
                 .containsAll(SNAPSHOT_FILES)
-                .contains("schema/types.yaml", "schema/relations.yaml", "schema/facts.yaml");
+                .contains("schema/types.yaml", "schema/relations.yaml", "schema/facts.yaml")
+                .as("ADR-0027 decision 8: LF snapshot, byte-exact blobs on any clone")
+                .contains(".gitattributes");
+        assertThat(kb.resolve(".gitattributes"))
+                .hasContent("snapshot/*.jsonl text eol=lf\nblobs/** -text\n");
         assertThat(ScanProjects.git(kb, "status", "--porcelain")).as("nothing left over").isEmpty();
     }
 

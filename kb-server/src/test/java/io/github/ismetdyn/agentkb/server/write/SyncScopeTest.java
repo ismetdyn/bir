@@ -52,6 +52,7 @@ class SyncScopeTest {
             throws IOException {
         machines = SyncMachines.withSeedRemote(dir);
         Machine a = machines.clone("a");
+        upToDate(a);
         stageForeignFile(a.repo);
         a.graph.write(request(Source.USER, "zz-sync-scope", T1, fact("os", "rhel 9", PROD)));
 
@@ -74,6 +75,7 @@ class SyncScopeTest {
     void a_foreign_staged_file_alone_makes_no_sync_commit() throws IOException {
         machines = SyncMachines.withSeedRemote(dir);
         Machine a = machines.clone("a");
+        upToDate(a);
         String before = a.head();
         stageForeignFile(a.repo);
 
@@ -144,6 +146,15 @@ class SyncScopeTest {
         assertThat(refused.hint()).isNotBlank();
         assertThat(machines.remoteHead()).isEqualTo(remoteHead);
         assertThat(a.head()).isEqualTo(localHead);
+    }
+
+    /**
+     * The seed predates ADR-0027, so a first sync commits the .gitattributes line endings (decision
+     * 8); the checks here start after it.
+     */
+    private static void upToDate(Machine machine) throws IOException {
+        machine.sync();
+        assertThat(ScanProjects.git(machine.repo, "status", "--porcelain")).isBlank();
     }
 
     private static void stageForeignFile(Path repo) throws IOException {

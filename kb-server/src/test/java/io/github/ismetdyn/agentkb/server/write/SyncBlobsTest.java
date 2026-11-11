@@ -77,7 +77,10 @@ class SyncBlobsTest {
         assertThat(Files.readAllBytes(b.repo.resolve(path)))
                 .as("the blob on machine B")
                 .isEqualTo(content);
-        assertThat(Files.readString(b.repo.resolve(ATTRIBUTES))).isEqualTo(ATTRIBUTE_LINE);
+        // The sync adds the snapshot line ending after A's line (ADR-0027 decision 8).
+        assertThat(Files.readString(b.repo.resolve(ATTRIBUTES)))
+                .startsWith(ATTRIBUTE_LINE)
+                .isEqualTo(Files.readString(a.repo.resolve(ATTRIBUTES)));
         assertThat(ScanProjects.git(a.repo, "status", "--porcelain", "--", "blobs"))
                 .as("nothing under blobs/ left uncommitted on A")
                 .isBlank();

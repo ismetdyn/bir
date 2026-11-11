@@ -59,9 +59,12 @@ public final class RepoInit {
                 Files.copy(source, schema.resolve(file));
             }
         }
+        new DocumentStoreGit(work).keepLineEndings();
         SnapshotFormat.write(
                 work.resolve("snapshot"), new SnapshotFormat.Snapshot(List.of(), List.of()));
-        require(SystemGit.run(work, false, "add", "--", "schema", "snapshot"), "git add");
+        require(
+                SystemGit.run(work, false, "add", "--", ".gitattributes", "schema", "snapshot"),
+                "git add");
         require(
                 SystemGit.run(
                         work,
